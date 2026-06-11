@@ -4,10 +4,10 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Defs.h>
-#include <omni/scene.optimizer/core/Operation.h>
-#include <omni/scene.optimizer/core/UsdIncludes.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Defs.h>
+#include <usd_optimize/core/Operation.h>
+#include <usd_optimize/core/UsdIncludes.h>
 
 // std
 #include <map>
@@ -15,7 +15,7 @@
 #include <vector>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 using HierarchyMap = std::map<PXR_NS::SdfPath, PXR_NS::SdfPathVector>;
@@ -28,13 +28,20 @@ using HierarchyMap = std::map<PXR_NS::SdfPath, PXR_NS::SdfPathVector>;
 /// `deduplicateGeometry` (typically chained as a follow-up step).
 ///
 /// Duplicates are identified by a structural hash of each subtree
-/// (hierarchy shape, prim type names, sorted authored property names),
-/// then refined by comparing all authored property values (excluding
-/// xformOp values on the root prim, which are expected to differ between
-/// instances).
+/// (hierarchy shape, prim type names, sorted authored property names).
+/// Each structural group is then partitioned into value-equivalence
+/// classes by comparing all authored property values (excluding xformOp
+/// values on the root prim, which are expected to differ between
+/// instances); every class with two or more members becomes its own
+/// prototype. A structurally-identical group containing multiple
+/// value-variants therefore yields one prototype per variant, independent
+/// of member ordering.
 ///
-/// Creates internal instanceable references from duplicate subtrees to the
-/// first instance (the prototype).
+/// Creates internal instanceable references from each duplicate subtree to
+/// the prototype of its value-equivalence class. The prototype is then
+/// traversed in turn, so duplicates nested inside a prototype are themselves
+/// consolidated into nested instanceable references — every instance of the
+/// prototype inherits that structure, deduplicating shared inner content once.
 class DeduplicateHierarchiesOperation : public Operation
 {
 
@@ -49,7 +56,7 @@ public:
     std::string getAuthor() const override;
 
     /// Get the version of this plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     /// Get the category for reporting.
     std::string getCategory() const override;
@@ -79,7 +86,12 @@ private:
 
     /// Skip shader output attributes (outputs:*) during value comparison.
     bool m_ignoreShaderOutputs = true;
+
+    /// Maximum number of breadth-first levels to descend (0 = unbounded).
+    /// Caps how deep the nested-instance library is built; useful to bound
+    /// runtime and avoid over-fragmenting into very deeply nested instances.
+    int m_maxDepth = 0;
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

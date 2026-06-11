@@ -16,7 +16,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 namespace testutils
@@ -79,4 +79,4 @@ ExecutionContext _getContext(const UsdStageWeakPtr& stage)
 
 } // namespace testutils
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

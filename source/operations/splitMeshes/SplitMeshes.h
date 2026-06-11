@@ -4,14 +4,14 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Operation.h>
-#include <omni/scene.optimizer/core/UsdIncludes.h>
-#include <omni/scene.optimizer/core/geometry/MeshProcessor.h>
-#include <omni/scene.optimizer/core/geometry/SpatialClustering.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Operation.h>
+#include <usd_optimize/core/UsdIncludes.h>
+#include <usd_optimize/core/geometry/MeshProcessor.h>
+#include <usd_optimize/core/geometry/SpatialClustering.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -58,7 +58,7 @@ public:
     std::string getAuthor() const override;
 
     /// Get the version of this plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     /// Get the category for reporting.
     std::string getCategory() const override;
@@ -112,4 +112,4 @@ private:
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Define the code of conduct followed and enforced for the Scene Optimizer.
+Define the code of conduct followed and enforced for the Usd Optimize.
 
 ### Intended audience
 

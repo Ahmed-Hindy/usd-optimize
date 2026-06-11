@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/Coalescer.h"
+#include "usd_optimize/core/Coalescer.h"
 
 // C++
 #include <thread>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -131,4 +131,4 @@ void Coalescer::executeCallback()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

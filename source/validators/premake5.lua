@@ -1,11 +1,11 @@
-so_build = require("tools/premake/scene-optimizer-public")
+usd_optimize_build = require("tools/premake/usd-optimize-public")
 
 
 project_with_location("validators_python")
 
     kind "Utility"
 
-    so_build.symlink_folder({
-        target_dir = "python/omni/scene/optimizer/validators",
-        source_dir = "python/omni/scene/optimizer/validators",
+    usd_optimize_build.symlink_folder({
+        target_dir = "python/usd_optimize/validators",
+        source_dir = "python/usd_optimize/validators",
     })

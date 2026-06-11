@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-"""Implementation of omni.scene.optimizer.core.scripts.standalone.
+"""Implementation of usd_optimize.core.scripts.standalone.
 
-Provides the public API using SceneOptimizerCore directly.
+Provides the public API using UsdOptimizeCore directly.
 """
 
 import json as _json
 
-from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
 
 _CONTEXT_KEYS = {"debug", "singleThreaded", "verbose", "generateReport", "captureStats"}
 _BOOL_STRINGS = {"true": True, "false": False, "1": True, "0": False}
@@ -32,7 +32,7 @@ def _coerce_context_value(value):
 
 def execute_commands_from_json(stage, filepath_or_json):
     """Execute a series of commands described in a JSON file or JSON string on the given Usd.Stage."""
-    so_core = SceneOptimizerCore.getInstance()
+    so_core = UsdOptimizeCore.getInstance()
 
     context = ExecutionContext()
     context.set_stage(stage)
@@ -92,6 +92,6 @@ def get_output_path_arrays(operation):
 
 
 def map_config(config):
-    """Map a Scene Optimizer JSON configuration to update renamed operations/arguments."""
-    so_core = SceneOptimizerCore.getInstance()
+    """Map a Usd Optimize JSON configuration to update renamed operations/arguments."""
+    so_core = UsdOptimizeCore.getInstance()
     return so_core.mapConfig(config)

@@ -21,7 +21,7 @@ The operation runs one function per execution; chain multiple `utilityFunction` 
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `primPaths` | string[] | `[]` | Prim paths to act on. Supports the standard SDF-path expressions used elsewhere in Scene Optimizer. |
+| `primPaths` | string[] | `[]` | Prim paths to act on. Supports the standard SDF-path expressions used elsewhere in Usd Optimize. |
 | `function` | enum | `Deinstance` | Which sub-function to run: `Deinstance`, `Unbind Materials`, `Set Instanceable`, or `Flatten Instances`. |
 
 ## Tuning Order

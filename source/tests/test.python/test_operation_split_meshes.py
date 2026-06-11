@@ -3,8 +3,8 @@
 #
 
 
-from omni.scene.optimizer.core import SceneOptimizerCore
 from pxr import Sdf, Usd, UsdGeom, UsdShade
+from usd_optimize.core import UsdOptimizeCore
 
 from .scripts import standalone
 from .test_utils import Test_Operation, _get_context
@@ -66,7 +66,7 @@ class Test_Operation_Split_Meshes(Test_Operation):
         print("Stats Before:")
         context = _get_context(stage)
 
-        success, _, _ = SceneOptimizerCore.getInstance().executeOperation("printStats", context, {})
+        success, _, _ = UsdOptimizeCore.getInstance().executeOperation("printStats", context, {})
         self.assertTrue(success)
 
         self._execute_command(args)

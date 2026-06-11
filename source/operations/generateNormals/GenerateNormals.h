@@ -4,11 +4,11 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/OmniOperation.h>
+// Usd Optimize Core
+#include <usd_optimize/core/OmniOperation.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // Type of normals, how they are bound to the mesh
@@ -46,7 +46,7 @@ public:
     std::string getAuthor() const override;
 
     /// Get the version of this plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     /// Get the category for reporting.
     std::string getCategory() const override;
@@ -93,4 +93,4 @@ private:
     Report m_report;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

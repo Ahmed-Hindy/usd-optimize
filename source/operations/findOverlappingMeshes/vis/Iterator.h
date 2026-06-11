@@ -8,7 +8,7 @@
 #include <iterator>
 #include <type_traits>
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// @brief A generic iterator that wraps a raw pointer.
@@ -93,4 +93,4 @@ private:
     friend class Iterator;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

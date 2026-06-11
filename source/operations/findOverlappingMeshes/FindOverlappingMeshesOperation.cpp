@@ -6,27 +6,27 @@
 
 #include "vis/UnorderedIndexSet.h"
 
-// Scene Optimizer
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/CudaUtils.h>
-#include <omni/scene.optimizer/core/Log.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/Log.h>
+#include <usd_optimize/core/Utils.h>
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/UsdIncludes.h>
-
+// Usd Optimize Core
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/metrics.h>
 #include <pxr/usd/usdGeom/primvarsAPI.h>
+
+#include <usd_optimize/core/UsdIncludes.h>
 
 /// Constants
 constexpr const char* s_categoryFindOverlappingMeshes = "FIND_OVERLAPPING_MESHES";
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::FindOverlappingMeshesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::FindOverlappingMeshesOperation);
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// @brief Utility for detecting islands in overlap groups.
@@ -195,8 +195,8 @@ FindOverlappingMeshesOperation::FindOverlappingMeshesOperation()
     // (driver-shutting-down error 4) from inside the MeshTools clashdetector
     // destructor — terminating the process. The Python binding drives this
     // via Py_AtExit; non-Python embedders are expected to call
-    // SceneOptimizerCore::runShutdownCallbacks() themselves before exit.
-    SceneOptimizerCore::getInstance().registerShutdownCallback([]() { FindOverlappingMeshes::get().shutdown(); });
+    // UsdOptimizeCore::runShutdownCallbacks() themselves before exit.
+    UsdOptimizeCore::getInstance().registerShutdownCallback([]() { FindOverlappingMeshes::get().shutdown(); });
 
     addArgument("paths", "Meshes to test", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_meshPrimPaths)
         .setPlaceholder("Add meshes or all will be processed");
@@ -316,10 +316,10 @@ FindOverlappingMeshesOperation::~FindOverlappingMeshesOperation()
 
 std::string FindOverlappingMeshesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
-SOPluginVersion FindOverlappingMeshesOperation::getVersion() const
+UsdOptimizePluginVersion FindOverlappingMeshesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -348,11 +348,11 @@ void FindOverlappingMeshesOperation::executePost(const TotalStats& totalStats)
 {
     generate();
 
-    SO_LOG_INFO("%zu overlap groups found", m_overlapGroups.size());
+    USD_OPTIMIZE_LOG_INFO("%zu overlap groups found", m_overlapGroups.size());
 
     if (!m_fullStageReport && m_meshPrimPaths.empty() && m_overlapGroups.size() > 0)
     {
-        SO_LOG_INFO("For details, specify paths or check fullStageReport.");
+        USD_OPTIMIZE_LOG_INFO("For details, specify paths or check fullStageReport.");
         return;
     }
 
@@ -364,7 +364,7 @@ void FindOverlappingMeshesOperation::executePost(const TotalStats& totalStats)
         {
             stream << "\n    " << path;
         }
-        SO_LOG_INFO("%s", stream.str().c_str());
+        USD_OPTIMIZE_LOG_INFO("%s", stream.str().c_str());
     }
 }
 
@@ -398,8 +398,6 @@ OperationResult FindOverlappingMeshesOperation::executeAnalysisImpl()
 
 void FindOverlappingMeshesOperation::generate()
 {
-    ScopedTimer timer("FindOverlappingMeshesOperation::generate", "", LogLevel::eInfo);
-
     m_overlappingPrimPaths.clear();
     m_overlapGroups.clear();
 
@@ -413,15 +411,11 @@ void FindOverlappingMeshesOperation::generate()
 
     if (m_detectorParameters.useGpu && !isCudaAvailable())
     {
-        SO_LOG_WARN("GPU requested but CUDA is not available. Falling back to CPU.");
+        USD_OPTIMIZE_LOG_WARN("GPU requested but CUDA is not available. Falling back to CPU.");
         m_detectorParameters.useGpu = false;
     }
 
-    size_t overlapCount = 0;
-    {
-        ScopedTimer timer("FindOverlappingMeshes::processStage", "", LogLevel::eInfo);
-        overlapCount = m_meshOverlapService.processStage(m_detectorParameters, getUsdStage(), primsToProcess);
-    }
+    size_t overlapCount = m_meshOverlapService.processStage(m_detectorParameters, getUsdStage(), primsToProcess);
 
     // // If there is a user-supplied mesh list, map those to indices in the descriptor list
     // std::set<size_t> requestedMeshes;
@@ -516,4 +510,4 @@ void FindOverlappingMeshesOperation::generate()
     }
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

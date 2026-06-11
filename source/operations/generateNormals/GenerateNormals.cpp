@@ -4,10 +4,10 @@
 
 #include "GenerateNormals.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/CudaUtils.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/Utils.h>
 
 // OmniMeshOps
 #include <OmniMeshOps/Normals.h>
@@ -30,10 +30,10 @@ TF_DEFINE_PRIVATE_TOKENS(
 // clang-format on
 
 
-SO_PLUGIN_INIT(omni::scene::optimizer::GenerateNormalsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::GenerateNormalsOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -91,11 +91,11 @@ GenerateNormalsOperation::GenerateNormalsOperation()
 
 std::string GenerateNormalsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion GenerateNormalsOperation::getVersion() const
+UsdOptimizePluginVersion GenerateNormalsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -149,7 +149,7 @@ ProcessedData* GenerateNormalsOperation::processMesh(const UsdPrim& prim, tbb::t
                         omo::checkNormalsUnitLength(normals_attr, tolerance, omo::CheckNormalsOptions::Strict);
                     !res)
                 {
-                    SO_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
+                    USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
                     ++m_report.totalNonUnitLengthStrict;
                 }
             }
@@ -291,7 +291,7 @@ ProcessedData* GenerateNormalsOperation::processMesh(const UsdPrim& prim, tbb::t
     catch (const std::exception& e)
     {
         std::string errorMsg = prim.GetPath().GetAsString() + ": " + std::string(e.what());
-        SO_LOG_ERROR(errorMsg.c_str());
+        USD_OPTIMIZE_LOG_ERROR(errorMsg.c_str());
         result = new ProcessedHostMesh{ {}, prim, false /* don't write, leave mesh unchanged */ };
     }
 
@@ -300,7 +300,7 @@ ProcessedData* GenerateNormalsOperation::processMesh(const UsdPrim& prim, tbb::t
 
 OperationResult GenerateNormalsOperation::executeAnalysisImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|GenerateNormals|Analysis");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|GenerateNormals|Analysis");
 
     m_report.clear();
 
@@ -329,4 +329,4 @@ void GenerateNormalsOperation::executePost(const TotalStats& totalStats)
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

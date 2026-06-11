@@ -1,6 +1,6 @@
 ---
 name: new-operation
-description: Scaffold a new Scene Optimizer operation plugin (C++ source, premake, test, guide, optional validator). Use to add a new op or plugin.
+description: Scaffold a new Usd Optimize operation plugin (C++ source, premake, test, guide, optional validator). Use to add a new op or plugin.
 version: "1.0.0"
 allowed-tools: Shell, Read, Write, Glob, Grep
 metadata:
@@ -13,7 +13,7 @@ metadata:
 
 # New Operation
 
-Scaffold a complete Scene Optimizer operation plugin from scratch. The
+Scaffold a complete Usd Optimize operation plugin from scratch. The
 output is a buildable, testable plugin with all the wiring in place.
 
 ## What this skill covers
@@ -66,7 +66,7 @@ derive the key, display name, and description before proceeding.
 | Test file | `test_operation_<snake_case>.py` | `test_operation_remove_overlaps.py` |
 | Operation guide | `.agents/operations/<key>.md` | `.agents/operations/removeOverlaps.md` |
 | Report category (`<CATEGORY>`) | `UPPER_SNAKE_CASE` short identifier | `REMOVE_OVERLAPS` |
-| Validator class | `SceneOptimizer` + `PascalCase` + `Checker` | `SceneOptimizerRemoveOverlapsChecker` |
+| Validator class | `UsdOptimize` + `PascalCase` + `Checker` | `UsdOptimizeRemoveOverlapsChecker` |
 
 > **File-basename convention is a soft rule.** Premake auto-discovers any `*.cpp` under `source/operations/<key>/`, so the filename isn't enforced. A handful of existing operations diverge (e.g. `fitPrimitives/Primitive.cpp` for `PrimitiveFitOperation`, `subdivideMeshes/Subdivide.cpp` for `SubdivideOperation`). Prefer the convention for new operations; don't rename existing ones just to match.
 
@@ -81,10 +81,10 @@ as the directory — premake auto-discovers it.
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/Operation.h>
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/Operation.h>
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 constexpr const char* s_category = "<CATEGORY>";
@@ -106,7 +106,7 @@ public:
         return "<Author>";
     }
 
-    SOPluginVersion getVersion() const override
+    UsdOptimizePluginVersion getVersion() const override
     {
         return { 1, 0, 0 };
     }
@@ -143,10 +143,10 @@ private:
     // float m_threshold = 0.001f;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize
 
 // Register plugin after the class declaration so this single-file template compiles.
-SO_PLUGIN_INIT(omni::scene::optimizer::<ClassName>);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::<ClassName>);
 ```
 
 Map `<display_group_constant>` from the user's display group choice:
@@ -178,7 +178,7 @@ Create `source/operations/<key>/premake5.lua`:
 
 ```lua
 project_with_location("<key>")
-    so_build.operation_plugin({ "*.cpp" })
+    usd_optimize_build.operation_plugin({ "*.cpp" })
 ```
 
 This is the standard one-liner. The parent `source/operations/premake5.lua`
@@ -267,16 +267,16 @@ If the operation supports analysis mode and a validator is requested,
 follow the recipe in `.agents/skills/validators/SKILL.md` §
 "Adding a new performance validator":
 
-1. Create `source/core/python/omni/scene/optimizer/validators/<snake_case>.py`
-   subclassing `SceneOptimizerRuleBase`.
+1. Create `source/core/python/usd_optimize/validators/<snake_case>.py`
+   subclassing `UsdOptimizeRuleBase`.
 2. Set `OPERATION_NAME = "<key>"` and `DEFAULT_ARGS = {<default_args>}`.
 3. Override `_translate(stage, analysis)` to convert the analysis JSON
    into `_AddWarning` / `_AddFailedCheck` calls.
 4. Set `REQUIRES_MESH = False` if the operation targets hierarchy /
    materials / animation rather than meshes.
 5. Re-export from `validators/__init__.py`.
-6. Add to `_default_rule_classes()` or `_expensive_rule_classes()` in
-   `validators/_plugin.py`.
+6. Add it (with its category) to the `_RULE_CATEGORIES` tuple in
+   `validators/__init__.py`.
 7. Add a test in `source/tests/test.python/test_validators_<snake_case>.py`.
 8. Update `test_validators_smoke.py` `EXPECTED_RULES` tuple.
 
@@ -297,7 +297,7 @@ Verify the operation is registered:
 
 ```bash
 # Should print True
-python3 -c "from omni.scene.optimizer.core import SceneOptimizerCore; print('<key>' in SceneOptimizerCore.getInstance().getOperations())"
+python3 -c "from usd_optimize.core import UsdOptimizeCore; print('<key>' in UsdOptimizeCore.getInstance().getOperations())"
 ```
 
 ---
@@ -351,8 +351,8 @@ returns success).
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `error: unknown operation '<key>'` after build | Premake didn't pick up the new `source/operations/<key>/`. | Confirm `premake5.lua` exists in the new dir; re-run `./repo.sh build --rebuild`. |
-| Plugin builds but `getOperations()` doesn't list `<key>` | Missing `SO_PLUGIN_INIT(...)` macro or wrong namespace. | Ensure the macro at the bottom of the `.cpp` (after the closing `} // namespace omni::scene::optimizer` line) matches the class's fully-qualified name (see the template in Step 1). |
+| Plugin builds but `getOperations()` doesn't list `<key>` | Missing `USD_OPTIMIZE_PLUGIN_INIT(...)` macro or wrong namespace. | Ensure the macro at the bottom of the `.cpp` (after the closing `} // namespace usd_optimize` line) matches the class's fully-qualified name (see the template in Step 1). |
 | Test file errors `ImportError: test_utils` | Test placed in wrong directory. | Tests must live under `source/tests/test.python/` (alongside `test_utils.py`). |
-| `omni_asset_validate --listChecks` doesn't show the new validator | Validator class not re-exported from `validators/__init__.py` or not added to `_default_rule_classes()`. | Complete Step 6 sub-steps 5 & 6 of this skill. |
+| `nvidia_usd_validate --help` doesn't show the new validator | Validator class not re-exported from `validators/__init__.py` or not added to `_RULE_CATEGORIES`. | Complete Step 6 sub-steps 5 & 6 of this skill. |
 | `getCategory()` and `getDisplayGroup()` confused | Category is a report-bucket string; display group is a UI grouping constant. | See the callout in Step 1 — they're independent and use different value spaces. |
 

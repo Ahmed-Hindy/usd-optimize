@@ -3,18 +3,18 @@
 //
 
 /*! @file
-Public API functions to pass JSON configuration data to Scene Optimizer in
+Public API functions to pass JSON configuration data to Usd Optimize in
 order to execute operations.
 */
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/UsdIncludes.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/UsdIncludes.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Execute one or more operations on a stage based on a JSON configuration.
@@ -28,7 +28,7 @@ namespace omni::scene::optimizer
 /// \param str Filepath or JSON data
 /// \param context The execution context
 /// \return Success
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _parseJson(const PXR_NS::UsdStageWeakPtr& usdStage, const std::string& str, ExecutionContext* context = nullptr);
 
 
@@ -42,9 +42,9 @@ bool _parseJson(const PXR_NS::UsdStageWeakPtr& usdStage, const std::string& str,
 /// \param usdStage The Usd Stage to operate on.
 /// \param document A JSON document
 /// \param context The execution context
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _parseJson(const PXR_NS::UsdStageWeakPtr& usdStage,
                 const PXR_NS::JsValue& document,
                 ExecutionContext* context = nullptr);
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

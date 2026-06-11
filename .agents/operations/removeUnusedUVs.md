@@ -49,7 +49,7 @@ The operation checks standard UV names (`primvars:st`, `primvars:st0`, `primvars
 ## Prerequisites & Workflows
 
 - Works standalone on any USD stage with materials and meshes.
-- Supports analysis mode for Asset Validator integration.
+- Supports analysis mode for usd-validation-nvidia integration.
 - Common pipeline: `optimizeMaterials` → `removeUnusedUVs`.
 - For CAD/BIM scenes, run this early in cleanup pipelines before primitive
   fitting. BIM exports often carry empty or unbound UV sets on many meshes;

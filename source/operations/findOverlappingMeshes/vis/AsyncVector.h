@@ -8,9 +8,10 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <vector>
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// @brief Thread-safe vector for asynchronous operations.
@@ -167,4 +168,4 @@ private:
     mutable std::mutex m_resizeMutex; ///< Resize mutex.
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

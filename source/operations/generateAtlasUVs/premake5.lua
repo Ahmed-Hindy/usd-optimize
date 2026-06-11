@@ -12,4 +12,4 @@ project_with_location("generateAtlasUVs")
         target_deps.."/autouv-core/%{config}/lib",
     }
 
-    so_build.operation_plugin({ "*.cpp" })
+    usd_optimize_build.operation_plugin({ "*.cpp" })

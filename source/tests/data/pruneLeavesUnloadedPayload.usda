@@ -1,0 +1,44 @@
+#usda 1.0
+
+def Xform "World"
+{
+    def Xform "EmptyLeaf"
+    {
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    # A leaf grouping prim carrying a payload. When the payload is unloaded the prim appears
+    # to have no children, but it composes meaningful geometry and must NOT be pruned.
+    def Xform "PayloadLeaf" (
+        prepend payload = @./pruneLeavesPayloadContent.usda@</Geo>
+    )
+    {
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    # A grouping prim whose only child is a leaf carrying an unloaded payload. Because that child
+    # must be kept, this parent is not an all-empty subtree and must NOT be pruned either.
+    def Xform "ParentOfPayloadLeaf"
+    {
+        def Xform "PayloadLeaf" (
+            prepend payload = @./pruneLeavesPayloadContent.usda@</Geo>
+        )
+        {
+        }
+    }
+
+    # A grouping prim that carries an unloaded payload AND has a locally-authored empty child.
+    # Nothing in this subtree may be pruned: the payload could, once loaded, author opinions on
+    # the local child, so deleting it now would corrupt the composed result. This is the case a
+    # "only check payloads on childless prims" optimization would silently get wrong.
+    def Xform "PayloadWithLocalChild" (
+        prepend payload = @./pruneLeavesPayloadContent.usda@</Geo>
+    )
+    {
+        def Xform "LocalEmpty"
+        {
+        }
+    }
+}

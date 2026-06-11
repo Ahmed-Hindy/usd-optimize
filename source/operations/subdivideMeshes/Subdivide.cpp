@@ -4,10 +4,10 @@
 
 #include "Subdivide.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/CudaUtils.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/Utils.h>
 
 // OmniMesh
 #include <OmniMeshOps/ScopedCudaContext.h>
@@ -16,10 +16,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::SubdivideOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::SubdivideOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -69,11 +69,11 @@ SubdivideOperation::SubdivideOperation()
 
 std::string SubdivideOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion SubdivideOperation::getVersion() const
+UsdOptimizePluginVersion SubdivideOperation::getVersion() const
 {
     return { 1, 1, 1 };
 }
@@ -141,7 +141,7 @@ ProcessedData* SubdivideOperation::processMesh(const UsdPrim& prim, tbb::task_gr
 
     if (subdividedFaceCount > m_face_count_limit)
     {
-        SO_LOG_WARN(
+        USD_OPTIMIZE_LOG_WARN(
             "Prim: %s\nwould have %d faces after %d iterations of\n"
             "%s subdivision, exceeding the set limit. Skipping.",
             primPath.c_str(),
@@ -167,12 +167,12 @@ ProcessedData* SubdivideOperation::processMesh(const UsdPrim& prim, tbb::task_gr
         result = new ProcessedHostMesh(hostSubdMesh, prim);
     }
 
-    SO_LOG_VERBOSE("Prim: %s\n[%s, %s] %zu -> %zu faces",
-                   primPath.c_str(),
-                   (use_gpu_subdivider ? "GPU" : "CPU"),
-                   _subdivisionMethodName(m_subdivisionMethod),
-                   inputMesh.faceCount(),
-                   result->faceCount());
+    USD_OPTIMIZE_LOG_VERBOSE("Prim: %s\n[%s, %s] %zu -> %zu faces",
+                             primPath.c_str(),
+                             (use_gpu_subdivider ? "GPU" : "CPU"),
+                             _subdivisionMethodName(m_subdivisionMethod),
+                             inputMesh.faceCount(),
+                             result->faceCount());
 
     return result;
 }
@@ -198,4 +198,4 @@ OperationResult SubdivideOperation::executePre()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

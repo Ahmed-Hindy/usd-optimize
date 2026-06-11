@@ -158,6 +158,26 @@ class Test_Operation_Split_Merge_Spatial(Test_Operation):
                         f"Primvar {primvar_name} on prim {prim_path} has indices that don't match expected indices",
                     )
 
+    async def test_coincident_boundary_mode_rejected(self):
+        """The coincident-boundary (shared-seam) clustering mode is merge-only and must be
+        rejected by splitMeshes, including when injected directly via spatialMode == 3."""
+
+        # spatialMode 3 == ClusterMode::eCoincidentBoundary
+        SPATIAL_MODE_COINCIDENT_BOUNDARY = 3
+
+        stage = self._open_stage("splitSpatial.usda")
+
+        split_args = DEFAULT_ARGS.copy()
+        split_args["spatialMode"] = SPATIAL_MODE_COINCIDENT_BOUNDARY
+        split_args["spatialThreshold"] = 20.0
+
+        context = _get_context(stage, report=True)
+
+        _, (success, _error, _extra) = self._execute_command(split_args, context)
+
+        # The operation must fail rather than run an unsupported clustering mode.
+        self.assertFalse(success)
+
     async def test_split_spatial_basic(self):
         """Basic splitting with spatial clustering test on a simple scene"""
 

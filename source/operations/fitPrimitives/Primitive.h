@@ -4,16 +4,16 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Defs.h>
-#include <omni/scene.optimizer/core/OmniOperation.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Defs.h>
+#include <usd_optimize/core/OmniOperation.h>
+#include <usd_optimize/core/Utils.h>
 
 // OmniMeshOps
 #include <OmniMeshOps/Primitive.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Fit primitives to meshes using OmniMesh.
@@ -26,7 +26,7 @@ public:
     std::string getAuthor() const override;
 
     /// Get the version of this plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     /// Get the category for reporting.
     std::string getCategory() const override;
@@ -140,7 +140,7 @@ private:
             case omo::PrimitiveType::Cube:
                 return cubeParameters;
             default:
-                SO_LOG_ERROR("MeshParameters::forType: Bad primitive type given.");
+                USD_OPTIMIZE_LOG_ERROR("MeshParameters::forType: Bad primitive type given.");
                 return zeroParams;
             }
         }
@@ -170,4 +170,4 @@ private:
     MeshReport m_meshReport;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

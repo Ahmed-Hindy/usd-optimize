@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Report.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Report.h"
 
 // C++
 #include <iostream>
@@ -11,7 +11,7 @@
 #include <sstream>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -138,4 +138,4 @@ void Report::log(LogLevel level, const std::string& category, const std::string&
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

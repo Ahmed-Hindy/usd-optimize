@@ -16,13 +16,13 @@
 
 
 #ifdef _MSC_VER
-#    define OMNI_SO_EXPORT __declspec(dllexport)
+#    define USD_OPTIMIZE_EXPORT __declspec(dllexport)
 #else
-#    define OMNI_SO_EXPORT __attribute__((visibility("default")))
+#    define USD_OPTIMIZE_EXPORT __attribute__((visibility("default")))
 #endif
 
-#define _OMNI_SO_TO_STRING(X) #X
-#define OMNI_SO_TO_STRING(X) _OMNI_SO_TO_STRING(X)
+#define _USD_OPTIMIZE_TO_STRING(X) #X
+#define USD_OPTIMIZE_TO_STRING(X) _USD_OPTIMIZE_TO_STRING(X)
 
 
 /// Operation Execution Context
@@ -61,7 +61,7 @@ struct OperationResult
 
 
 /// Cleanup function for execution context
-inline void so_execution_context_free(ExecutionContext* context)
+inline void usd_optimize_execution_context_free(ExecutionContext* context)
 {
     if (context->reportPath != nullptr)
     {
@@ -72,7 +72,7 @@ inline void so_execution_context_free(ExecutionContext* context)
 
 
 /// Copies the data from ExecutionContext b onto a
-inline void so_execution_context_copy(ExecutionContext* a, ExecutionContext* b)
+inline void usd_optimize_execution_context_copy(ExecutionContext* a, ExecutionContext* b)
 {
     // do nothing if either is null
     if (a == nullptr || b == nullptr)
@@ -81,7 +81,7 @@ inline void so_execution_context_copy(ExecutionContext* a, ExecutionContext* b)
     }
 
     // ensure any data on a is freed first
-    so_execution_context_free(a);
+    usd_optimize_execution_context_free(a);
 
     a->usdStageId = b->usdStageId;
     a->generateReport = b->generateReport;
@@ -103,7 +103,7 @@ inline void so_execution_context_copy(ExecutionContext* a, ExecutionContext* b)
 
 
 /// Cleanup function for result
-inline void so_operation_result_free(OperationResult* result)
+inline void usd_optimize_operation_result_free(OperationResult* result)
 {
     if (result->output != nullptr)
     {
@@ -120,7 +120,7 @@ inline void so_operation_result_free(OperationResult* result)
 
 
 /// Simple semantic version description
-struct SOPluginVersion
+struct UsdOptimizePluginVersion
 {
     int major;
     int minor;

@@ -3,8 +3,8 @@
 #
 
 
-from omni.scene.optimizer.core.operation import Operation
 from pxr import Usd
+from usd_optimize.core.operation import Operation
 
 EXECUTED = False
 
@@ -16,7 +16,7 @@ class TestOperation(Operation):
 
     @property
     def author(self):
-        return "Scene Optimizer (Internal)"
+        return "Usd Optimize (Internal)"
 
     @property
     def version(self):
@@ -32,5 +32,5 @@ class TestOperation(Operation):
         return True
 
 
-def sceneOptimizerPluginInit():
+def usdOptimizePluginInit():
     return TestOperation()

@@ -4,10 +4,10 @@
 
 #include "OmniMeshDecimate.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/CudaUtils.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/Utils.h>
 
 // OmniMesh
 #include <OmniMeshOps/Decimate.h>
@@ -19,10 +19,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-// Register plugin with SO
-SO_PLUGIN_INIT(omni::scene::optimizer::DecimateOperation);
+// Register plugin with Usd Optimize
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::DecimateOperation);
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -109,11 +109,11 @@ DecimateOperation::~DecimateOperation() = default;
 
 std::string DecimateOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion DecimateOperation::getVersion() const
+UsdOptimizePluginVersion DecimateOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -139,8 +139,8 @@ OperationResult DecimateOperation::executePre()
     if (m_cpuVertexcountThreshold > m_gpuVertexcountThreshold)
     {
         m_cpuVertexcountThreshold = m_gpuVertexcountThreshold;
-        SO_LOG_INFO("CPU threshold must be lower or equal to the GPU threshold, overridden as %s",
-                    std::to_string(m_cpuVertexcountThreshold).c_str());
+        USD_OPTIMIZE_LOG_INFO("CPU threshold must be lower or equal to the GPU threshold, overridden as %s",
+                              std::to_string(m_cpuVertexcountThreshold).c_str());
     }
 
     return { true };
@@ -168,7 +168,7 @@ ProcessedData* DecimateOperation::processMesh(const UsdPrim& prim, tbb::task_gro
         std::string msg;
         if (!usdMesh.ValidateTopology(face_vertex_indices.AsConst(), face_vertex_counts.AsConst(), points.size(), &msg))
         {
-            SO_LOG_WARN("Prim: %s has invalid topology:\n %s", prim.GetPath().GetAsString().c_str(), msg.c_str())
+            USD_OPTIMIZE_LOG_WARN("Prim: %s has invalid topology:\n %s", prim.GetPath().GetAsString().c_str(), msg.c_str())
             return nullptr;
         }
 
@@ -204,13 +204,13 @@ ProcessedData* DecimateOperation::processMesh(const UsdPrim& prim, tbb::task_gro
 
         uint32_t stop_at_vertex_count = uint32_t(double(inputMesh.vertexCount()) * m_reductionFactor);
 
-        std::string primMessage = "Prim: " + prim.GetPath().GetAsString() + "\n" + "Use " +
+        std::string primMessage = "Prim: " + prim.GetPath().GetAsString() + " Use " +
                                   (use_gpu_decimator ? "GPU" : "CPU") +
                                   ", stopVertexCount: " + std::to_string(stop_at_vertex_count) +
                                   (guide_attribute.empty() ? "" : ", guide: " + guide_attribute);
 
 
-        SO_LOG_VERBOSE(primMessage.c_str());
+        USD_OPTIMIZE_LOG_VERBOSE(primMessage.c_str());
 
         if (!use_gpu_decimator)
         {
@@ -229,7 +229,7 @@ ProcessedData* DecimateOperation::processMesh(const UsdPrim& prim, tbb::task_gro
                                          std::to_string(result->vertexCount()) +
                                          " vertices, meanError: " + std::to_string(outMeanError);
 
-                SO_LOG_VERBOSE(cpuMessage.c_str());
+                USD_OPTIMIZE_LOG_VERBOSE(cpuMessage.c_str());
 
                 return result;
             }
@@ -259,7 +259,7 @@ ProcessedData* DecimateOperation::processMesh(const UsdPrim& prim, tbb::task_gro
                 "[GPU] " + prim.GetName().GetString() + ": " + std::to_string(inputMesh.vertexCount()) + " -> " +
                 std::to_string(result->vertexCount()) + " vertices, meanError: " + std::to_string(outMeanError);
 
-            SO_LOG_VERBOSE(gpuMessage.c_str());
+            USD_OPTIMIZE_LOG_VERBOSE(gpuMessage.c_str());
 
             return result;
         }
@@ -267,7 +267,7 @@ ProcessedData* DecimateOperation::processMesh(const UsdPrim& prim, tbb::task_gro
     catch (const std::exception& e)
     {
         std::string errorMsg = prim.GetPath().GetAsString() + ": " + std::string(e.what());
-        SO_LOG_ERROR(errorMsg.c_str());
+        USD_OPTIMIZE_LOG_ERROR(errorMsg.c_str());
     }
 
     return nullptr;
@@ -287,13 +287,16 @@ void DecimateOperation::executePost(const TotalStats& totalStats)
             0 :
             ((fDiff > 0 ? fDiff : float(totalStats.after.faceCount)) / float(totalStats.before.faceCount)) * 100.f;
 
-    SO_LOG_INFO("VertexCount: %zu -> %zu (%f%%)",
-                totalStats.before.vertexCount,
-                totalStats.after.vertexCount,
-                vertexReduction);
+    USD_OPTIMIZE_LOG_INFO("VertexCount: %zu -> %zu (%f%%)",
+                          totalStats.before.vertexCount,
+                          totalStats.after.vertexCount,
+                          vertexReduction);
 
-    SO_LOG_INFO("FaceCount: %zu -> %zu (%f%%)", totalStats.before.faceCount, totalStats.after.faceCount, faceReduction);
+    USD_OPTIMIZE_LOG_INFO("FaceCount: %zu -> %zu (%f%%)",
+                          totalStats.before.faceCount,
+                          totalStats.after.faceCount,
+                          faceReduction);
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

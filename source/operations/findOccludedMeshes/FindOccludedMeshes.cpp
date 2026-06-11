@@ -4,13 +4,13 @@
 
 #include "FindOccludedMeshes.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/CudaUtils.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/MeshToolsCommon.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/MeshToolsCommon.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // Mesh tools
 #include <MeshTools/Stage.h>
@@ -25,12 +25,12 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::FindOccludedMeshesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::FindOccludedMeshesOperation);
 
 using namespace MeshTools;
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -97,11 +97,11 @@ FindOccludedMeshesOperation::FindOccludedMeshesOperation()
 
 std::string FindOccludedMeshesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion FindOccludedMeshesOperation::getVersion() const
+UsdOptimizePluginVersion FindOccludedMeshesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -121,14 +121,14 @@ bool FindOccludedMeshesOperation::getSupportsAnalysis() const
 
 OperationResult FindOccludedMeshesOperation::executeAnalysisImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|FindOccludedMeshes|Analysis");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|FindOccludedMeshes|Analysis");
 
     // analysis mode is the same as execute
     m_attributePaths.clear();
     OperationResult evalResult = executeImpl();
     if (!evalResult.success)
     {
-        SO_LOG_ERROR("Failed to execute operation.");
+        USD_OPTIMIZE_LOG_ERROR("Failed to execute operation.");
         return evalResult;
     }
 
@@ -141,7 +141,7 @@ OperationResult FindOccludedMeshesOperation::executeAnalysisImpl()
 
     OperationResult result{ true };
     result.output = getCStr(JsWriteToString(resultJson));
-    SO_LOG_VERBOSE("Analysis result: %s", result.output);
+    USD_OPTIMIZE_LOG_VERBOSE("Analysis result: %s", result.output);
 
     return result;
 }
@@ -149,7 +149,7 @@ OperationResult FindOccludedMeshesOperation::executeAnalysisImpl()
 
 OperationResult FindOccludedMeshesOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|findOccludedMeshes");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|findOccludedMeshes");
 
     // Config
     constexpr bool meshesOnly = true;
@@ -165,7 +165,7 @@ OperationResult FindOccludedMeshesOperation::executeImpl()
 
     if (primsToProcess.empty())
     {
-        SO_LOG_INFO("No prims to process");
+        USD_OPTIMIZE_LOG_INFO("No prims to process");
         return { true };
     }
 
@@ -173,7 +173,7 @@ OperationResult FindOccludedMeshesOperation::executeImpl()
 
     if (stage->meshes().empty())
     {
-        SO_LOG_INFO("No prims to process");
+        USD_OPTIMIZE_LOG_INFO("No prims to process");
         return { true };
     }
 
@@ -198,7 +198,7 @@ OperationResult FindOccludedMeshesOperation::executeImpl()
             if (desiredResolution > maxRes)
             {
                 float effectiveGapSize = maxDim / maxRes;
-                SO_LOG_WARN(
+                USD_OPTIMIZE_LOG_WARN(
                     "maximumGridResolution (%.0f) is capping the grid resolution. "
                     "Effective minimum gap size is %.2f instead of the requested %.2f",
                     m_maximumGridResolution,
@@ -221,7 +221,7 @@ OperationResult FindOccludedMeshesOperation::executeImpl()
 
     if (!OK)
     {
-        SO_LOG_ERROR("Finding hidden meshes failed!");
+        USD_OPTIMIZE_LOG_ERROR("Finding hidden meshes failed!");
         return { false };
     }
 
@@ -265,9 +265,9 @@ OperationResult FindOccludedMeshesOperation::executeImpl()
     // Log the appropriate count based on mode
     size_t hiddenCount = getContext()->analysisMode ? m_attributePaths.size() : hiddenPrims.size();
     std::string suffix = hiddenCount == 1 ? "" : "es";
-    SO_LOG_INFO("Found %s hidden mesh%s", std::to_string(hiddenCount).c_str(), suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Found %s hidden mesh%s", std::to_string(hiddenCount).c_str(), suffix.c_str());
 
     return { true };
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

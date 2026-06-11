@@ -1,4 +1,4 @@
-so_build = require("tools/premake/scene-optimizer-public")
+usd_optimize_build = require("tools/premake/usd-optimize-public")
 
 local function to_env_paths(paths, buildpath)
     local str = "";
@@ -152,12 +152,12 @@ set PYTHONPATH=%%TEST_PY_PATH%%;%%PYTHONPATH%%
         -- the actual test runner
         local win_test_dir = "%~dp0/tests/"..name
         local win_python_bin = '"%~dp0/../../target-deps/python/python.exe"'
-        -- The asset_validator integration tests need omniverse-asset-validator
+        -- The asset_validator integration tests need usd-validation-nvidia
         -- importable from the bundled Python. Install on first run only.
         local win_ensure_av = string.format([[
-%s -c "import omni.asset_validator" >NUL 2>&1
+%s -c "import usd_validation_nvidia" >NUL 2>&1
 if errorlevel 1 (
-    %s -m pip install --quiet --disable-pip-version-check "omniverse-asset-validator>=1.15.1"
+    %s -m pip install --quiet --disable-pip-version-check "usd-validation-nvidia>=1.19.3"
 )
 ]], win_python_bin, win_python_bin)
         -- Forward extra args (%*) to run_discover.py so callers can run
@@ -216,11 +216,11 @@ export PYTHONPATH=%s${PYTHONPATH:+:$PYTHONPATH}
         local python_bin = string.format(
             '"$SCRIPT_DIR/../../target-deps/python/bin/python%s"',
             PYTHON_VERSION)
-        -- The asset_validator integration tests need omniverse-asset-validator
+        -- The asset_validator integration tests need usd-validation-nvidia
         -- importable from the bundled Python. Install on first run only.
         local ensure_av = string.format([[
-%s -c "import omni.asset_validator" >/dev/null 2>&1 || \
-    %s -m pip install --quiet --disable-pip-version-check "omniverse-asset-validator>=1.15.1"
+%s -c "import usd_validation_nvidia" >/dev/null 2>&1 || \
+    %s -m pip install --quiet --disable-pip-version-check "usd-validation-nvidia>=1.19.3"
 ]], python_bin, python_bin)
         -- Forward extra args ("$@") to run_discover.py so callers can run
         -- individual tests, e.g.:
@@ -286,27 +286,27 @@ create_python_test_runner("test.python", "debug", python_lib_paths, python_py_pa
 
 group "tests"
     project_common "test.data"
-        dependson("omni.scene.optimizer.core")
+        dependson("usd_optimize.core")
 
         kind "Utility"
 
-        so_build.symlink_folder({
+        usd_optimize_build.symlink_folder({
             target_dir = "tests/data",
             source_dir = "data",
         })
 
     project_common "test.python"
-        dependson("omni.scene.optimizer.core")
+        dependson("usd_optimize.core")
 
         kind "Utility"
 
-        so_build.symlink_folder({
+        usd_optimize_build.symlink_folder({
             target_dir = "tests/test.python",
             source_dir = "test.python",
         })
 
     project_common "test.cpp"
-        dependson("omni.scene.optimizer.core")
+        dependson("usd_optimize.core")
 
         kind "ConsoleApp"
 
@@ -331,17 +331,17 @@ group "tests"
         add_usd { "arch", "gf", "js", "sdf", "tf", "usd", "usdGeom", "usdPhysics", "usdShade", "vt", "usdUtils" }
         add_usd { "usdLux", "plug", "python" }
 
-        so_build.use_python()
-        so_build.use_pybind()
+        usd_optimize_build.use_python()
+        usd_optimize_build.use_pybind()
 
-        -- Link against the actual scene optimizer shared lib
-        so_build.use_so_core()
+        -- Link against the actual usd optimize shared lib
+        usd_optimize_build.use_usd_optimize_core()
 
         -- Turn on some options for doctest
         defines { "DOCTEST_CONFIG_TREAT_CHAR_STAR_AS_STRING", "DOCTEST_CONFIG_SUPER_FAST_ASSERTS" }
 
         -- Inform the tests which python version we're building with
-        defines { "SCENE_OPTIMIZER_PYTHON_VERSION=\""..PYTHON_VERSION.."\"" }
+        defines { "USD_OPTIMIZE_PYTHON_VERSION=\""..PYTHON_VERSION.."\"" }
 
         filter { "system:windows" }
             -- Given we compile all our plugins with the exact same compiler as the
@@ -384,7 +384,7 @@ group "tests"
 
     -- Test helper shared library for testing isCudaAvailable() threading
     project_common "TestCudaUtils"
-        dependson("omni.scene.optimizer.core")
+        dependson("usd_optimize.core")
 
         kind "SharedLib"
 
@@ -398,8 +398,8 @@ group "tests"
         }
 
 
-        -- Link against the actual scene optimizer shared lib
-        so_build.use_so_core()
+        -- Link against the actual usd optimize shared lib
+        usd_optimize_build.use_usd_optimize_core()
 
         externalincludedirs {
             "%{target_deps}/usd/%{config}/include", -- for TBB

@@ -4,17 +4,17 @@
 
 #include "DeletePrimsPlugin.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/RemovePrims.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/RemovePrims.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
 // Register plugin
-SO_PLUGIN_INIT(omni::scene::optimizer::DeletePrimsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::DeletePrimsOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 constexpr const char* s_category = "DELETE_PRIMS";
@@ -39,7 +39,7 @@ bool DeletePrimsOperation::getVisible() const
 
 std::string DeletePrimsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
@@ -49,7 +49,7 @@ std::string DeletePrimsOperation::getCategory() const
 }
 
 
-SOPluginVersion DeletePrimsOperation::getVersion() const
+UsdOptimizePluginVersion DeletePrimsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -62,4 +62,4 @@ OperationResult DeletePrimsOperation::executeImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

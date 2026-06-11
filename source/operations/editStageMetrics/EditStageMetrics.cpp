@@ -4,9 +4,9 @@
 
 #include "EditStageMetrics.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/Utils.h>
 
 // USD
 #include <pxr/base/gf/rotation.h>
@@ -33,10 +33,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::EditStageMetricsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::EditStageMetricsOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // clang-format off
@@ -2277,11 +2277,11 @@ EditStageMetricsOperation::~EditStageMetricsOperation() = default;
 
 std::string EditStageMetricsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion EditStageMetricsOperation::getVersion() const
+UsdOptimizePluginVersion EditStageMetricsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -2324,7 +2324,7 @@ OperationResult EditStageMetricsOperation::executeImpl()
             // we need to perform scaling - layer isn't already in the requested meters per unit
             doScale = true;
 
-            SO_LOG_INFO("Changing stage metersPerUnit from %f to %f", currentMetersPerUnit, m_metersPerUnit);
+            USD_OPTIMIZE_LOG_INFO("Changing stage metersPerUnit from %f to %f", currentMetersPerUnit, m_metersPerUnit);
         }
     }
 
@@ -2369,7 +2369,7 @@ OperationResult EditStageMetricsOperation::executeImpl()
 
         if (doChangeOfBasis)
         {
-            SO_LOG_INFO("Changing stage upAxis from %s to %s", currentUpAxisStr.c_str(), newUpAxisStr.c_str());
+            USD_OPTIMIZE_LOG_INFO("Changing stage upAxis from %s to %s", currentUpAxisStr.c_str(), newUpAxisStr.c_str());
         }
     }
 
@@ -2397,7 +2397,7 @@ OperationResult EditStageMetricsOperation::executeImpl()
     // log any warnings that were generated during the traversal
     for (const std::string& message : warnings)
     {
-        SO_LOG_WARN(message.c_str());
+        USD_OPTIMIZE_LOG_WARN(message.c_str());
     }
     warnings.clear();
 
@@ -2409,11 +2409,11 @@ OperationResult EditStageMetricsOperation::executeImpl()
     }
     for (const std::string& message : warnings)
     {
-        SO_LOG_WARN(message.c_str());
+        USD_OPTIMIZE_LOG_WARN(message.c_str());
     }
 
     return { true };
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

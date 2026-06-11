@@ -2,18 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-"""Stub for omni.scene.optimizer.core.scripts.commands.
+"""Stub for usd_optimize.core.scripts.commands.
 
 Tests should use ``_execute_operation`` / ``_execute_command`` from
-``test_utils`` instead of instantiating ``SceneOptimizerOperation`` directly.
+``test_utils`` instead of instantiating ``UsdOptimizeOperation`` directly.
 """
 
 
-class SceneOptimizerOperation:
+class UsdOptimizeOperation:
     """Stub that raises immediately — tests should use _execute_command."""
 
     def __init__(self, operation, args=None, context=None):
         raise NotImplementedError(
-            "SceneOptimizerOperation is not available in this build. "
+            "UsdOptimizeOperation is not available in this build. "
             "Use _execute_command() or _execute_operation() from test_utils instead."
         )

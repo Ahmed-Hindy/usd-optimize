@@ -3,7 +3,7 @@
 
 # create-proxy — Decimate-mode step-by-step
 
-The Python snippets below assume the SO `pythonScript` execution environment, which exposes `stage` (a `pxr.Usd.Stage`). When invoking `pythonScript` from JSON the script body must be base64-encoded — see *Putting it together* below for how to encode.
+The Python snippets below assume the Usd Optimize `pythonScript` execution environment, which exposes `stage` (a `pxr.Usd.Stage`). When invoking `pythonScript` from JSON the script body must be base64-encoded — see *Putting it together* below for how to encode.
 
 ## Step 1 — Deep-copy source to `<sourcePrimPath>_proxy`
 
@@ -207,7 +207,7 @@ shape only; never run a config that still contains `<base64 ...>` text.
 ]
 ```
 
-The `printStats` step right after `decimateMeshes` is the runtime verification half of the analysis loop — its output in the SO log lets you (or the agent) confirm the post-decimation vertex count matches what the matrix predicted from the agent-side pre-analysis. See `parameter-tuning.md`.
+The `printStats` step right after `decimateMeshes` is the runtime verification half of the analysis loop — its output in the Usd Optimize log lets you (or the agent) confirm the post-decimation vertex count matches what the matrix predicted from the agent-side pre-analysis. See `parameter-tuning.md`.
 
 Drop step 2 when `stripAnimation: false`. Drop step 6 when `setupVariantSet:
 false`. Omit disabled optional steps entirely rather than inserting empty
@@ -223,19 +223,19 @@ When using `pythonScript` from the Kit UI's code editor, encoding is transparent
 
 ## End-to-end runner
 
-For end-to-end mode (input USD + output USD + an SO runtime), the standard runner is `omni.scene.optimizer.core.scripts.standalone.execute_commands_from_json`:
+For end-to-end mode (input USD + output USD + an Usd Optimize runtime), the standard runner is `usd_optimize.core.scripts.standalone.execute_commands_from_json`:
 
 ```python
 import json
 from pxr import Usd
-from omni.scene.optimizer.core.scripts.standalone import execute_commands_from_json
+from usd_optimize.core.scripts.standalone import execute_commands_from_json
 
 stage = Usd.Stage.Open(INPUT_USD)
 config = [...]   # the assembled list from "Putting it together" above
 
 ok = execute_commands_from_json(stage, json.dumps(config))
 if not ok:
-    raise RuntimeError("pipeline failed -- check SO log")
+    raise RuntimeError("pipeline failed -- check Usd Optimize log")
 
 stage.Export(OUTPUT_USD)   # writes a new file; INPUT_USD is left untouched
 ```
@@ -245,4 +245,4 @@ Two important properties:
 - The runner mutates the stage in memory. As long as you don't call `stage.Save()` or `stage.GetEditTarget().GetLayer().Save()`, the input USD on disk is untouched. `stage.Export(OUTPUT_USD)` writes the modified stage to a new file.
 - `pythonScript` script bodies passed inside the config must be base64-encoded (see encoding commands above).
 
-The Python environment for `execute_commands_from_json` requires SO on `PYTHONPATH` and its native libs on `PATH` — defer to `.agents/skills/build/SKILL.md` for a source-tree build, or to a prebuilt-package install skill / repo install docs for a packaged runtime. Do not duplicate environment setup here.
+The Python environment for `execute_commands_from_json` requires Usd Optimize on `PYTHONPATH` and its native libs on `PATH` — defer to `.agents/skills/build/SKILL.md` for a source-tree build, or to a prebuilt-package install skill / repo install docs for a packaged runtime. Do not duplicate environment setup here.

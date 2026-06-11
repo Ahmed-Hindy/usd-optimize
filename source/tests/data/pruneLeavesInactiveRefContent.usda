@@ -1,0 +1,14 @@
+#usda 1.0
+
+def Xform "Root"
+{
+    # The only content is an inactive Gprim. Whether this counts as "content" (so the referencing
+    # prim is non-empty) depends on filterInactive, which must be applied consistently inside the
+    # referenced subtree.
+    def Cube "InactiveCube" (
+        active = false
+    )
+    {
+        double size = 10
+    }
+}

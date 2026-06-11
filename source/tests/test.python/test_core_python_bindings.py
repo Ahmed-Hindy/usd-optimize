@@ -6,8 +6,8 @@ import os
 import tempfile
 import unittest
 
-from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
 from pxr import Usd
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
 
 
 class TestCorePythonBindings(unittest.TestCase):
@@ -57,7 +57,7 @@ class TestCorePythonBindings(unittest.TestCase):
         context.reportPath as the report file path. Pre-fix ~80% of runs across
         common operations either failed silently (no file created) or wrote the
         report to a random heap-resident path."""
-        so_core = SceneOptimizerCore.getInstance()
+        so_core = UsdOptimizeCore.getInstance()
 
         # Run multiple iterations; pre-fix, this would fail probabilistically.
         for i in range(10):
@@ -83,12 +83,12 @@ class TestCorePythonBindings(unittest.TestCase):
 
                 context.remove_stage()
 
-    def test_sceneOptimizerCore(self):
+    def test_usdOptimizeCore(self):
         """
-        Test getting and executing operations on SceneOptimizerCore.
+        Test getting and executing operations on UsdOptimizeCore.
         """
         # create a new scene optimizer core and check that a non-zero number of operations have loaded
-        so_core = SceneOptimizerCore.getInstance()
+        so_core = UsdOptimizeCore.getInstance()
         self.assertTrue(len(so_core.getOperations()) > 0)
 
         # now test executing operation, we won't check the results of the operation here since this is done by other
@@ -107,15 +107,15 @@ class TestCorePythonBindings(unittest.TestCase):
 
     def test_operation(self):
         """
-        Test defining our own Operation in Python and executing it via the SceneOptimizerCore.
+        Test defining our own Operation in Python and executing it via the UsdOptimizeCore.
         """
         # pass
-        so_core = SceneOptimizerCore.getInstance()
+        so_core = UsdOptimizeCore.getInstance()
 
         # load plugins from this directory - this will pick up the test operation
         so_core.loadPluginsFromPath(os.path.dirname(os.path.realpath(__file__)))
 
-        # because Scene Optimizer has loaded the test operation by appending it to the python path, we can now import it
+        # because Usd Optimize has loaded the test operation by appending it to the python path, we can now import it
         import test_operation
 
         test_operation.EXECUTED = False

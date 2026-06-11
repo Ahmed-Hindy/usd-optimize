@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/Utils.h"
+#include "usd_optimize/core/Utils.h"
 
 // USD
 #include <pxr/base/arch/fileSystem.h>
@@ -28,7 +28,7 @@
 #include <iomanip>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -119,7 +119,7 @@ void ScopedTimer::stop()
     oss << m_label << " (" << time << "s)";
 
     // Log the message.
-    SO_LOG(carbLevelFromLogLevel(m_level), "%s", oss.str().c_str());
+    USD_OPTIMIZE_LOG(carbLevelFromLogLevel(m_level), "%s", oss.str().c_str());
 }
 
 
@@ -345,6 +345,30 @@ void _safeCreatePrim(const UsdStageWeakPtr& usdStage,
         parentPrimSpec->SetSpecifier(SdfSpecifierDef);
     }
 }
+
+
+void _clearXformOps(const UsdPrim& prim)
+{
+    UsdGeomXformable xformable(prim);
+    if (!xformable)
+    {
+        return;
+    }
+
+    bool resetsXformStack = false;
+    const std::vector<UsdGeomXformOp> ops = xformable.GetOrderedXformOps(&resetsXformStack);
+
+    // RemoveProperty is non-const; UsdPrim is a lightweight handle so copying it is cheap.
+    UsdPrim mutablePrim = prim;
+    for (const UsdGeomXformOp& op : ops)
+    {
+        mutablePrim.RemoveProperty(op.GetName());
+    }
+
+    xformable.ClearXformOpOrder();
+    xformable.SetResetXformStack(false);
+}
+
 
 static bool _getColorFromPrim(const UsdPrim& prim, ColorValue& colorValue)
 {
@@ -1196,17 +1220,17 @@ std::string _getFormattedBytes(double bytes)
 
 // Define the types we are interested in - the basic numeric types, and the basic vec types
 // (GfVec[2-4]f, etc.)
-#define SO_VT_TYPES                                                                                                    \
+#define USD_OPTIMIZE_VT_TYPES                                                                                          \
     VT_BUILTIN_NUMERIC_VALUE_TYPES                                                                                     \
     VT_VEC_VALUE_TYPES
 
-#define SO_TYPE_AND_SIZE_PAIR(UNUSED, T) { std::type_index(typeid(VT_TYPE(T))), sizeof(VT_TYPE(T)) },
+#define USD_OPTIMIZE_TYPE_AND_SIZE_PAIR(UNUSED, T) { std::type_index(typeid(VT_TYPE(T))), sizeof(VT_TYPE(T)) },
 
 size_t _getSizeFromSdfValueType(const SdfValueTypeName& value)
 {
     // Static map of types, one-off thread-safe creation
     static std::map<std::type_index, std::size_t> s_typeToSizeMap{
-        TF_PP_SEQ_FOR_EACH(SO_TYPE_AND_SIZE_PAIR, ~, SO_VT_TYPES)
+        TF_PP_SEQ_FOR_EACH(USD_OPTIMIZE_TYPE_AND_SIZE_PAIR, ~, USD_OPTIMIZE_VT_TYPES)
     };
 
     const auto& findIt = s_typeToSizeMap.find(value.GetType().GetTypeid());
@@ -1220,30 +1244,37 @@ size_t _getSizeFromSdfValueType(const SdfValueTypeName& value)
 
 
 // Define types that can be default constructed
-#define SO_VT_DEFAULT_CONSTRUCTOR_TYPES                                                                                \
+#define USD_OPTIMIZE_VT_DEFAULT_CONSTRUCTOR_TYPES                                                                      \
     VT_STRING_VALUE_TYPES                                                                                              \
     VT_VEC_VALUE_TYPES                                                                                                 \
-    VT_MATRIX_VALUE_TYPES                                                                                              \
-    VT_QUATERNION_VALUE_TYPES
+    VT_MATRIX_VALUE_TYPES
 
-#define SO_CREATE_DEFAULT_VALUE_NUMERIC(UNUSED, T)                                                                     \
+#define USD_OPTIMIZE_CREATE_DEFAULT_VALUE_NUMERIC(UNUSED, T)                                                           \
     if (value.IsHolding<VT_TYPE(T)>() || value.IsHolding<VtArray<VT_TYPE(T)>>())                                       \
     {                                                                                                                  \
         VT_TYPE(T) v = static_cast<VT_TYPE(T)>(0.0);                                                                   \
         return VtValue(v);                                                                                             \
     }
 
-#define SO_CREATE_DEFAULT_VALUE_DEFAULT_CONSTRUCTOR(UNUSED, T)                                                         \
+#define USD_OPTIMIZE_CREATE_DEFAULT_VALUE_DEFAULT_CONSTRUCTOR(UNUSED, T)                                               \
     if (value.IsHolding<VT_TYPE(T)>() || value.IsHolding<VtArray<VT_TYPE(T)>>())                                       \
     {                                                                                                                  \
-        return VtValue(VT_TYPE(T)());                                                                                  \
+        VT_TYPE(T) v{};                                                                                                \
+        return VtValue(v);                                                                                             \
+    }
+
+#define USD_OPTIMIZE_CREATE_DEFAULT_VALUE_QUATERNION(UNUSED, T)                                                        \
+    if (value.IsHolding<VT_TYPE(T)>() || value.IsHolding<VtArray<VT_TYPE(T)>>())                                       \
+    {                                                                                                                  \
+        return VtValue(VT_TYPE(T)::GetIdentity());                                                                     \
     }
 
 VtValue _getDefaultSingleVtValue(const VtValue& value)
 {
     // use USD preprocessor magic to create an if statement chain for all the types we care about
-    TF_PP_SEQ_FOR_EACH(SO_CREATE_DEFAULT_VALUE_NUMERIC, ~, VT_BUILTIN_NUMERIC_VALUE_TYPES);
-    TF_PP_SEQ_FOR_EACH(SO_CREATE_DEFAULT_VALUE_DEFAULT_CONSTRUCTOR, ~, SO_VT_DEFAULT_CONSTRUCTOR_TYPES);
+    TF_PP_SEQ_FOR_EACH(USD_OPTIMIZE_CREATE_DEFAULT_VALUE_NUMERIC, ~, VT_BUILTIN_NUMERIC_VALUE_TYPES);
+    TF_PP_SEQ_FOR_EACH(USD_OPTIMIZE_CREATE_DEFAULT_VALUE_DEFAULT_CONSTRUCTOR, ~, USD_OPTIMIZE_VT_DEFAULT_CONSTRUCTOR_TYPES);
+    TF_PP_SEQ_FOR_EACH(USD_OPTIMIZE_CREATE_DEFAULT_VALUE_QUATERNION, ~, VT_QUATERNION_VALUE_TYPES);
 
     // if none of the types matched, return an empty VtValue
     return VtValue();
@@ -1251,14 +1282,14 @@ VtValue _getDefaultSingleVtValue(const VtValue& value)
 
 
 // Define types that can be converted to single-element arrays
-#define SO_TO_ARRAY_TYPES                                                                                              \
+#define USD_OPTIMIZE_TO_ARRAY_TYPES                                                                                    \
     VT_BUILTIN_NUMERIC_VALUE_TYPES                                                                                     \
     VT_STRING_VALUE_TYPES                                                                                              \
     VT_VEC_VALUE_TYPES                                                                                                 \
     VT_MATRIX_VALUE_TYPES                                                                                              \
     VT_QUATERNION_VALUE_TYPES
 
-#define SO_TO_ARRAY(UNUSED, T)                                                                                         \
+#define USD_OPTIMIZE_TO_ARRAY(UNUSED, T)                                                                               \
     if (value.IsHolding<VT_TYPE(T)>())                                                                                 \
     {                                                                                                                  \
         return VtValue(VtArray<VT_TYPE(T)>(1, value.UncheckedGet<VT_TYPE(T)>()));                                      \
@@ -1266,7 +1297,7 @@ VtValue _getDefaultSingleVtValue(const VtValue& value)
 
 VtValue _toArrayVtValue(const VtValue& value)
 {
-    TF_PP_SEQ_FOR_EACH(SO_TO_ARRAY, ~, SO_TO_ARRAY_TYPES);
+    TF_PP_SEQ_FOR_EACH(USD_OPTIMIZE_TO_ARRAY, ~, USD_OPTIMIZE_TO_ARRAY_TYPES);
 
     return value;
 }
@@ -1337,4 +1368,4 @@ std::vector<UsdGeomXformOp> _getPivotXformOps(const std::vector<UsdGeomXformOp>&
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

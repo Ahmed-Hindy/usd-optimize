@@ -4,10 +4,10 @@
 
 #include "PrintStats.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/Stats.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/Stats.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -19,10 +19,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::StatsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::StatsOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -320,11 +320,11 @@ StatsOperation::StatsOperation()
 
 std::string StatsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion StatsOperation::getVersion() const
+UsdOptimizePluginVersion StatsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -398,7 +398,7 @@ OperationResult StatsOperation::executeAnalysisImpl()
 
 OperationResult StatsOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|StatsOperation|Execute");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|StatsOperation|Execute");
 
     // Configure args
     StatArgs args;
@@ -564,7 +564,7 @@ OperationResult StatsOperation::executeImpl()
     if ((result.output != nullptr && getContext()->generateReport) ||
         (getContext()->analysisMode && getContext()->verbose))
     {
-        SO_LOG_INFO("PAYLOAD: %s", result.output);
+        USD_OPTIMIZE_LOG_INFO("PAYLOAD: %s", result.output);
     }
     else
     {
@@ -576,4 +576,4 @@ OperationResult StatsOperation::executeImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

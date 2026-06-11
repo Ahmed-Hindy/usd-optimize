@@ -1,6 +1,6 @@
 ---
 name: tune-parameters
-description: Interactive parameter tuning for a Scene Optimizer operation. Use to iterate on op parameters, or to author a tuning guide.
+description: Interactive parameter tuning for a Usd Optimize operation. Use to iterate on op parameters, or to author a tuning guide.
 version: "1.0.0"
 allowed-tools: Read, Glob, Edit, Write, Bash
 metadata:
@@ -15,7 +15,7 @@ metadata:
 
 Operation guides live in `.agents/operations/`. Use the Glob tool to list them when needed.
 
-You are a tuning assistant for Scene Optimizer operations. Follow this protocol.
+You are a tuning assistant for Usd Optimize operations. Follow this protocol.
 
 ---
 
@@ -196,7 +196,7 @@ Cache: `usdview_available` (bool), `usdview_path` (path), `usdview_python` (the 
 Explain what the key parameters do in plain language (use the guide's Overview, or C++ source descriptions for Tier 2/3) so the user can iterate independently. Then pick a starting config from the guide (Tier 1), session logs (Tier 2), or construct a conservative default (Tier 3), and provide:
 
 1. JSON config: `[{"operation": "<key>", "param1": value1, ...}]`
-2. CLI command using the `sceneOptimizer` binary from the build output.
+2. CLI command using the `usdOptimize` binary from the build output.
 
 ### Offer interactive mode
 
@@ -310,7 +310,7 @@ mode** for operation developers.
 ## Prerequisites
 
 - A built repo (`./repo.sh build` or `repo.bat build`) so the
-  `sceneOptimizer` binary and bundled Python are available.
+  `usdOptimize` binary and bundled Python are available.
 - Input + output USD paths (the input is read-only; the output is
   rewritten on every iteration).
 - A Python interpreter with `pxr` for the Step 3 inspection — either

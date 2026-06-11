@@ -4,8 +4,8 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Defs.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Defs.h>
 
 // Usd
 #include <pxr/base/js/json.h>
@@ -15,7 +15,7 @@
 #include <pybind11/pybind11.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -126,4 +126,4 @@ inline pybind11::tuple _operationResultToPybindTuple(OperationResult& result)
     return pybind11::make_tuple(result.success, result.error, output);
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/PythonUtils.h"
+#include "usd_optimize/core/PythonUtils.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -133,4 +133,4 @@ std::string _pyAsString(PyObject* pyObject)
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

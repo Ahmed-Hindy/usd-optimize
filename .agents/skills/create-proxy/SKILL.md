@@ -45,12 +45,12 @@ Companion: operation guides under `.agents/operations/` for each underlying oper
 
 This skill has two operating modes — pick based on what the user asked for:
 
-- **Config-only.** Produce the JSON config and hand it back. Default when the user has not provided input/output USD paths or a Scene Optimizer runtime.
-- **End-to-end.** Generate the config *and* run it. Only when the user has explicitly given an input USD, an output USD, and an available SO runtime (see *Execution context* below).
+- **Config-only.** Produce the JSON config and hand it back. Default when the user has not provided input/output USD paths or a Usd Optimize runtime.
+- **End-to-end.** Generate the config *and* run it. Only when the user has explicitly given an input USD, an output USD, and an available Usd Optimize runtime (see *Execution context* below).
 
 Operating rules for either mode:
 
-- **Temp files go outside tracked content.** Scratch JSON configs or `pythonScript` script bodies belong in an agent-writable scratch directory the user has approved — typically the OS temp dir, but if you're sandboxed (Codex, etc.) use whichever writable root the runtime allows. Don't drop scratch files in `docs/`, `source/`, `scene-optimizer-core/source/`, or any version-controlled location. Save in-tree only when the user explicitly asks.
+- **Temp files go outside tracked content.** Scratch JSON configs or `pythonScript` script bodies belong in an agent-writable scratch directory the user has approved — typically the OS temp dir, but if you're sandboxed (Codex, etc.) use whichever writable root the runtime allows. Don't drop scratch files in `docs/`, `source/`, `usd-optimize/source/`, or any version-controlled location. Save in-tree only when the user explicitly asks.
 - **Never run a config containing `<base64 ...>` placeholders.** The example assembled config in `references/decimate-mode.md` and `references/bounding-box-modes.md` shows shape, not a runnable artifact. Encode each script body before invoking the runner, and **omit disabled optional steps entirely** (drop Step 2 when `stripAnimation: false`, drop Step 6 when `setupVariantSet: false`) — don't ship empty/placeholder bodies.
 - **JSON-parse the assembled config before running.** A typo in a substituted base64 string or a missed comma will surface as a parse error from the runner; catch it locally first.
 
@@ -90,7 +90,7 @@ The bbox modes don't iterate — output is fully determined by the source's AABB
 | To do this... | You need... |
 |---|---|
 | Generate the JSON config | `sourcePrimPath`. Everything else has a default. |
-| Execute the config | The above, plus: input USD path, output USD path, and a Scene Optimizer runtime — either a source-tree build or an installed prebuilt package. |
+| Execute the config | The above, plus: input USD path, output USD path, and a Usd Optimize runtime — either a source-tree build or an installed prebuilt package. |
 
 For runtime setup, defer to the existing skills rather than duplicating instructions here:
 
@@ -114,7 +114,7 @@ When `proxyMode: "boundingBoxWhole"` or `"boundingBoxPerMesh"`:
 2. **Set purposes** — same as Step 5 above.
 3. **(Optional) Author variant set** — same as Step 6 above.
 
-Steps 1, 2, 5, 6 (decimate mode) and the bbox-authoring step are USD authoring glue not covered by Scene Optimizer ops; they run via the `pythonScript` operation. Steps 3, 4 (decimate mode only) are native SO operations.
+Steps 1, 2, 5, 6 (decimate mode) and the bbox-authoring step are USD authoring glue not covered by Usd Optimize ops; they run via the `pythonScript` operation. Steps 3, 4 (decimate mode only) are native Usd Optimize operations.
 
 ## Pre-flight checks
 
@@ -186,7 +186,7 @@ purpose pair on demand.
 - A source USD asset with a valid `sourcePrimPath` containing at least
   one `UsdGeomMesh` (decimate / boundingBoxPerMesh modes); for
   boundingBoxWhole only the source bounding box is needed.
-- For end-to-end execution: an SO runtime (source build via the
+- For end-to-end execution: an Usd Optimize runtime (source build via the
   `build` skill or an installed `prebuilt-package`), an input USD
   path, and an output USD path.
 - For config-only mode: just `sourcePrimPath` and the desired

@@ -4,10 +4,10 @@
 
 #include "GenerateAtlasUVs.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // AutoUV (minimal API — Eigen-free headers)
 #include <array>
@@ -29,10 +29,10 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 // Register plugin
-SO_PLUGIN_INIT(omni::scene::optimizer::AtlasUVsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::AtlasUVsOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 using namespace autouv;
@@ -278,11 +278,11 @@ AtlasUVsOperation::AtlasUVsOperation()
 
 std::string AtlasUVsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion AtlasUVsOperation::getVersion() const
+UsdOptimizePluginVersion AtlasUVsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -296,7 +296,7 @@ std::string AtlasUVsOperation::getCategory() const
 
 OperationResult AtlasUVsOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|generateAtlasUVs");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|generateAtlasUVs");
 
     // Resolve paths to prims
     bool meshesOnly = true;
@@ -406,7 +406,7 @@ OperationResult AtlasUVsOperation::executeImpl()
                                   // failed to generate UVs for this mesh, log error and continue
                                   errorStr += " Mesh name: " + mesh.GetPath().GetName();
                                   std::lock_guard<std::mutex> lock(m_logMutex);
-                                  SO_LOG_ERROR(errorStr.c_str());
+                                  USD_OPTIMIZE_LOG_ERROR(errorStr.c_str());
                                   // LCOV_EXCL_STOP
                               }
                           }
@@ -434,4 +434,4 @@ OperationResult AtlasUVsOperation::executeImpl()
     return { true };
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

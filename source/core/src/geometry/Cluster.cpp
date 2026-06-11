@@ -2,16 +2,108 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/geometry/Cluster.h"
+#include "usd_optimize/core/geometry/Cluster.h"
 
-// TBB
-#include <tbb/parallel_for.h>
+// Usd Optimize Core
+#include "usd_optimize/core/geometry/DisjointSet.h"
+
+// USD
+#include <pxr/base/tf/hash.h>
+
+// C++
+#include <algorithm>
+#include <cmath>
+#include <map>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
+
+/// Hashes a std::pair using the standard TfHash combiner, so std::pair can be used as an unordered_map key.
+struct PairHash
+{
+    template <typename A, typename B>
+    size_t operator()(const std::pair<A, B>& value) const
+    {
+        return PXR_NS::TfHash::Combine(value.first, value.second);
+    }
+};
+
+/// Assigns a single canonical id to boundary-vertex positions that are coincident within a tolerance.
+///
+/// Positions are bucketed into a uniform grid with cell size equal to the tolerance. When canonicalizing a position the
+/// 27 neighboring cells are searched for an existing representative within the tolerance, so points that straddle a
+/// cell boundary still resolve to the same id.
+class CoincidentVertexMap
+{
+public:
+    explicit CoincidentVertexMap(const double tolerance)
+        : m_tolerance(tolerance)
+        , m_invCellSize(1.0 / tolerance)
+    {
+    }
+
+    int canonicalId(const GfVec3d& p)
+    {
+        const int64_t cx = cellCoord(p[0]);
+        const int64_t cy = cellCoord(p[1]);
+        const int64_t cz = cellCoord(p[2]);
+
+        const double toleranceSq = m_tolerance * m_tolerance;
+
+        // Search the cell and its 26 neighbors for an existing representative within tolerance.
+        for (int64_t dz = -1; dz <= 1; ++dz)
+        {
+            for (int64_t dy = -1; dy <= 1; ++dy)
+            {
+                for (int64_t dx = -1; dx <= 1; ++dx)
+                {
+                    auto it = m_cells.find(cellKey(cx + dx, cy + dy, cz + dz));
+                    if (it == m_cells.end())
+                    {
+                        continue;
+                    }
+                    for (const int id : it->second)
+                    {
+                        if ((m_positions[id] - p).GetLengthSq() <= toleranceSq)
+                        {
+                            return id;
+                        }
+                    }
+                }
+            }
+        }
+
+        // No coincident representative found - create a new canonical id.
+        const int id = static_cast<int>(m_positions.size());
+        m_positions.push_back(p);
+        m_cells[cellKey(cx, cy, cz)].push_back(id);
+        return id;
+    }
+
+private:
+    int64_t cellCoord(double v) const
+    {
+        return static_cast<int64_t>(std::floor(v * m_invCellSize));
+    }
+
+    static size_t cellKey(int64_t x, int64_t y, int64_t z)
+    {
+        // Combine the cell coordinates into a single key. Collisions only grow a candidate list which is still
+        // distance-checked, so they never affect correctness.
+        return PXR_NS::TfHash::Combine(x, y, z);
+    }
+
+    double m_tolerance;
+    double m_invCellSize;
+    std::vector<GfVec3d> m_positions;
+    std::unordered_map<size_t, std::vector<int>> m_cells;
+};
 
 
 BVHNode::BVHNode(const MeshNode* mesh, const PXR_NS::GfBBox3d& bounds)
@@ -357,4 +449,159 @@ void spatiallyClusterMeshes(ClusterMode mode,
 }
 
 
-} // namespace omni::scene::optimizer
+void clusterByCoincidentBoundary(const std::vector<BoundaryMeshData>& meshes,
+                                 double tolerance,
+                                 int minSharedVertices,
+                                 std::vector<int>& clusters)
+{
+    // A non-positive tolerance is meaningless for coincidence testing (and would divide by zero in the grid), so there
+    // is nothing to cluster.
+    if (tolerance <= 0.0 || meshes.empty())
+    {
+        return;
+    }
+
+    // At least one shared vertex is required to connect two meshes.
+    const int minShared = std::max(minSharedVertices, 1);
+
+    CoincidentVertexMap vertexMap(tolerance);
+
+    // For each canonical (coincidence-merged) boundary vertex position, the set of meshes that have a boundary vertex
+    // there. Two meshes are candidates for merging where these sets overlap.
+    std::unordered_map<int, std::vector<size_t>> vertexToMeshes;
+
+    // Per-mesh scratch reused across meshes to avoid reallocating on every iteration: edge-usage counts (to identify
+    // boundary edges used by exactly one face), the local indices lying on a boundary edge, and the canonical world-
+    // space ids those resolve to.
+    std::unordered_map<std::pair<int, int>, int, PairHash> edgeUse;
+    std::unordered_set<int> boundaryVertices;
+    std::unordered_set<int> canonicalIds;
+
+    for (size_t meshIndex = 0; meshIndex < meshes.size(); ++meshIndex)
+    {
+        const BoundaryMeshData& mesh = meshes[meshIndex];
+        if (mesh.points == nullptr || mesh.faceVertexCounts == nullptr || mesh.faceVertexIndices == nullptr)
+        {
+            continue;
+        }
+
+        const VtIntArray& faceVertexCounts = *mesh.faceVertexCounts;
+        const VtIntArray& faceVertexIndices = *mesh.faceVertexIndices;
+        const VtVec3fArray& points = *mesh.points;
+
+        // Count how many faces use each (undirected) edge.
+        edgeUse.clear();
+        size_t cursor = 0;
+        for (int count : faceVertexCounts)
+        {
+            if (count < 2 || cursor + static_cast<size_t>(count) > faceVertexIndices.size())
+            {
+                cursor += static_cast<size_t>(std::max(count, 0));
+                continue;
+            }
+            for (int k = 0; k < count; ++k)
+            {
+                const int a = faceVertexIndices[cursor + k];
+                const int b = faceVertexIndices[cursor + (k + 1) % count];
+                if (a == b)
+                {
+                    continue;
+                }
+                ++edgeUse[std::make_pair(std::min(a, b), std::max(a, b))];
+            }
+            cursor += static_cast<size_t>(count);
+        }
+
+        // Collect the local vertex indices that lie on a boundary edge (an edge used by exactly one face).
+        boundaryVertices.clear();
+        for (const auto& [edge, uses] : edgeUse)
+        {
+            if (uses == 1)
+            {
+                boundaryVertices.insert(edge.first);
+                boundaryVertices.insert(edge.second);
+            }
+        }
+
+        // Resolve each boundary vertex to a canonical world-space id and record this mesh against it. Using a set of
+        // canonical ids ensures a mesh is counted at most once per coincident position even if two of its own vertices
+        // happen to coincide.
+        canonicalIds.clear();
+        for (int vertexIndex : boundaryVertices)
+        {
+            if (vertexIndex < 0 || static_cast<size_t>(vertexIndex) >= points.size())
+            {
+                continue;
+            }
+            canonicalIds.insert(vertexMap.canonicalId(mesh.localToWorld.Transform(GfVec3d(points[vertexIndex]))));
+        }
+        for (int id : canonicalIds)
+        {
+            vertexToMeshes[id].push_back(meshIndex);
+        }
+    }
+
+    // Count, for each pair of meshes, how many boundary vertices they share. Two meshes are connected when they share
+    // at least minShared coincident boundary vertices.
+    std::unordered_map<std::pair<size_t, size_t>, int, PairHash> sharedVertexCount;
+    for (const auto& [canonicalId, meshIndices] : vertexToMeshes)
+    {
+        if (meshIndices.size() < 2)
+        {
+            continue;
+        }
+        for (size_t i = 0; i < meshIndices.size(); ++i)
+        {
+            for (size_t j = i + 1; j < meshIndices.size(); ++j)
+            {
+                ++sharedVertexCount[std::make_pair(meshIndices[i], meshIndices[j])];
+            }
+        }
+    }
+
+    // Union meshes that share enough boundary vertices. Connectivity is transitive via the disjoint set. The mesh
+    // indices [0, meshes.size()) are used directly as the elements of the set.
+    std::vector<int> meshIds(meshes.size());
+    for (size_t i = 0; i < meshes.size(); ++i)
+    {
+        meshIds[i] = static_cast<int>(i);
+    }
+
+    DisjointSet components(meshIds.data(), meshIds.size());
+    for (const auto& [pair, count] : sharedVertexCount)
+    {
+        if (count >= minShared)
+        {
+            components.unionSet(static_cast<int>(pair.first), static_cast<int>(pair.second));
+        }
+    }
+
+    // Assign cluster ids to connected components that contain more than one mesh. Meshes that share no seam remain
+    // INVALID_CLUSTER so that they are not merged on their own.
+    std::map<int, int> rootMemberCount;
+    for (size_t i = 0; i < meshes.size(); ++i)
+    {
+        ++rootMemberCount[components.findSet(static_cast<int>(i))];
+    }
+
+    std::map<int, int> rootClusterId;
+    int nextClusterId = INVALID_CLUSTER;
+    for (size_t i = 0; i < meshes.size(); ++i)
+    {
+        const int root = components.findSet(static_cast<int>(i));
+        if (rootMemberCount[root] < 2)
+        {
+            continue;
+        }
+
+        auto it = rootClusterId.find(root);
+        if (it == rootClusterId.end())
+        {
+            it = rootClusterId.emplace(root, ++nextClusterId).first;
+        }
+        clusters[i] = it->second;
+    }
+}
+
+
+} // namespace usd_optimize

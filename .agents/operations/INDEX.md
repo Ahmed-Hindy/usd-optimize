@@ -3,7 +3,7 @@
 
 # Operation Index
 
-Quick reference for all Scene Optimizer operations. Use this to find operations by name, check guide availability, and prioritize tuning guide authoring.
+Quick reference for all Usd Optimize operations. Use this to find operations by name, check guide availability, and prioritize tuning guide authoring.
 
 **Companion docs:**
 - [`INVOCATION.md`](INVOCATION.md) — how to actually *call* an operation (Python API, JSON helper, driver script).

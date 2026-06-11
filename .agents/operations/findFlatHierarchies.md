@@ -41,7 +41,7 @@ _Not applicable — analysis-only; results are reported as JSON paths and child 
 ## Prerequisites & Workflows
 
 - Works standalone on any USD stage.
-- Supports analysis mode for Asset Validator integration.
+- Supports analysis mode for usd-validation-nvidia integration.
 - Use results to decide where to apply `organizePrototypes` or manual restructuring.
 
 ## Known Limitations

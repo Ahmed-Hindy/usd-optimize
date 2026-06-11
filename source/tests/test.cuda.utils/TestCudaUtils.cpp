@@ -6,8 +6,8 @@
 
 #include "TestCudaUtils.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/CudaUtils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/CudaUtils.h>
 
 
 extern "C"
@@ -17,6 +17,6 @@ extern "C"
     // (including this helper library) share the same static state.
     TEST_CUDA_UTILS_API bool testUtilsIsCudaAvailable()
     {
-        return omni::scene::optimizer::isCudaAvailable();
+        return usd_optimize::isCudaAvailable();
     }
 }

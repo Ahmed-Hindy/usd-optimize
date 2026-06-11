@@ -3,8 +3,8 @@
 #
 
 
-from omni.scene.optimizer.core import SceneOptimizerCore
 from pxr import UsdGeom, UsdShade
+from usd_optimize.core import UsdOptimizeCore
 
 from .scripts import commands, standalone
 from .test_utils import Test_Operation, _get_context, _get_meshes, _get_test_data_file_path
@@ -134,7 +134,7 @@ class Test(Test_Operation):
     async def _do_merge(self, stage, args: dict):
         before_meshes = _get_meshes(stage)
         context = _get_context(stage)
-        success, _, _ = SceneOptimizerCore.getInstance().executeOperation("merge", context, args)
+        success, _, _ = UsdOptimizeCore.getInstance().executeOperation("merge", context, args)
         self.assertTrue(success)
         after_meshes = _get_meshes(stage)
         new_meshes = set(after_meshes) - set(before_meshes)
@@ -143,7 +143,7 @@ class Test(Test_Operation):
     async def _do_deduplicate_geometry(self, stage, args: dict):
         before_meshes = _get_meshes(stage)
         context = _get_context(stage)
-        SceneOptimizerCore.getInstance().executeOperation("deduplicateGeometry", context, args)
+        UsdOptimizeCore.getInstance().executeOperation("deduplicateGeometry", context, args)
         after_meshes = _get_meshes(stage)
         new_meshes = set(after_meshes) - set(before_meshes)
         return before_meshes, after_meshes, new_meshes
@@ -403,14 +403,14 @@ class Test(Test_Operation):
         print("Stats Before Dedupe:")
         context = _get_context(stage)
 
-        success, _, _ = SceneOptimizerCore.getInstance().executeOperation("printStats", context, {})
+        success, _, _ = UsdOptimizeCore.getInstance().executeOperation("printStats", context, {})
         self.assertTrue(success)
 
         _deep_deduplicate_geometry_args = self._deep_deduplicate_geometry_args
         await self._do_deduplicate_geometry(stage, _deep_deduplicate_geometry_args)
 
         print("Stats After Dedupe:")
-        success, _, _ = SceneOptimizerCore.getInstance().executeOperation("printStats", context, {})
+        success, _, _ = UsdOptimizeCore.getInstance().executeOperation("printStats", context, {})
         self.assertTrue(success)
 
         after_meshes = _get_meshes(stage)
@@ -577,7 +577,7 @@ class Test(Test_Operation):
         # Test running via command
         args = {"meshPrimPaths": []}
         context = _get_context(stage)
-        SceneOptimizerCore.getInstance().executeOperation("computeExtents", context, args)
+        UsdOptimizeCore.getInstance().executeOperation("computeExtents", context, args)
 
         noExtentAfter = list(stage.GetPrimAtPath("/World/CubeNoExtent").GetAttribute("extent").Get())
         self.assertEqual(noExtentAfter, [(-50, -50, -50), (50, 50, 50)])
@@ -674,7 +674,7 @@ class Test(Test_Operation):
         self._open_stage("threeLambertShaders.usd")
 
         # Assert the base command class has no info
-        info = commands._SceneOptimizerOperation.get_operation_info()
+        info = commands._UsdOptimizeOperation.get_operation_info()
         self.assertEqual(len(info), 0)
 
     async def test_delete_prims(self):
@@ -687,7 +687,7 @@ class Test(Test_Operation):
 
         context = _get_context(stage)
         args = {"primPaths": ["/World/CubeNoExtent"]}
-        success, _, _ = SceneOptimizerCore.getInstance().executeOperation("deletePrims", context, args)
+        success, _, _ = UsdOptimizeCore.getInstance().executeOperation("deletePrims", context, args)
         self.assertTrue(success)
 
         self.assertFalse(stage.GetPrimAtPath("/World/CubeNoExtent"))

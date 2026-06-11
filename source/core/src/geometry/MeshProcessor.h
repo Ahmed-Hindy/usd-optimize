@@ -4,13 +4,13 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/UsdIncludes.h"
-#include "omni/scene.optimizer/core/geometry/DisjointSet.h"
-#include "omni/scene.optimizer/core/geometry/VirtualMesh.h"
+// Usd Optimize Core
+#include "usd_optimize/core/UsdIncludes.h"
+#include "usd_optimize/core/geometry/DisjointSet.h"
+#include "usd_optimize/core/geometry/VirtualMesh.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -34,7 +34,7 @@ struct MeshData
 
 
 /// Helper class that processes meshes to find disjoint mesh subsets and scene and mesh volume data
-class OMNI_SO_EXPORT MeshProcessor
+class USD_OPTIMIZE_EXPORT MeshProcessor
 {
 public:
     /// Constructor
@@ -89,8 +89,8 @@ private:
 /// \param meshData A MeshData object with a baseMesh configured
 /// \param disjointSet Disjoint set initialized with the faceVertexIndices
 /// \param splitCollocatedPoints Whether to split collocated points
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _findDisjointMeshes(const MeshData& meshData, DisjointSet& disjointSet, bool splitCollocatedPoints);
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

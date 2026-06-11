@@ -4,12 +4,12 @@
 
 #include "SparseMeshes.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/Utils.h>
-#include <omni/scene.optimizer/core/geometry/MeshProcessor.h>
-#include <omni/scene.optimizer/core/geometry/SpatialClustering.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/Utils.h>
+#include <usd_optimize/core/geometry/MeshProcessor.h>
+#include <usd_optimize/core/geometry/SpatialClustering.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -26,10 +26,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::SparseMeshesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::SparseMeshesOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -63,11 +63,11 @@ SparseMeshesOperation::SparseMeshesOperation()
 
 std::string SparseMeshesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion SparseMeshesOperation::getVersion() const
+UsdOptimizePluginVersion SparseMeshesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -107,7 +107,7 @@ OperationResult SparseMeshesOperation::executeImpl()
 
 OperationResult SparseMeshesOperation::executeAnalysisImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|sparseMeshAnalysis");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|sparseMeshAnalysis");
 
     // constants that can be fine-tuned
     // ----------------------------------------------------------
@@ -434,4 +434,4 @@ OperationResult SparseMeshesOperation::executeAnalysisImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

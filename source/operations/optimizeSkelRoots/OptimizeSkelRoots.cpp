@@ -4,9 +4,9 @@
 
 #include "OptimizeSkelRoots.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
 
 // Merge Operation
 #include <merge/Merge.h>
@@ -24,10 +24,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::OptimizeSkelRootsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::OptimizeSkelRootsOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // clang-format off
@@ -49,7 +49,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 // Merge meshes with an awareness of the specifics of UsdSkel Skinning properties
 static void _mergeSkinnedMeshes(ExecutionContext* context, const UsdStageWeakPtr& usdStage, const SdfPath& skelRootPath)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|_mergeSkinnedMeshes");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|_mergeSkinnedMeshes");
 
     // Bucket arguments unique to skinned mesh prims
     // Differing materials will be translated to subset material bindings
@@ -89,7 +89,7 @@ static void _mergeSkinnedMeshes(ExecutionContext* context, const UsdStageWeakPtr
         }
 
         // ensure we can get the merge operation
-        auto& core = SceneOptimizerCore::getInstance();
+        auto& core = UsdOptimizeCore::getInstance();
         auto mergeOp = core.getOperation("merge");
         if (mergeOp == nullptr)
         {
@@ -99,7 +99,7 @@ static void _mergeSkinnedMeshes(ExecutionContext* context, const UsdStageWeakPtr
 
         // Prepare execution context
         ExecutionContext childContext;
-        so_execution_context_copy(&childContext, context);
+        usd_optimize_execution_context_copy(&childContext, context);
 
         // create VirtualMeshes for of the skinned mesh prims so we can add it to the bucketer
         std::vector<VirtualMesh> virtualMeshes;
@@ -131,7 +131,7 @@ static void _mergeSkinnedMeshes(ExecutionContext* context, const UsdStageWeakPtr
 
         // Merge. No args required, using the defaults other than the user data.
         mergeOp->execute(&childContext, JsObject());
-        so_execution_context_free(&childContext);
+        usd_optimize_execution_context_free(&childContext);
 
         auto& newPrims = userData.mergedPrims;
 
@@ -159,11 +159,11 @@ OptimizeSkelRootsOperation::OptimizeSkelRootsOperation()
 
 std::string OptimizeSkelRootsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion OptimizeSkelRootsOperation::getVersion() const
+UsdOptimizePluginVersion OptimizeSkelRootsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -178,7 +178,7 @@ std::string OptimizeSkelRootsOperation::getCategory() const
 // Find and optimize all the UsdSkel setups in a given a Usd Stage
 OperationResult OptimizeSkelRootsOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|_optimizeSkelRoots");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|_optimizeSkelRoots");
 
     constexpr bool meshesOnly = false;
     constexpr bool reverse = false;
@@ -213,4 +213,4 @@ OperationResult OptimizeSkelRootsOperation::executeImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

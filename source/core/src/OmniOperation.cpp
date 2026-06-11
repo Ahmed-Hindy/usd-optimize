@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/OmniOperation.h"
+#include "usd_optimize/core/OmniOperation.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Core.h"
-#include "omni/scene.optimizer/core/ResolveSdfPaths.h"
-#include "omni/scene.optimizer/core/TbbCompat.h"
-#include "omni/scene.optimizer/core/UsdIncludes.h"
-#include "omni/scene.optimizer/core/Utils.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Core.h"
+#include "usd_optimize/core/ResolveSdfPaths.h"
+#include "usd_optimize/core/TbbCompat.h"
+#include "usd_optimize/core/UsdIncludes.h"
+#include "usd_optimize/core/Utils.h"
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -23,7 +23,7 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -65,8 +65,8 @@ OperationResult OmniOperation::executePre()
 
 void OmniOperation::executePost(const TotalStats& totalStats)
 {
-    SO_LOG_INFO("Total vertex count: %zu -> %zu", totalStats.before.vertexCount, totalStats.after.vertexCount);
-    SO_LOG_INFO("Total face count: %zu -> %zu", totalStats.before.faceCount, totalStats.after.faceCount);
+    USD_OPTIMIZE_LOG_INFO("Total vertex count: %zu -> %zu", totalStats.before.vertexCount, totalStats.after.vertexCount);
+    USD_OPTIMIZE_LOG_INFO("Total face count: %zu -> %zu", totalStats.before.faceCount, totalStats.after.faceCount);
 }
 
 
@@ -150,7 +150,7 @@ public:
                         {
                             std::string errorMsg = std::string(e.what()) + " (Prim: " +
                                                    queuedProcessed->usdPrim().GetPath().GetAsString().c_str() + ")";
-                            SO_LOG_ERROR(errorMsg.c_str());
+                            USD_OPTIMIZE_LOG_ERROR(errorMsg.c_str());
                         }
                     }
                 }
@@ -160,7 +160,7 @@ public:
         }
         catch (const std::exception& e)
         {
-            SO_LOG_ERROR(e.what());
+            USD_OPTIMIZE_LOG_ERROR(e.what());
         }
     }
 
@@ -176,7 +176,7 @@ private:
 OperationResult OmniOperation::executeImpl()
 {
     // Carb Profile Marker
-    std::string opName = "SceneOptimizer|" + getName();
+    std::string opName = "UsdOptimize|" + getName();
     CARB_PROFILE_ZONE(0, opName.c_str());
 
     // Resolve prims
@@ -239,7 +239,8 @@ OperationResult OmniOperation::executeImpl()
             }
             else
             {
-                SO_LOG_VERBOSE("Skipped prim %s because it is an instance proxy", prim.GetPath().GetAsString().c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("Skipped prim %s because it is an instance proxy",
+                                         prim.GetPath().GetAsString().c_str());
                 result = new ProcessedData(prim, false /* write */);
             }
 
@@ -266,4 +267,4 @@ OperationResult OmniOperation::executeImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

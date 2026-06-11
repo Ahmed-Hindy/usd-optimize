@@ -282,6 +282,92 @@ class Test_Operation_Dice_Meshes(Test_Operation):
             self.assertAlmostEqual(actual[0], expected[0], places=1)
             self.assertAlmostEqual(actual[1], expected[1], places=1)
 
+    async def test_dice_irregular_grid_multiple_axes_with_split(self):
+        """Irregular X+Z cuts should both be honored when splitting dices into prims."""
+        cube_path = "/World/Cube"
+        stage = self._open_stage("simpleCube.usda")
+
+        args = DEFAULT_ARGS.copy()
+        args["paths"] = [cube_path]
+        args["splitDices"] = True
+        args["gridType"] = GRID_TYPE_IRREGULAR
+        args["cutHeightsX"] = "0"
+        args["cutHeightsZ"] = "0"
+        success, result = self._execute_command(args)
+
+        self.assertTrue(success)
+        self.assertTrue(result[0])
+        self.assertFalse(stage.GetPrimAtPath(cube_path).IsValid())
+
+        # A single cut on X and Z creates 2 * 2 cells. A single-axis result
+        # would only create two parts and leave one extent range unsplit.
+        parts = _get_meshes(stage)
+        self.assertEqual(len(parts), 4)
+
+        expected_xz_ranges = [
+            (-50, 0, -50, 0),
+            (-50, 0, 0, 50),
+            (0, 50, -50, 0),
+            (0, 50, 0, 50),
+        ]
+        actual_xz_ranges = sorted(
+            (
+                float(p.GetAttribute("extent").Get()[0][0]),
+                float(p.GetAttribute("extent").Get()[1][0]),
+                float(p.GetAttribute("extent").Get()[0][2]),
+                float(p.GetAttribute("extent").Get()[1][2]),
+            )
+            for p in parts
+        )
+        for actual, expected in zip(actual_xz_ranges, expected_xz_ranges, strict=True):
+            for actual_value, expected_value in zip(actual, expected, strict=True):
+                self.assertAlmostEqual(actual_value, expected_value, places=1)
+
+    async def test_dice_irregular_grid_multiple_axes_with_multiple_cuts(self):
+        """Irregular cuts should accumulate across axes when an axis has multiple cut heights."""
+        cube_path = "/World/Cube"
+        stage = self._open_stage("simpleCube.usda")
+
+        args = DEFAULT_ARGS.copy()
+        args["paths"] = [cube_path]
+        args["splitDices"] = True
+        args["gridType"] = GRID_TYPE_IRREGULAR
+        args["cutHeightsX"] = "-25 0 25"
+        args["cutHeightsY"] = "0"
+        args["cutHeightsZ"] = "0"
+        success, result = self._execute_command(args)
+
+        self.assertTrue(success)
+        self.assertTrue(result[0])
+        self.assertFalse(stage.GetPrimAtPath(cube_path).IsValid())
+
+        parts = _get_meshes(stage)
+        self.assertEqual(len(parts), 16)
+
+        x_ranges = [(-50, -25), (-25, 0), (0, 25), (25, 50)]
+        y_ranges = [(-50, 0), (0, 50)]
+        z_ranges = [(-50, 0), (0, 50)]
+        expected_ranges = sorted(
+            (x_min, x_max, y_min, y_max, z_min, z_max)
+            for x_min, x_max in x_ranges
+            for y_min, y_max in y_ranges
+            for z_min, z_max in z_ranges
+        )
+        actual_ranges = sorted(
+            (
+                float(p.GetAttribute("extent").Get()[0][0]),
+                float(p.GetAttribute("extent").Get()[1][0]),
+                float(p.GetAttribute("extent").Get()[0][1]),
+                float(p.GetAttribute("extent").Get()[1][1]),
+                float(p.GetAttribute("extent").Get()[0][2]),
+                float(p.GetAttribute("extent").Get()[1][2]),
+            )
+            for p in parts
+        )
+        for actual, expected in zip(actual_ranges, expected_ranges, strict=True):
+            for actual_value, expected_value in zip(actual, expected, strict=True):
+                self.assertAlmostEqual(actual_value, expected_value, places=1)
+
     async def test_dice_irregular_grid_multiple_cuts(self):
         """Tests dicing with an irregular grid using multiple cut heights on one axis."""
         cube_path = "/World/Cube"

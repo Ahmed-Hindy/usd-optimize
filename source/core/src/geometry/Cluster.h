@@ -4,14 +4,17 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/UsdIncludes.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/UsdIncludes.h"
 
 // USD
 #include <pxr/base/gf/bbox3d.h>
+#include <pxr/base/gf/matrix4d.h>
+#include <pxr/base/vt/array.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 constexpr const int INVALID_CLUSTER = -1;
@@ -21,6 +24,7 @@ enum class ClusterMode
     eNone = 0, // No spatial clustering
     eBoundingBox = 1, // Cluster to a maximum bounding box size
     eVertexCount = 2, // Cluster based on a maximum vertex count
+    eCoincidentBoundary = 3, // Cluster meshes that share a coincident boundary edge (a shared seam)
 };
 
 /// Helper struct
@@ -140,4 +144,45 @@ void spatiallyClusterMeshes(ClusterMode mode,
                             std::vector<int>& clusters);
 
 
-} // namespace omni::scene::optimizer
+/// Geometry of a single mesh used as input to \ref clusterByCoincidentBoundary.
+///
+/// The arrays are referenced (not copied) and must outlive the clustering call. Points are in the mesh's local space;
+/// \a localToWorld is used to bring boundary vertices into a common (world) space so that meshes authored under
+/// different transforms can be compared.
+struct BoundaryMeshData
+{
+    const PXR_NS::VtVec3fArray* points = nullptr;
+    const PXR_NS::VtIntArray* faceVertexCounts = nullptr;
+    const PXR_NS::VtIntArray* faceVertexIndices = nullptr;
+    PXR_NS::GfMatrix4d localToWorld = PXR_NS::GfMatrix4d(1.0);
+};
+
+
+/// Cluster meshes that share coincident boundary vertices (i.e. a shared "seam").
+///
+/// A boundary vertex is a vertex that lies on a boundary edge - an edge used by exactly one face. Two meshes are
+/// considered connected when they share at least \p minSharedVertices boundary vertices that coincide in world space
+/// (each pair of positions within \p tolerance). Requiring more than one shared vertex avoids merging meshes that
+/// merely touch at a single corner point, while still catching seams whose tessellation differs on each side (so the
+/// boundary vertices coincide even though the boundary edges do not align).
+///
+/// Connectivity is transitive: meshes are grouped into connected components, so a chain A-B-C is placed in one cluster
+/// even if A and C do not share vertices directly.
+///
+/// \p clusters must be sized to \p meshes and initialized with \a INVALID_CLUSTER before calling. On return each entry
+/// holds the cluster id for the corresponding mesh, or remains \a INVALID_CLUSTER if the mesh shares no seam with any
+/// other mesh (such meshes are intentionally left unmerged, mirroring the other spatial modes).
+///
+/// \param meshes The geometry of the meshes to cluster
+/// \param tolerance The maximum distance between boundary vertices for them to be considered coincident
+/// \param minSharedVertices The minimum number of coincident boundary vertices two meshes must share to be connected
+///                          (clamped to a minimum of 1)
+/// \param clusters Output vector of unique cluster ids
+USD_OPTIMIZE_EXPORT
+void clusterByCoincidentBoundary(const std::vector<BoundaryMeshData>& meshes,
+                                 double tolerance,
+                                 int minSharedVertices,
+                                 std::vector<int>& clusters);
+
+
+} // namespace usd_optimize

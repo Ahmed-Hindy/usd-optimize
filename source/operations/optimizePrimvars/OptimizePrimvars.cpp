@@ -4,11 +4,11 @@
 
 #include "OptimizePrimvars.h"
 
-// Scene Optimizer
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/TbbCompat.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/TbbCompat.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -21,10 +21,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-// Register plugin with SO
-SO_PLUGIN_INIT(omni::scene::optimizer::OptimizePrimvarsOperation);
+// Register plugin with Usd Optimize
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::OptimizePrimvarsOperation);
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 constexpr const char* s_category = "OPTIMIZE_PRIMVARS";
@@ -80,11 +80,11 @@ OptimizePrimvarsOperation::OptimizePrimvarsOperation()
 
 std::string OptimizePrimvarsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion OptimizePrimvarsOperation::getVersion() const
+UsdOptimizePluginVersion OptimizePrimvarsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -276,14 +276,16 @@ TfToken OptimizePrimvarsOperation::simplifyPrimvar(UsdGeomPrimvar& primvar,
     }
     else
     {
-        SO_LOG_WARN("Unsupported value type for %s: %s",
-                    primvar.GetAttr().GetPath().GetAsString().c_str(),
-                    value.GetTypeName().c_str());
+        USD_OPTIMIZE_LOG_WARN("Unsupported value type for %s: %s",
+                              primvar.GetAttr().GetPath().GetAsString().c_str(),
+                              value.GetTypeName().c_str());
     }
 
     if (getContext()->verbose && result != UsdGeomTokens->none)
     {
-        SO_LOG_VERBOSE("Reduced %s to %s", primvar.GetAttr().GetPath().GetAsString().c_str(), result.GetString().c_str());
+        USD_OPTIMIZE_LOG_VERBOSE("Reduced %s to %s",
+                                 primvar.GetAttr().GetPath().GetAsString().c_str(),
+                                 result.GetString().c_str());
     }
 
     return result;
@@ -491,22 +493,22 @@ static void _analyzePrimvar(const UsdGeomPrimvar& primvar, PrimvarIssues& issues
 }
 
 // Macros to reduce boilerplate in type-dispatch switches
-#define SO_IF_FILTER_TYPE(TYPENAME, T)                                                                                 \
+#define USD_OPTIMIZE_IF_FILTER_TYPE(TYPENAME, T)                                                                       \
     if (typeName == TYPENAME)                                                                                          \
     {                                                                                                                  \
         _analyzePrimvar<T>(primvar, issues);                                                                           \
     }
 
-#define SO_ELIF_FILTER_TYPE(TYPENAME, T) else SO_IF_FILTER_TYPE(TYPENAME, T)
+#define USD_OPTIMIZE_ELIF_FILTER_TYPE(TYPENAME, T) else USD_OPTIMIZE_IF_FILTER_TYPE(TYPENAME, T)
 
 
-#define SO_IF_INDEX_PRIMVAR(T)                                                                                         \
+#define USD_OPTIMIZE_IF_INDEX_PRIMVAR(T)                                                                               \
     if (values.IsHolding<VtArray<T>>())                                                                                \
     {                                                                                                                  \
         _indexPrimvar<T>(primvar, values);                                                                             \
     }
 
-#define SO_EL_INDEX_PRIMVAR(T) else SO_IF_INDEX_PRIMVAR(T)
+#define USD_OPTIMIZE_EL_INDEX_PRIMVAR(T) else USD_OPTIMIZE_IF_INDEX_PRIMVAR(T)
 
 
 struct OptimizePrimvarsOperation::Counters
@@ -542,9 +544,9 @@ void OptimizePrimvarsOperation::processPrimvar(PXR_NS::UsdGeomPrimvar& primvar,
     // Currently unsupported
     if (primvar.GetElementSize() != 1)
     {
-        SO_LOG_WARN("Skipping primvar %s with element size %d",
-                    primvar.GetAttr().GetPath().GetAsString().c_str(),
-                    primvar.GetElementSize());
+        USD_OPTIMIZE_LOG_WARN("Skipping primvar %s with element size %d",
+                              primvar.GetAttr().GetPath().GetAsString().c_str(),
+                              primvar.GetElementSize());
         return;
     }
 
@@ -570,7 +572,7 @@ void OptimizePrimvarsOperation::processPrimvar(PXR_NS::UsdGeomPrimvar& primvar,
     // Skip array primvars that have no values
     if (values.IsArrayValued() && values.GetArraySize() == 0)
     {
-        SO_LOG_WARN("Primvar has no values: %s", primvar.GetAttr().GetPath().GetAsString().c_str());
+        USD_OPTIMIZE_LOG_WARN("Primvar has no values: %s", primvar.GetAttr().GetPath().GetAsString().c_str());
         return;
     }
 
@@ -610,7 +612,7 @@ void OptimizePrimvarsOperation::processPrimvar(PXR_NS::UsdGeomPrimvar& primvar,
 
         if (getContext()->verbose)
         {
-            SO_LOG_VERBOSE("Flattened %s", primvar.GetAttr().GetPath().GetAsString().c_str());
+            USD_OPTIMIZE_LOG_VERBOSE("Flattened %s", primvar.GetAttr().GetPath().GetAsString().c_str());
         }
 
         ++counters.flattened;
@@ -634,29 +636,29 @@ void OptimizePrimvarsOperation::processPrimvar(PXR_NS::UsdGeomPrimvar& primvar,
         // Index based on type
         // Note: the types are based on what is a supported indexable
         // primvar type in primvars.cpp within USD
-        SO_IF_INDEX_PRIMVAR(float)
-        SO_EL_INDEX_PRIMVAR(double)
-        SO_EL_INDEX_PRIMVAR(GfHalf)
-        SO_EL_INDEX_PRIMVAR(GfVec2f)
-        SO_EL_INDEX_PRIMVAR(GfVec3f)
-        SO_EL_INDEX_PRIMVAR(GfVec4f)
-        SO_EL_INDEX_PRIMVAR(GfVec2d)
-        SO_EL_INDEX_PRIMVAR(GfVec3d)
-        SO_EL_INDEX_PRIMVAR(GfVec4d)
-        SO_EL_INDEX_PRIMVAR(std::string)
-        SO_EL_INDEX_PRIMVAR(GfVec2i)
-        SO_EL_INDEX_PRIMVAR(GfVec3i)
-        SO_EL_INDEX_PRIMVAR(GfVec4i)
-        SO_EL_INDEX_PRIMVAR(GfVec2h)
-        SO_EL_INDEX_PRIMVAR(GfVec3h)
-        SO_EL_INDEX_PRIMVAR(GfVec4h)
-        SO_EL_INDEX_PRIMVAR(GfMatrix3d)
-        SO_EL_INDEX_PRIMVAR(GfMatrix4d)
+        USD_OPTIMIZE_IF_INDEX_PRIMVAR(float)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(double)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfHalf)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec2f)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec3f)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec4f)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec2d)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec3d)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec4d)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(std::string)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec2i)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec3i)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec4i)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec2h)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec3h)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfVec4h)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfMatrix3d)
+        USD_OPTIMIZE_EL_INDEX_PRIMVAR(GfMatrix4d)
         else
         {
-            SO_LOG_WARN("Unsupported value type for %s: %s",
-                        primvar.GetAttr().GetPath().GetAsString().c_str(),
-                        values.GetTypeName().c_str());
+            USD_OPTIMIZE_LOG_WARN("Unsupported value type for %s: %s",
+                                  primvar.GetAttr().GetPath().GetAsString().c_str(),
+                                  values.GetTypeName().c_str());
             return;
         }
 
@@ -665,7 +667,7 @@ void OptimizePrimvarsOperation::processPrimvar(PXR_NS::UsdGeomPrimvar& primvar,
 
         if (getContext()->verbose)
         {
-            SO_LOG_VERBOSE("Indexed %s", primvar.GetAttr().GetPath().GetAsString().c_str());
+            USD_OPTIMIZE_LOG_VERBOSE("Indexed %s", primvar.GetAttr().GetPath().GetAsString().c_str());
         }
     }
 
@@ -680,7 +682,7 @@ void OptimizePrimvarsOperation::processPrimvar(PXR_NS::UsdGeomPrimvar& primvar,
 
 OperationResult OptimizePrimvarsOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|OptimizePrimvarsOperation|Execute");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|OptimizePrimvarsOperation|Execute");
 
     // Convert primvar name strings to Tokens
     setPrimvars(m_primvars);
@@ -688,7 +690,7 @@ OperationResult OptimizePrimvarsOperation::executeImpl()
     // Early-out if we know there is nothing to do.
     if (m_mode == OptimizePrimvarsMode::eIgnore && !m_simplify)
     {
-        SO_LOG_INFO("Mode is ignore and simplify is disabled - nothing to do!");
+        USD_OPTIMIZE_LOG_INFO("Mode is ignore and simplify is disabled - nothing to do!");
         return { true };
     }
 
@@ -749,7 +751,7 @@ OperationResult OptimizePrimvarsOperation::executeImpl()
     }
 
     std::string suffix = tasks.size() == 1 ? "" : "s";
-    SO_LOG_INFO("Running optimize primvars on %s prim%s", std::to_string(tasks.size()).c_str(), suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Running optimize primvars on %s prim%s", std::to_string(tasks.size()).c_str(), suffix.c_str());
 
     Counters counters;
     UsdShadeMaterialBindingAPI::BindingsCache bindingsCache;
@@ -795,23 +797,23 @@ OperationResult OptimizePrimvarsOperation::executeImpl()
     if (m_mode == OptimizePrimvarsMode::eIndex || m_mode == OptimizePrimvarsMode::eIndexForced)
     {
         suffix = counters.indexed == 1 ? "" : "s";
-        SO_LOG_INFO("Indexed %s primvar%s", std::to_string(counters.indexed).c_str(), suffix.c_str());
+        USD_OPTIMIZE_LOG_INFO("Indexed %s primvar%s", std::to_string(counters.indexed).c_str(), suffix.c_str());
     }
     else if (m_mode == OptimizePrimvarsMode::eFlatten)
     {
         suffix = counters.flattened == 1 ? "" : "s";
-        SO_LOG_INFO("Flattened %s primvar%s", std::to_string(counters.flattened).c_str(), suffix.c_str());
+        USD_OPTIMIZE_LOG_INFO("Flattened %s primvar%s", std::to_string(counters.flattened).c_str(), suffix.c_str());
     }
     else if (m_mode == OptimizePrimvarsMode::eRemove)
     {
         suffix = counters.removed == 1 ? "" : "s";
-        SO_LOG_INFO("Removed %s primvar%s", std::to_string(counters.removed).c_str(), suffix.c_str());
+        USD_OPTIMIZE_LOG_INFO("Removed %s primvar%s", std::to_string(counters.removed).c_str(), suffix.c_str());
     }
 
     if (m_simplify)
     {
         suffix = counters.reduced == 1 ? "" : "s";
-        SO_LOG_INFO("Reduced %s primvar%s", std::to_string(counters.reduced).c_str(), suffix.c_str());
+        USD_OPTIMIZE_LOG_INFO("Reduced %s primvar%s", std::to_string(counters.reduced).c_str(), suffix.c_str());
     }
 
     return { true };
@@ -887,45 +889,45 @@ OperationResult OptimizePrimvarsOperation::executeAnalysisImpl()
                                            }
 
                                            // For anything that made it this far, check for issues
-                                           SO_IF_FILTER_TYPE(SdfValueTypeNames->HalfArray, GfHalf)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->FloatArray, float)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->DoubleArray, double)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->StringArray, std::string)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Int2Array, GfVec2i)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Int3Array, GfVec3i)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Int4Array, GfVec4i)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Half2Array, GfVec2h)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Half3Array, GfVec3h)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Half4Array, GfVec4h)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Float2Array, GfVec2f)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Float3Array, GfVec3f)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Float4Array, GfVec4f)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Double2Array, GfVec2d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Double3Array, GfVec3d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Double4Array, GfVec4d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Point3fArray, GfVec3f)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Point3dArray, GfVec3d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Vector3hArray, GfVec3h)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Vector3fArray, GfVec3f)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Vector3dArray, GfVec3d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Normal3hArray, GfVec3h)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Normal3fArray, GfVec3f)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Normal3dArray, GfVec3d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Color3hArray, GfVec3h)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Color3fArray, GfVec3f)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Color3dArray, GfVec3d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Color4hArray, GfVec4h)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Color4fArray, GfVec4f)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Color4dArray, GfVec4d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Matrix3dArray, GfMatrix3d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Matrix4dArray, GfMatrix4d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->Frame4dArray, GfMatrix4d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord2hArray, GfVec2h)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord2fArray, GfVec2f)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord2dArray, GfVec2d)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord3hArray, GfVec3h)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord3fArray, GfVec3f)
-                                           SO_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord3dArray, GfVec3d)
+                                           USD_OPTIMIZE_IF_FILTER_TYPE(SdfValueTypeNames->HalfArray, GfHalf)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->FloatArray, float)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->DoubleArray, double)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->StringArray, std::string)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Int2Array, GfVec2i)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Int3Array, GfVec3i)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Int4Array, GfVec4i)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Half2Array, GfVec2h)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Half3Array, GfVec3h)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Half4Array, GfVec4h)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Float2Array, GfVec2f)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Float3Array, GfVec3f)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Float4Array, GfVec4f)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Double2Array, GfVec2d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Double3Array, GfVec3d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Double4Array, GfVec4d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Point3fArray, GfVec3f)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Point3dArray, GfVec3d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Vector3hArray, GfVec3h)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Vector3fArray, GfVec3f)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Vector3dArray, GfVec3d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Normal3hArray, GfVec3h)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Normal3fArray, GfVec3f)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Normal3dArray, GfVec3d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Color3hArray, GfVec3h)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Color3fArray, GfVec3f)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Color3dArray, GfVec3d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Color4hArray, GfVec4h)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Color4fArray, GfVec4f)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Color4dArray, GfVec4d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Matrix3dArray, GfMatrix3d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Matrix4dArray, GfMatrix4d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->Frame4dArray, GfMatrix4d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord2hArray, GfVec2h)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord2fArray, GfVec2f)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord2dArray, GfVec2d)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord3hArray, GfVec3h)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord3fArray, GfVec3f)
+                                           USD_OPTIMIZE_ELIF_FILTER_TYPE(SdfValueTypeNames->TexCoord3dArray, GfVec3d)
                                        }
                                    }
                                });
@@ -944,7 +946,7 @@ OperationResult OptimizePrimvarsOperation::executeAnalysisImpl()
 
             if (log)
             {
-                SO_LOG_VERBOSE(message, path.c_str());
+                USD_OPTIMIZE_LOG_VERBOSE(message, path.c_str());
             }
         }
 
@@ -966,11 +968,11 @@ OperationResult OptimizePrimvarsOperation::executeAnalysisImpl()
 
     if (getContext()->verbose)
     {
-        SO_LOG_VERBOSE("Analysis Result: %s", result.output);
+        USD_OPTIMIZE_LOG_VERBOSE("Analysis Result: %s", result.output);
     }
 
     return result;
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

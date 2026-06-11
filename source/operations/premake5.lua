@@ -1,10 +1,10 @@
 
-so_build = require("tools/premake/scene-optimizer-public")
+usd_optimize_build = require("tools/premake/usd-optimize-public")
 
 plugin_author = "NVIDIA Corporation"
 
 
-so_build.link_operations_dir()
+usd_optimize_build.link_operations_dir()
 
 
 -- Discover and link python operations
@@ -14,7 +14,7 @@ project "python_operations"
     for _, py_file in ipairs(python_ops) do
         local dir = path.getdirectory(py_file)
         local name = path.getname(dir)
-        so_build.operation_plugin_python(dir, name)
+        usd_optimize_build.operation_plugin_python(dir, name)
     end
 
 

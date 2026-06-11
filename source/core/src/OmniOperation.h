@@ -4,10 +4,10 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Operation.h"
-#include "omni/scene.optimizer/core/RemovePrims.h"
-#include "omni/scene.optimizer/core/ResolveSdfPaths.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Operation.h"
+#include "usd_optimize/core/RemovePrims.h"
+#include "usd_optimize/core/ResolveSdfPaths.h"
 
 // OmniMeshOps
 #include <OmniMeshOps/usd/Mesh.h>
@@ -21,7 +21,7 @@
 #include <queue>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Struct to track mesh counts
@@ -255,7 +255,7 @@ protected:
 ///
 /// Wraps up the TBB pipeline handling in to a single place so the omni plugins can be simpler, only really
 /// needing to implement their primary logic.
-class OMNI_SO_EXPORT OmniOperation : public Operation
+class USD_OPTIMIZE_EXPORT OmniOperation : public Operation
 {
 public:
     /// Standard Constructor
@@ -287,7 +287,7 @@ protected:
     /// printed. The default implementation just prints out the values in totalStats.
     virtual void executePost(const TotalStats& totalStats);
 
-    /// Standard SO operation entry point
+    /// Standard Usd Optimize operation entry point
     OperationResult executeImpl() override;
 
     /// Derived Omni operations must implement this function.
@@ -302,4 +302,4 @@ protected:
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/geometry/MeshProcessor.h"
+#include "usd_optimize/core/geometry/MeshProcessor.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Core.h"
-#include "omni/scene.optimizer/core/Log.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Core.h"
+#include "usd_optimize/core/Log.h"
 
 // USD
 #include <pxr/base/work/utils.h>
@@ -21,7 +21,7 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -117,7 +117,8 @@ static std::vector<UsdPrim> _findStaticMeshes(const std::vector<UsdPrim>& startP
                                 schemas.cend(),
                                 [&](const TfToken& schema) { return s_supportedSchemas.count(schema) == 0; }))
                 {
-                    SO_LOG_INFO("Skipping prim with unsupported schema: %s", prim.GetPrimPath().GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_INFO("Skipping prim with unsupported schema: %s",
+                                          prim.GetPrimPath().GetAsString().c_str());
                     continue;
                 }
 
@@ -527,4 +528,4 @@ void MeshProcessor::clear()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -4,24 +4,24 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/UsdIncludes.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/UsdIncludes.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // Compute and set the extent attribute on the specified meshes.
 ///
 /// Returns the number of prims that have had their extents computed by this function.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 size_t _computeExtents(const std::vector<PXR_NS::UsdPrim>& prims);
 
 // Compute and set the extent attribute on the specified meshes.
 ///
 /// Returns the number of prims that have had their extents computed by this function.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 size_t _computeExtents(const PXR_NS::UsdStageWeakPtr& usdStage, const std::vector<std::string>& meshPrimPaths);
 
 /// Find boundable prims that are missing an authored ``extent`` attribute.
@@ -32,11 +32,11 @@ size_t _computeExtents(const PXR_NS::UsdStageWeakPtr& usdStage, const std::vecto
 /// prims that an unconstrained ``computeExtents`` invocation would author
 /// onto. Used by the analysis-mode entry point to surface findings without
 /// mutating the stage.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 std::vector<std::string> _findPrimsMissingExtents(const std::vector<PXR_NS::UsdPrim>& prims);
 
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 std::vector<std::string> _findPrimsMissingExtents(const PXR_NS::UsdStageWeakPtr& usdStage,
                                                   const std::vector<std::string>& meshPrimPaths);
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

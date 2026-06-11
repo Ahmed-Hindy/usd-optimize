@@ -163,7 +163,7 @@ class Test_Operation_Flatten_Hierarchy(Test_Operation):
         self.assertGreater(len(xforms_keep), 0)
         self.assertGreater(len(xforms_remove), 0)
 
-        # Build an execution context with the custom stage, enable verbose
+        # Build an execution context with the custom stage
         context = _get_context(stage)
 
         self._execute_command(args, context=context)

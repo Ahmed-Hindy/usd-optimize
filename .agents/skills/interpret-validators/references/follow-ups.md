@@ -36,13 +36,13 @@ Look up the rule in `rule-reference.md`. Then:
    > skill (Claude alias: `/run-operations <asset> --config '[{"operation":"<op>", ...}]'`)
    > or call the operation directly via the Python bindings:
    > ```python
-   > from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
+   > from usd_optimize.core import ExecutionContext, UsdOptimizeCore
    > from pxr import Usd
    >
    > stage = Usd.Stage.Open("<asset>")
    > context = ExecutionContext()
    > context.set_stage(stage)
-   > success, error, output = SceneOptimizerCore.getInstance().executeOperation(
+   > success, error, output = UsdOptimizeCore.getInstance().executeOperation(
    >     "<op>", context, {"<arg>": <value>, ...}
    > )
    > stage.GetRootLayer().Save()
@@ -65,10 +65,10 @@ Look up the rule in `rule-reference.md`. Then:
    operations (e.g. `findOccludedMeshes` → use `removePrims` to remove the
    reported paths; `findFlatHierarchies` → use `flattenHierarchy`).
 
-4. **Base rules** — Many wrap the same operation as a Scene Optimizer
+4. **Base rules** — Many wrap the same operation as a Usd Optimize
    equivalent (see `rule-reference.md`). For stage-metadata or
    external-reference rules, suggest the user fix via USD Python API directly
-   and reference the asset-validator suggestion text from the CSV `Suggestion`
+   and reference the usd-validation-nvidia suggestion text from the CSV `Suggestion`
    column.
 
 ## "Show all `<RuleName>` failures"
@@ -93,10 +93,10 @@ Run `--rule X --locations` and filter the resulting `locations` array on the
 prim path (substring match in-context after parsing the JSON). The full result
 includes message + suggestion per row, so no follow-up call is needed.
 
-## "Show me only base rules" / "only SO rules"
+## "Show me only base rules" / "only Usd Optimize rules"
 
 Re-present the Step 4 table with the family filter applied (filter the
-summarizer's `rules` array by `family == "base"` or `"SO"`).
+summarizer's `rules` array by `family == "base"` or `"Usd Optimize"`).
 
 ## "Re-run validation"
 

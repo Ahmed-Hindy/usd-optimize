@@ -4,8 +4,8 @@
 
 #include "GenerateScene.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
 
 // USD
 #include <pxr/base/gf/rotation.h>
@@ -16,10 +16,10 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-SO_PLUGIN_INIT(omni::scene::optimizer::GenerateSceneOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::GenerateSceneOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -271,11 +271,11 @@ GenerateSceneOperation::GenerateSceneOperation()
 
 std::string GenerateSceneOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion GenerateSceneOperation::getVersion() const
+UsdOptimizePluginVersion GenerateSceneOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -587,4 +587,4 @@ void GenerateSceneOperation::generateMeshes(std::vector<VirtualMesh>& refMeshes,
     }
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

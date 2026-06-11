@@ -1,2 +1,2 @@
 project_with_location("generateProjectionUVs")
-    so_build.operation_plugin({ "*.cpp" })
+    usd_optimize_build.operation_plugin({ "*.cpp" })

@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: Copyright (c) 2022-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "omni/scene.optimizer/core/TransformUtils.h"
+#include "usd_optimize/core/TransformUtils.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // The following block of functions each computes a vector that essentially maximizes a certain objective function.
@@ -110,4 +110,4 @@ GfVec3f _computeCentroid(const VtVec3fArray& points)
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

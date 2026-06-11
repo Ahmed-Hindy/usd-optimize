@@ -4,8 +4,8 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
 
 // C++
 #include <chrono>
@@ -15,7 +15,7 @@
 #include <mutex>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Class to coalesce events
@@ -38,7 +38,7 @@ namespace omni::scene::optimizer
 /// The callback function, when executed, will be called on an arbitrary
 /// thread. The intention is to allow triggering an instance of this class
 /// from the main thread and not blocking.
-class OMNI_SO_EXPORT Coalescer
+class USD_OPTIMIZE_EXPORT Coalescer
 {
 
 public:
@@ -104,4 +104,4 @@ private:
 using CoalescerUPtr = std::unique_ptr<Coalescer>;
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

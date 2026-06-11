@@ -4,11 +4,11 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Log.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Log.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Check if a CUDA-capable GPU is available.
@@ -23,6 +23,6 @@ namespace omni::scene::optimizer
 /// of the statics, defeating the call_once caching.
 ///
 /// \return true if a CUDA GPU is available, false otherwise
-OMNI_SO_EXPORT bool isCudaAvailable();
+USD_OPTIMIZE_EXPORT bool isCudaAvailable();
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

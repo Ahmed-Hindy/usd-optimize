@@ -11,8 +11,8 @@ import pathlib
 import time
 import unittest
 
-from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
 from pxr import Sdf, Usd, UsdGeom, UsdUtils
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
 
 from .scripts import standalone
 
@@ -27,7 +27,7 @@ def _get_test_data_file_path(name):
     return str(test_file_path.resolve())
 
 
-def _get_context(stage, analysis=False, report=False, verbose=True):
+def _get_context(stage, analysis=False, report=False, verbose=False):
     """Get an execution context."""
     context = ExecutionContext()
     context.usdStageId = UsdUtils.StageCache.Get().Insert(stage).ToLongInt()
@@ -98,7 +98,7 @@ class _AwaitableNone:
 
 
 def _execute_operation(operation, args, context):
-    """Execute a named Scene Optimizer operation using SceneOptimizerCore directly.
+    """Execute a named Usd Optimize operation using UsdOptimizeCore directly.
 
     Returns ``(True, result_tuple)`` where
     ``result_tuple = (success, error_or_none, extra_or_none)``.
@@ -106,7 +106,7 @@ def _execute_operation(operation, args, context):
     The outer ``True`` is always returned.  Actual operation success or failure
     is reported inside *result_tuple[0]*.
     """
-    so_core = SceneOptimizerCore.getInstance()
+    so_core = UsdOptimizeCore.getInstance()
     result = so_core.executeOperation(operation, context, args)
     return True, result
 
@@ -132,26 +132,32 @@ class Test_Operation(unittest.TestCase, metaclass=_CombinedMeta):
         logger.debug("Elapsed time: {:.3f}".format(time.time() - self._start_time))
         return _AwaitableNone()
 
-    def _open_stage(self, name):
+    def _open_stage(self, name, loadSet=Usd.Stage.LoadAll):
         """Open a stage from the test data directory and track it as the
         current stage (used by _execute_command when no context is given).
 
         Uses Sdf.Layer.FindOrOpen + Reload to guarantee a fresh layer even
         when a previous test opened the same file, while keeping the real
         file path so that USD references resolve correctly.
+
+        Pass ``loadSet=Usd.Stage.LoadNone`` to leave payloads unloaded.
         """
         file_path = _get_test_data_file_path(name)
         layer = Sdf.Layer.FindOrOpen(file_path)
         if layer:
             layer.Reload()
         self.assertIsNotNone(layer, f"Failed to open layer: {file_path}")
-        stage = Usd.Stage.Open(layer)
+        stage = Usd.Stage.Open(layer, loadSet)
         self.assertIsNotNone(stage)
         self._current_stage = stage
         return stage
 
+    def _open_stage_unloaded(self, name):
+        """Open a stage from the test data directory with all payloads left unloaded."""
+        return self._open_stage(name, loadSet=Usd.Stage.LoadNone)
+
     def _execute_command(self, args, context=None):
-        """Execute the operation using SceneOptimizerCore directly.
+        """Execute the operation using UsdOptimizeCore directly.
 
         When *context* is ``None``, a default context is created from the
         stage most recently returned by ``_open_stage``.  If no stage has

@@ -4,10 +4,10 @@
 
 #include "Triangulate.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/CudaUtils.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/Utils.h>
 
 // OmniMesh
 #include <OmniMeshOps/ScopedCudaContext.h>
@@ -16,10 +16,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::TriangulateOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::TriangulateOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -49,11 +49,11 @@ TriangulateOperation::TriangulateOperation()
 
 std::string TriangulateOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion TriangulateOperation::getVersion() const
+UsdOptimizePluginVersion TriangulateOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -97,4 +97,4 @@ ProcessedData* TriangulateOperation::processMesh(const UsdPrim& prim, tbb::task_
     return result;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

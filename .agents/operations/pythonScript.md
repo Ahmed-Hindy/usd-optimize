@@ -8,7 +8,7 @@
 
 ## Overview
 
-Python Script executes a user-defined Python script as a Scene Optimizer operation. The script receives the current USD stage as a variable (`stage`) and can perform arbitrary modifications. This operation enables custom logic within Scene Optimizer pipelines without requiring a new C++ plugin.
+Python Script executes a user-defined Python script as a Usd Optimize operation. The script receives the current USD stage as a variable (`stage`) and can perform arbitrary modifications. This operation enables custom logic within Usd Optimize pipelines without requiring a new C++ plugin.
 
 ## Parameters
 

@@ -3,7 +3,7 @@
 
 # Operation invocation reference
 
-Canonical patterns for running Scene Optimizer operations from Python and
+Canonical patterns for running Usd Optimize operations from Python and
 from the shell. Operation guides under `.agents/operations/` describe each
 operation's parameters and starting configs; this file shows how to actually
 *call* them.
@@ -12,7 +12,7 @@ operation's parameters and starting configs; this file shows how to actually
 
 ```bash
 # POSIX — optional helper wrapper from a source checkout; saves to
-# <tmp>/scene-optimizer-operations/<sha1>/<asset_stem>.optimized.usdc
+# <tmp>/usd-optimize-operations/<sha1>/<asset_stem>.optimized.usdc
 tools/perf_operations/run.sh run path/to/asset.usd \
     --config '[{"operation":"meshCleanup","mergeVertices":true}]'
 
@@ -40,7 +40,7 @@ count, data quality), see `.agents/operations/PIPELINES.md`.
 ## Python API — single operation
 
 ```python
-from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
 from pxr import Usd
 
 stage = Usd.Stage.Open("path/to/asset.usd")
@@ -48,7 +48,7 @@ stage = Usd.Stage.Open("path/to/asset.usd")
 context = ExecutionContext()
 context.set_stage(stage)         # caches stage in UsdUtilsStageCache; sets context.usdStageId
 
-success, error, output = SceneOptimizerCore.getInstance().executeOperation(
+success, error, output = UsdOptimizeCore.getInstance().executeOperation(
     "meshCleanup",               # operation key (see .agents/operations/INDEX.md)
     context,
     {                            # args dict — keys match the operation's addArgument() calls
@@ -70,7 +70,7 @@ Return tuple: `(success: bool, error_or_none: str | None, output_or_none: dict |
 `executeConfig` runs a list of operations against the same context:
 
 ```python
-from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
 from pxr import Usd
 
 stage = Usd.Stage.Open("path/to/asset.usd")
@@ -84,7 +84,7 @@ config = [
     {"operation": "decimateMeshes", "reductionFactor": 0.0, "maxMeanError": 0.01, "pinBoundaries": True},
 ]
 
-results = SceneOptimizerCore.getInstance().executeConfig(context, config)
+results = UsdOptimizeCore.getInstance().executeConfig(context, config)
 for (success, error, output), op in zip(results, config):
     if not success:
         raise RuntimeError(f"{op['operation']} failed: {error}")
@@ -101,7 +101,7 @@ file. Inline JSON is the friendliest format for ad-hoc agent use; file paths
 are friendlier for reusable pipelines.
 
 ```python
-from omni.scene.optimizer.core.scripts import standalone
+from usd_optimize.core.scripts import standalone
 from pxr import Usd
 
 stage = Usd.Stage.Open("path/to/asset.usd")
@@ -161,18 +161,18 @@ context = ExecutionContext()
 context.set_stage(stage)
 context.analysisMode = 1
 
-success, error, output = SceneOptimizerCore.getInstance().executeOperation(
+success, error, output = UsdOptimizeCore.getInstance().executeOperation(
     "meshCleanup", context, {"mergeVertices": True}
 )
 
 analysis = (output or {}).get("analysis", {})
 # analysis is operation-specific JSON — read the relevant validator class
-# (source/core/python/omni/scene/optimizer/validators/<name>.py) to see
+# (source/core/python/usd_optimize/validators/<name>.py) to see
 # which keys each analysis populates.
 ```
 
 This is exactly how the validator framework wraps operations — see
-`source/core/python/omni/scene/optimizer/validators/_base.py:94-142` for the
+`source/core/python/usd_optimize/validators/_base.py:94-142` for the
 canonical pattern.
 
 ---
@@ -233,7 +233,7 @@ tools/perf_operations/run.sh run asset.usd --pipeline memory-reduction --no-save
   stage is held alive by the cache).
 - **`output` may be `None`** for operations that don't generate report
   data. Always guard with `(output or {}).get(...)`.
-- **The selected SO Python/runtime paths must be consistent** for the C++ core
+- **The selected Usd Optimize Python/runtime paths must be consistent** for the C++ core
   to find its dependencies. In a source checkout with helper wrappers, invoke
   through `tools/perf_operations/run.{sh,bat}` rather than the system
   `python3`. Same constraint as the validators driver, same reason (`pxr` and

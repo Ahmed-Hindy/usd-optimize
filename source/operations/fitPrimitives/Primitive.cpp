@@ -7,12 +7,12 @@
 // Carbonite
 #include <carb/profiler/Profile.h>
 
-// Scene Optimizer Core
+// Usd Optimize Core
 #include "primitivesToMeshes/PrimitiveToMeshProcessedData.h"
 
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/CudaUtils.h>
-#include <omni/scene.optimizer/core/Utils.h>
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/Utils.h>
 
 // OmniMesh
 #include <OmniMeshOps/Primitive.h>
@@ -28,10 +28,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::PrimitiveFitOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::PrimitiveFitOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 inline static bool primHasNonconstPrimvars(const UsdPrim& prim,
@@ -257,10 +257,10 @@ PrimitiveFitOperation::PrimitiveFitOperation()
 
 std::string PrimitiveFitOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
-SOPluginVersion PrimitiveFitOperation::getVersion() const
+UsdOptimizePluginVersion PrimitiveFitOperation::getVersion() const
 {
     return { 1, 2, 0 };
 }
@@ -311,7 +311,7 @@ ProcessedData* PrimitiveFitOperation::processMesh(const UsdPrim& prim, tbb::task
 
         if (getContext()->verbose)
         {
-            SO_LOG_VERBOSE(
+            USD_OPTIMIZE_LOG_VERBOSE(
                 "Prim: %s has subsets, but will be considered for GPrim replacement anyway "
                 "because \"Ignore subsets\" is set.",
                 primPath.c_str());
@@ -332,7 +332,7 @@ ProcessedData* PrimitiveFitOperation::processMesh(const UsdPrim& prim, tbb::task
 
         if (getContext()->verbose)
         {
-            SO_LOG_VERBOSE(
+            USD_OPTIMIZE_LOG_VERBOSE(
                 "Prim: %s has non-const primvars, but will be considered for GPrim replacement anyway "
                 "because \"Ignore non-const primvars\" is set.",
                 primPath.c_str());
@@ -356,10 +356,10 @@ ProcessedData* PrimitiveFitOperation::processMesh(const UsdPrim& prim, tbb::task
     {
         if (getContext()->verbose)
         {
-            SO_LOG_VERBOSE("Prim: %s\nUse %s, face count: %zu",
-                           primPath.c_str(),
-                           (use_gpu_fitting ? "GPU" : "CPU"),
-                           inputMesh.faceCount());
+            USD_OPTIMIZE_LOG_VERBOSE("Prim: %s\nUse %s, face count: %zu",
+                                     primPath.c_str(),
+                                     (use_gpu_fitting ? "GPU" : "CPU"),
+                                     inputMesh.faceCount());
         }
     }
 
@@ -433,11 +433,11 @@ ProcessedData* PrimitiveFitOperation::processMesh(const UsdPrim& prim, tbb::task
                           "prim_names array must cover every PrimitiveType");
             if (getContext()->verbose)
             {
-                SO_LOG_VERBOSE("Prim: %s\n[%s] %zu faces -> %s",
-                               primPath.c_str(),
-                               (use_gpu_fitting ? "GPU" : "CPU"),
-                               inputMesh.faceCount(),
-                               prim_names[primType]);
+                USD_OPTIMIZE_LOG_VERBOSE("Prim: %s\n[%s] %zu faces -> %s",
+                                         primPath.c_str(),
+                                         (use_gpu_fitting ? "GPU" : "CPU"),
+                                         inputMesh.faceCount(),
+                                         prim_names[primType]);
             }
 
             ++m_meshReport.fitMeshCount[primType];
@@ -448,10 +448,10 @@ ProcessedData* PrimitiveFitOperation::processMesh(const UsdPrim& prim, tbb::task
         {
             if (getContext()->verbose)
             {
-                SO_LOG_VERBOSE("Prim: %s\n[%s] %zu faces, not replaced",
-                               primPath.c_str(),
-                               (use_gpu_fitting ? "GPU" : "CPU"),
-                               inputMesh.faceCount());
+                USD_OPTIMIZE_LOG_VERBOSE("Prim: %s\n[%s] %zu faces, not replaced",
+                                         primPath.c_str(),
+                                         (use_gpu_fitting ? "GPU" : "CPU"),
+                                         inputMesh.faceCount());
             }
         }
     }
@@ -504,7 +504,7 @@ OperationResult PrimitiveFitOperation::executePre()
 
 OperationResult PrimitiveFitOperation::executeAnalysisImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|PrimitiveFitOperation|PerformAnalysis");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|PrimitiveFitOperation|PerformAnalysis");
 
     m_meshReport.clear();
 
@@ -528,7 +528,7 @@ void PrimitiveFitOperation::executePost(const TotalStats& totalStats)
 
         if (replacedMeshCount == 0)
         {
-            SO_LOG_INFO("Replaced 0 meshes with %s.", replacementKind);
+            USD_OPTIMIZE_LOG_INFO("Replaced 0 meshes with %s.", replacementKind);
         }
         else
         {
@@ -549,7 +549,10 @@ void PrimitiveFitOperation::executePost(const TotalStats& totalStats)
                     }
                 }
             }
-            SO_LOG_INFO("Replaced %zu meshes with %s (%s).", replacedMeshCount, replacementKind, breakdown.c_str());
+            USD_OPTIMIZE_LOG_INFO("Replaced %zu meshes with %s (%s).",
+                                  replacedMeshCount,
+                                  replacementKind,
+                                  breakdown.c_str());
         }
 
         return;
@@ -610,4 +613,4 @@ OperationResult PrimitiveFitOperation::recordAnalysis()
     return result;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

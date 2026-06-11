@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/geometry/GeometryProcessor.h"
+#include "usd_optimize/core/geometry/GeometryProcessor.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Core.h"
-#include "omni/scene.optimizer/core/Log.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Core.h"
+#include "usd_optimize/core/Log.h"
 
 // USD
 #include <pxr/usd/usd/primRange.h>
@@ -22,7 +22,7 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -69,8 +69,8 @@ void GeometryProcessor::execute()
             }
             else
             {
-                SO_LOG_WARN("GeometryProcessor: Input path '%s' does not resolve to a valid prim",
-                            pathStr.c_str()); // LCOV_EXCL_LINE
+                USD_OPTIMIZE_LOG_WARN("GeometryProcessor: Input path '%s' does not resolve to a valid prim",
+                                      pathStr.c_str()); // LCOV_EXCL_LINE
             }
         }
     }
@@ -439,4 +439,4 @@ void GeometryProcessor::recordRtxMesh(const SdfPath& primPath, size_t hash)
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

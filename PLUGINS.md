@@ -1,22 +1,22 @@
 # Writing Plugins
 
-This document provides a brief description of authoring a Scene Optimizer plugin. It assumes you have scene optimizer as a dependency and it is linked and the includes are available.
+This document provides a brief description of authoring a Usd Optimize plugin. It assumes you have usd optimize as a dependency and it is linked and the includes are available.
 
 ## Basic Implementation
 
-Implementing a plugin is straightforward. Define a new class derived from `omni::scene::optimizer::Operation`. The following snippet lists the required abstract functions you must implement.
+Implementing a plugin is straightforward. Define a new class derived from `usd_optimize::Operation`. The following snippet lists the required abstract functions you must implement.
 
 ```c++
-#include <omni/scene.optimizer/core/Operation.h>
+#include <usd_optimize/core/Operation.h>
 
-class MyPlugin : public omni::scene::optimizer::Operation
+class MyPlugin : public usd_optimize::Operation
 {
  public:
     // Return your name/contact so people can get in touch if necessary
     std::string getAuthor() const override;
 
     // Return the version of your plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     // Return the category of your plugin used for reporting
     std::string getCategory() const override;
@@ -47,7 +47,7 @@ std::string MyPlugin::getAuthor() const
     return "Your Name";
 }
 
-SOPluginVersion MyPlugin::getVersion() const
+UsdOptimizePluginVersion MyPlugin::getVersion() const
 {
     // major / minor / rev
     return { 1, 0, 0 };
@@ -75,13 +75,13 @@ OperationResult MyPlugin::executeImpl()
 }
 ```
 
-The `getDisplayGroup()` function determines which submenu your operation appears under in the Scene Optimizer UI. The available constants are `s_displayGroupGeometry`, `s_displayGroupMaterials`, `s_displayGroupStage`, and `s_displayGroupUtilities`. If not overridden, the operation will appear at the top level of the menu.
+The `getDisplayGroup()` function determines which submenu your operation appears under in the Usd Optimize UI. The available constants are `s_displayGroupGeometry`, `s_displayGroupMaterials`, `s_displayGroupStage`, and `s_displayGroupUtilities`. If not overridden, the operation will appear at the top level of the menu.
 
-There are some useful functions available on the base operation class such as `getUsdStage()`, to get the USD stage that is being processed, and various logging functions that can propagate logs to the user interface. See `omni/scene.optimizer/core/Operation.h` for more information.
+There are some useful functions available on the base operation class such as `getUsdStage()`, to get the USD stage that is being processed, and various logging functions that can propagate logs to the user interface. See `usd_optimize/core/Operation.h` for more information.
 
 ## Arguments
 
-The main other thing you'll want to do is define the arguments you support, which happens in your plugin constructor. This is the one place you need to define arguments - from here they will be available in the user interface, via JSON configuration files that can run Scene Optimizer operations, and in the command-line interface. As such when adding an argument there are a number of things you must provide.
+The main other thing you'll want to do is define the arguments you support, which happens in your plugin constructor. This is the one place you need to define arguments - from here they will be available in the user interface, via JSON configuration files that can run Usd Optimize operations, and in the command-line interface. As such when adding an argument there are a number of things you must provide.
 
 Each argument requires a key, a display name, a display type and a description. They also point at a member variable. This variable will be set with the value a user has chosen before `executeImpl()` is called on your plugin.
 
@@ -123,7 +123,7 @@ addArgument("paths",
 
 Arguments have "Display Types". These are hints to the User Interface on how to display an argument. For example, you can use `kDisplayTypeFloat` to have a text entry box to type in a float. You can also use `kDisplayTypeFloatSlider`, along with an optional min/max, to instead use a draggable float widget. Most are simple, but there are some more specialised ones - for example `kDisplayTypePrimPaths` provides a way to add prims based on stage selection, drag/drop, or via a popup window.
 
-The full list of display types defined in `omni/scene.optimizer/core/Argument.h`:
+The full list of display types defined in `usd_optimize/core/Argument.h`:
 
 | Constant | Description |
 |---|---|
@@ -199,7 +199,7 @@ The following configuration methods are available on arguments (all return a ref
 | `setEnumValues<T>(vector)` | Map enum values to display names for combo boxes |
 | `setFloatPresets(vector)` | Map float values to named presets |
 
-See `omni/scene.optimizer/core/Argument.h` for more.
+See `usd_optimize/core/Argument.h` for more.
 
 ### Grouping Arguments
 
@@ -224,12 +224,12 @@ addJoin(
 
 ## Analysis Mode
 
-Operations can optionally support an analysis mode, which allows them to inspect the stage and report findings without making any modifications. This is used by the Performance Validators integration to expose Scene Optimizer analysis through the Asset Validator.
+Operations can optionally support an analysis mode, which allows them to inspect the stage and report findings without making any modifications. This is used by the Performance Validators integration to expose Usd Optimize analysis through usd-validation-nvidia.
 
 To support analysis, override `getSupportsAnalysis()` to return `true` and implement `executeAnalysisImpl()`:
 
 ```c++
-class MyPlugin : public omni::scene::optimizer::Operation
+class MyPlugin : public usd_optimize::Operation
 {
 public:
     bool getSupportsAnalysis() const override { return true; }
@@ -244,20 +244,20 @@ When running in analysis mode, `executeAnalysisImpl()` will be called instead of
 
 ## Registering your plugin
 
-Plugins must be registered with the Scene Optimizer in order for them to be found and used.  For plugins contained within the Scene Optimizer repository there is a convenience macro provided to register your plugin.  So long as it is built to the default `operations` folder, then all that is required is to specify this in your .cpp file and the plugin will be found and registered automatically:
+Plugins must be registered with the Usd Optimize in order for them to be found and used.  For plugins contained within the Usd Optimize repository there is a convenience macro provided to register your plugin.  So long as it is built to the default `operations` folder, then all that is required is to specify this in your .cpp file and the plugin will be found and registered automatically:
 
 ```c++
 // Register plugin
-SO_PLUGIN_INIT(omni::scene::optimizer::MyPlugin);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::MyPlugin);
 ```
-If you are authoring a plugin outside of the Scene Optimizer there are two options to register your plugin:
+If you are authoring a plugin outside of the Usd Optimize there are two options to register your plugin:
 
-Set the `SCENE_OPTIMIZER_PLUGIN_PATH` environment variable to include a path to the directory that contains your plugin(s). The paths in this variable are delimited using the `;` character on Windows systems and `:` on all other systems.
+Set the `USD_OPTIMIZE_PLUGIN_PATH` environment variable to include a path to the directory that contains your plugin(s). The paths in this variable are delimited using the `;` character on Windows systems and `:` on all other systems.
 
 Otherwise you can register your plugin from code. In your startup code, instantiate your plugin and then register it along with an unload callback. This will be called if the plugin is unloaded so you can tidy up.
 
 ```c++
-#include <omni/scene.optimizer/core/Core.h>
+#include <usd_optimize/core/Core.h>
 
 // Create an instance of your plugin somewhere
 static MyPlugin* s_myPlugin = nullptr;
@@ -269,10 +269,10 @@ static void myPluginUnload()
     s_myPlugin = nullptr;
 }
 
-// Inside your plugin startup code, register MyOperation with scene optimizer.
+// Inside your plugin startup code, register MyOperation with usd optimize.
 s_myPlugin = new MyPlugin();
-auto& core = omni::scene::optimizer::SceneOptimizerCore::getInstance();
-core.registerOperation( &sceneOptimizerOperationCreate<MyOperation>, &sceneOptimizerOperationDelete<MyOperation> );
+auto& core = usd_optimize::UsdOptimizeCore::getInstance();
+core.registerOperation( &usdOptimizeOperationCreate<MyOperation>, &usdOptimizeOperationDelete<MyOperation> );
 ```
 
 ## Execution

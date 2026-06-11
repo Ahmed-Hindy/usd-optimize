@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/geometry/Bucket.h"
+#include "usd_optimize/core/geometry/Bucket.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Core.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Core.h"
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -22,7 +22,7 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -303,7 +303,7 @@ public:
 
     void Bucket(const UsdStageWeakPtr& stage)
     {
-        CARB_PROFILE_ZONE(0, "SceneOptimizer|Bucketer|Bucket");
+        CARB_PROFILE_ZONE(0, "UsdOptimize|Bucketer|Bucket");
 
         // Sanitize attribute name sets to avoid any overlap.
         SanitizeAttributes();
@@ -526,39 +526,79 @@ private:
         // Declare a couple of vectors that we can reuse in an attempt to
         // minimize memory allocations.
         std::vector<MeshNodePtr> meshes;
+        std::vector<BoundaryMeshData> boundaryMeshes;
         std::vector<int> clusters;
+
+        // The coincident-boundary mode clusters meshes by shared seams rather than spatial proximity, so it operates
+        // directly on the mesh geometry instead of building a BVH over bounding boxes.
+        const bool boundaryMode = (m_spatialMode == ClusterMode::eCoincidentBoundary);
 
         for (const auto& it : bucketsByPath)
         {
-            // First prepare a vector of MeshNodes. They are just little structs that hold
-            // a prim and cached bounds the BVH needs
-            meshes.clear();
-            meshes.reserve(it.second.size());
-
-            for (const auto& preBucket : it.second)
-            {
-                MeshNodePtr& node = meshes.emplace_back(std::make_shared<MeshNode>());
-
-                // Skip meshes that are already invalid
-                if (!preBucket->hash)
-                {
-                    continue;
-                }
-
-                GfRange3d range;
-                range.ExtendBy(preBucket->virtualMesh.getWorldExtent()[0]);
-                range.ExtendBy(preBucket->virtualMesh.getWorldExtent()[1]);
-
-                // Convert the world extent from pre-bucketing to a bbox and cache the mid-point.
-                node->bound = GfBBox3d(range);
-                node->centroid = range.GetMidpoint();
-                node->nvertex = preBucket->virtualMesh.getFaceVertexIndices().size();
-            }
-
             // Reset the output cluster id vector then go for it.
             clusters.clear();
-            clusters.resize(meshes.size(), INVALID_CLUSTER);
-            spatiallyClusterMeshes(m_spatialMode, meshes, m_spatialThreshold, m_spatialMaxSize, clusters);
+            clusters.resize(it.second.size(), INVALID_CLUSTER);
+
+            if (boundaryMode)
+            {
+                // Gather the geometry of each (valid) mesh so we can detect coincident boundary edges. Invalid meshes
+                // are left as default BoundaryMeshData (null geometry) so they keep their position in the group and are
+                // simply skipped during clustering.
+                boundaryMeshes.clear();
+                boundaryMeshes.resize(it.second.size());
+
+                for (size_t index = 0; index < it.second.size(); ++index)
+                {
+                    const PreBucket* preBucket = it.second[index];
+                    if (!preBucket->hash)
+                    {
+                        continue;
+                    }
+
+                    const VirtualMesh& mesh = preBucket->virtualMesh;
+                    BoundaryMeshData& data = boundaryMeshes[index];
+                    data.points = &mesh.getPoints();
+                    data.faceVertexCounts = &mesh.getFaceVertexCounts();
+                    data.faceVertexIndices = &mesh.getFaceVertexIndices();
+                    data.localToWorld = mesh.getLocalToWorldTransform();
+                }
+
+                // For coincident-boundary mode the spatial threshold carries the coincidence tolerance and the max-size
+                // slot carries the minimum number of shared boundary vertices required to connect two meshes.
+                clusterByCoincidentBoundary(boundaryMeshes,
+                                            m_spatialThreshold,
+                                            static_cast<int>(m_spatialMaxSize),
+                                            clusters);
+            }
+            else
+            {
+                // First prepare a vector of MeshNodes. They are just little structs that hold
+                // a prim and cached bounds the BVH needs
+                meshes.clear();
+                meshes.reserve(it.second.size());
+
+                for (const auto& preBucket : it.second)
+                {
+                    MeshNodePtr& node = meshes.emplace_back(std::make_shared<MeshNode>());
+
+                    // Skip meshes that are already invalid
+                    if (!preBucket->hash)
+                    {
+                        continue;
+                    }
+
+                    GfRange3d range;
+                    range.ExtendBy(preBucket->virtualMesh.getWorldExtent()[0]);
+                    range.ExtendBy(preBucket->virtualMesh.getWorldExtent()[1]);
+
+                    // Convert the world extent from pre-bucketing to a bbox and cache the mid-point.
+                    node->bound = GfBBox3d(range);
+                    node->centroid = range.GetMidpoint();
+                    node->nvertex = preBucket->virtualMesh.getFaceVertexIndices().size();
+                }
+
+                spatiallyClusterMeshes(m_spatialMode, meshes, m_spatialThreshold, m_spatialMaxSize, clusters);
+            }
 
             // Now that the meshes have been clustered we can go ahead and apply the cluster id to each
             // of the pre buckets. For any meshes that were not part of a cluster we will invalidate them
@@ -595,7 +635,7 @@ private:
         }
         else
         {
-            SO_LOG_INFO("Merge: %s", oss.str().c_str());
+            USD_OPTIMIZE_LOG_INFO("Merge: %s", oss.str().c_str());
         }
     }
 
@@ -927,4 +967,4 @@ void _populateMergeBucketerAttributes(const BucketerPtr& bucketer, bool consider
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

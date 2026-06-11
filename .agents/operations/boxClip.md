@@ -30,7 +30,7 @@ The clipping region can be defined in two ways: by explicit min/max coordinates 
 | `maxZ` | float | `0.0` | Maximum Z of clip box. Visible when clipBoxDef = ByAABB (0). |
 | `clipBoxPrimPath` | string | `""` | Prim path whose bounding box defines the clip region. Visible when clipBoxDef = ByPrim (1). |
 | `ignoreClipBoxSide` | enum | `None` (0) | Side to ignore: `None` (0), `-X` (1), `+X` (2), `-Y` (3), `+Y` (4), `-Z` (5), `+Z` (6). |
-| `clipMode` | enum | `InsideKeep` (0) | Combined clip mode: `InsideKeep` (0), `InsideCutMesh` (1), `InsideDiscard` (2), `OutsideKeep` (3), `OutsideDiscard` (4). There is no `OutsideCutMesh` mode — Outside+CutMesh is unsupported because the cut-mesh algorithm only operates on the inside region. At runtime, if `keepGeometry == eOutside` and `partiallyIntersectedPrims == eKeepIntersection`, the code resets `partiallyIntersectedPrims` to `eKeep` (logging via `SO_LOG_VERBOSE`), so it silently falls back to `OutsideKeep` (3). |
+| `clipMode` | enum | `InsideKeep` (0) | Combined clip mode: `InsideKeep` (0), `InsideCutMesh` (1), `InsideDiscard` (2), `OutsideKeep` (3), `OutsideDiscard` (4). There is no `OutsideCutMesh` mode — Outside+CutMesh is unsupported because the cut-mesh algorithm only operates on the inside region. At runtime, if `keepGeometry == eOutside` and `partiallyIntersectedPrims == eKeepIntersection`, the code resets `partiallyIntersectedPrims` to `eKeep` (logging via `USD_OPTIMIZE_LOG_VERBOSE`), so it silently falls back to `OutsideKeep` (3). |
 
 ### Legacy Parameters
 

@@ -1,2 +1,2 @@
 project_with_location("deletePrims")
-    so_build.operation_plugin({ "*.cpp" })
+    usd_optimize_build.operation_plugin({ "*.cpp" })

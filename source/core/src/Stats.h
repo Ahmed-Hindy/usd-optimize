@@ -4,9 +4,9 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/UsdIncludes.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/UsdIncludes.h"
 
 // C++
 #include <map>
@@ -14,12 +14,12 @@
 #include <string>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
 /// Object to store info per prim type.
-class OMNI_SO_EXPORT PrimInfo
+class USD_OPTIMIZE_EXPORT PrimInfo
 {
 public:
     /// Constructor
@@ -38,7 +38,7 @@ public:
 };
 
 
-class OMNI_SO_EXPORT PrimvarStats
+class USD_OPTIMIZE_EXPORT PrimvarStats
 {
 public:
     /// Operator+
@@ -52,7 +52,7 @@ public:
 /// Object to count stats
 ///
 /// Helper object that works with tbb::combinable
-class OMNI_SO_EXPORT StatCounters
+class USD_OPTIMIZE_EXPORT StatCounters
 {
 
 public:
@@ -82,7 +82,7 @@ using StatCountersUPtr = std::unique_ptr<StatCounters>;
 
 
 /// Toggles for what statistics to capture.
-class OMNI_SO_EXPORT StatArgs
+class USD_OPTIMIZE_EXPORT StatArgs
 {
 public:
     /** \name Lifecycle
@@ -176,8 +176,8 @@ private:
 /// \param usdStage The USD stage to process
 /// \param args Optional configuration
 /// \return A bunch of raw statistic values based on the scene.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 StatCountersUPtr _collectSceneStats(const PXR_NS::UsdStageWeakPtr& usdStage, const StatArgs& args = StatArgs());
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

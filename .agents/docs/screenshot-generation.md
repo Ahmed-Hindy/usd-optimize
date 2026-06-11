@@ -1,12 +1,12 @@
 ---
 name: screenshot-generation
-description: "Screenshot generation approaches for Scene Optimizer tuning sessions and batch validation."
+description: "Screenshot generation approaches for Usd Optimize tuning sessions and batch validation."
 ---
 
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# Screenshot Generation for Scene Optimizer
+# Screenshot Generation for Usd Optimize
 
 ## When You Need This
 
@@ -49,7 +49,7 @@ Use the first approach that succeeds. If none are available, tell the user what 
 
 ## Prerequisites: Camera and RenderProduct
 
-Most USD scenes from Scene Optimizer do **not** contain a Camera or RenderProduct. You must check and inject one if missing.
+Most USD scenes from Usd Optimize do **not** contain a Camera or RenderProduct. You must check and inject one if missing.
 
 ### Check for existing camera
 
@@ -298,7 +298,7 @@ Screenshots generated during /tune-parameters sessions should follow this patter
 <output_dir>/screenshot_<operation>_v<iteration>.png
 ```
 
-Example: `D:/scene-optimizer/_output/screenshot_shrinkwrap_v3.png`
+Example: `D:/usd-optimize/_output/screenshot_shrinkwrap_v3.png`
 
 ---
 

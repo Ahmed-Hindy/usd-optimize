@@ -41,7 +41,7 @@ def _find_repo_usd_templates() -> str:
 
 def setup_repo_tool(parser: argparse.ArgumentParser, config: Dict) -> Callable:
     parser.description = (
-        "Tool to manage USD dependencies for Scene Optimizer. "
+        "Tool to manage USD dependencies for Usd Optimize. "
         "Generates deps/usd-deps.generated.packman.xml for the selected USD flavor. "
         "Use 'kit' (default) to build against the Kit SDK USD, or specify a stock "
         "OpenUSD flavor. Supported non-kit flavors are listed in deps/usd_flavors.json."

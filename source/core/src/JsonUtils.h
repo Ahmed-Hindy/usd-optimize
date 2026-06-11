@@ -4,15 +4,15 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/UsdIncludes.h"
-#include "omni/scene.optimizer/core/Utils.h"
+// Usd Optimize Core
+#include "usd_optimize/core/UsdIncludes.h"
+#include "usd_optimize/core/Utils.h"
 
 // TBB
 #include <tbb/concurrent_vector.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -124,4 +124,4 @@ char* _toJsonStr(const T& data)
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

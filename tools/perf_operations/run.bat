@@ -16,11 +16,11 @@ if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 
 for %%i in ("%SCRIPT_DIR%\..\..") do set "REPO_ROOT=%%~fi"
 
-if "%SO_CONFIG%"=="" set "SO_CONFIG=release"
-if "%SO_PLATFORM%"=="" set "SO_PLATFORM=windows-x86_64"
+if "%USD_OPTIMIZE_CONFIG%"=="" set "USD_OPTIMIZE_CONFIG=release"
+if "%USD_OPTIMIZE_PLATFORM%"=="" set "USD_OPTIMIZE_PLATFORM=windows-x86_64"
 
-set "BUILD_DIR=%REPO_ROOT%\_build\%SO_PLATFORM%\%SO_CONFIG%"
-set "USD_DIR=%REPO_ROOT%\_build\target-deps\usd\%SO_CONFIG%"
+set "BUILD_DIR=%REPO_ROOT%\_build\%USD_OPTIMIZE_PLATFORM%\%USD_OPTIMIZE_CONFIG%"
+set "USD_DIR=%REPO_ROOT%\_build\target-deps\usd\%USD_OPTIMIZE_CONFIG%"
 set "PYTHON=%REPO_ROOT%\_build\target-deps\python\python.exe"
 
 if not exist "%BUILD_DIR%" (

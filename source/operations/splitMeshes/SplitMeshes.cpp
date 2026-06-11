@@ -4,11 +4,11 @@
 
 #include "SplitMeshes.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/RemovePrims.h>
-#include <omni/scene.optimizer/core/geometry/DisjointSet.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/RemovePrims.h>
+#include <usd_optimize/core/geometry/DisjointSet.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -30,10 +30,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::SplitMeshesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::SplitMeshesOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -107,9 +107,9 @@ void SplitMeshesOperation::createMeshesFromDisjointMeshes(const std::vector<Mesh
 
         const SdfPath& meshPath = meshData.baseMesh.getSourcePath();
 
-        SO_LOG_INFO("%s contains %s disjoint meshes",
-                    meshPath.GetAsString().c_str(),
-                    std::to_string(meshData.subsetMeshes.size()).c_str());
+        USD_OPTIMIZE_LOG_INFO("%s contains %s disjoint meshes",
+                              meshPath.GetAsString().c_str(),
+                              std::to_string(meshData.subsetMeshes.size()).c_str());
 
         // Populate a vector with the required number of names so that all the unique paths can be computed at once.
         const TfToken baseName(meshPath.GetName() + "_part");
@@ -277,7 +277,7 @@ void SplitMeshesOperation::createSubsetsFromDisjointMeshes(const std::vector<Mes
 
 void SplitMeshesOperation::splitMeshes(const std::vector<UsdPrim>& prims, OperationResult& result)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|splitMeshes");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|splitMeshes");
 
     // use optimization structures for VirtualMesh
     VirtualMesh::OptLifetime optimizationLifetime;
@@ -416,12 +416,12 @@ void SplitMeshesOperation::splitMeshes(const std::vector<UsdPrim>& prims, Operat
     const std::string removedPrimsStr = m_numPrimsRemoved == 1 ? "prim" : "prims";
 
     // report the number of prims created/removed
-    SO_LOG_INFO("%s meshes created %u new %s and removed %u original %s",
-                reportPrefix.c_str(),
-                m_numPrimsCreated,
-                createdPrimsStr.c_str(),
-                m_numPrimsRemoved,
-                removedPrimsStr.c_str());
+    USD_OPTIMIZE_LOG_INFO("%s meshes created %u new %s and removed %u original %s",
+                          reportPrefix.c_str(),
+                          m_numPrimsCreated,
+                          createdPrimsStr.c_str(),
+                          m_numPrimsRemoved,
+                          removedPrimsStr.c_str());
 
     // deleting the mesh processor (and internal VirtualMeshes) is slow, so we do it in another thread so while the
     // rest of the operations / stage export can continue
@@ -479,11 +479,11 @@ SplitMeshesOperation::SplitMeshesOperation()
 
 std::string SplitMeshesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion SplitMeshesOperation::getVersion() const
+UsdOptimizePluginVersion SplitMeshesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -507,6 +507,20 @@ void SplitMeshesOperation::setUserData(void* userData)
 }
 
 
+// Coincident-boundary clustering is a seam-detection mode that splitMeshes does not support (the split step removes the
+// shared-vertex adjacency the mode keys on). Reject it explicitly so that neither the direct arguments nor a
+// hand-written multiCluster JSON config can route an unsupported mode through the clustering path.
+static bool _validateSplitClusterMode(ClusterMode mode)
+{
+    if (mode == ClusterMode::eCoincidentBoundary)
+    {
+        USD_OPTIMIZE_LOG_ERROR("splitMeshes does not support spatialMode 3 (Coincident Boundary Vertices).");
+        return false;
+    }
+    return true;
+}
+
+
 bool SplitMeshesOperation::processMultiClusterConfiguration()
 {
     m_clusterArgs.clear();
@@ -518,6 +532,11 @@ bool SplitMeshesOperation::processMultiClusterConfiguration()
         // from the direct clustering arguments.
         if (m_clustering.m_spatialMode != ClusterMode::eNone && m_method != SplitMeshesMethod::eGeomSubset)
         {
+            if (!_validateSplitClusterMode(m_clustering.m_spatialMode))
+            {
+                return false;
+            }
+
             ClusterArgs& args = m_clusterArgs.emplace_back();
             args.paths = m_paths;
             args.mode = m_clustering.m_spatialMode;
@@ -536,7 +555,7 @@ bool SplitMeshesOperation::processMultiClusterConfiguration()
 
     if (!multiCluster.IsArray())
     {
-        SO_LOG_ERROR("Invalid multiCluster attribute value specified, expected array");
+        USD_OPTIMIZE_LOG_ERROR("Invalid multiCluster attribute value specified, expected array");
         return false;
     }
 
@@ -551,6 +570,11 @@ bool SplitMeshesOperation::processMultiClusterConfiguration()
         JsObject _config = config.GetJsObject();
 
         ClusterMode mode = static_cast<ClusterMode>(_config["spatialMode"].GetInt());
+
+        if (!_validateSplitClusterMode(mode))
+        {
+            return false;
+        }
 
         ClusterArgs& args = m_clusterArgs.emplace_back();
         args.mode = mode;
@@ -618,13 +642,13 @@ OperationResult SplitMeshesOperation::executeImpl()
     // Redundant operations.
     if (m_splitOn == SplitMeshesSplitOn::eGeomSubsets && m_method == SplitMeshesMethod::eGeomSubset)
     {
-        SO_LOG_WARN("Cannot split on subsets and then author subsets.");
+        USD_OPTIMIZE_LOG_WARN("Cannot split on subsets and then author subsets.");
         return { false };
     }
 
     if (m_clustering.m_spatialMode != ClusterMode::eNone && m_method == SplitMeshesMethod::eGeomSubset)
     {
-        SO_LOG_WARN("Cannot write results of spatial clustering to geom subsets.");
+        USD_OPTIMIZE_LOG_WARN("Cannot write results of spatial clustering to geom subsets.");
         return { false };
     }
 
@@ -670,4 +694,4 @@ OperationResult SplitMeshesOperation::executeImpl()
     return result;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

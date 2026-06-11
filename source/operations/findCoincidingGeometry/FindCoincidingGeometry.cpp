@@ -3,11 +3,11 @@
 //
 #include "FindCoincidingGeometry.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -30,10 +30,10 @@ struct BBoxData
 using BBoxMap = std::unordered_map<SdfPath, BBoxData, SdfPath::Hash>;
 
 // Register plugin
-SO_PLUGIN_INIT(omni::scene::optimizer::FindCoincidingGeometryOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::FindCoincidingGeometryOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -74,11 +74,11 @@ FindCoincidingGeometryOperation::FindCoincidingGeometryOperation()
 
 std::string FindCoincidingGeometryOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion FindCoincidingGeometryOperation::getVersion() const
+UsdOptimizePluginVersion FindCoincidingGeometryOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -375,7 +375,7 @@ inline bool _isSupportedPrim(const UsdPrim& prim, const bool fuzzy)
 
 OperationResult FindCoincidingGeometryOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|FindCoincidingGeometry|Execute");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|FindCoincidingGeometry|Execute");
 
     constexpr bool meshesOnly = false;
     constexpr bool reverse = false;
@@ -414,15 +414,15 @@ OperationResult FindCoincidingGeometryOperation::executeImpl()
         // Report the number of coinciding mesh sets found.
         size_t count = m_coincidingPrims.size();
         std::string plural = count == 1 ? "" : "s";
-        SO_LOG_INFO("Found %zu set%s of coinciding meshes", count, plural.c_str());
+        USD_OPTIMIZE_LOG_INFO("Found %zu set%s of coinciding meshes", count, plural.c_str());
 
         // For each set report the number of coinciding meshes and their paths.
         for (const auto& coincidingPrims : m_coincidingPrims)
         {
-            SO_LOG_INFO("Found %zu coinciding meshes", coincidingPrims.size());
+            USD_OPTIMIZE_LOG_INFO("Found %zu coinciding meshes", coincidingPrims.size());
             for (const auto& coincidingPrim : coincidingPrims)
             {
-                SO_LOG_INFO(coincidingPrim.GetPath().GetAsString().c_str());
+                USD_OPTIMIZE_LOG_INFO(coincidingPrim.GetPath().GetAsString().c_str());
             }
         }
     }
@@ -456,4 +456,4 @@ OperationResult FindCoincidingGeometryOperation::executeAnalysisImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

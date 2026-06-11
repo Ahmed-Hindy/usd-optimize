@@ -3,11 +3,11 @@
 //
 #include "RemoveUnusedUVs.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -20,7 +20,7 @@
 #include <tbb/parallel_for.h>
 
 // Register plugin
-SO_PLUGIN_INIT(omni::scene::optimizer::RemoveUnusedUVsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::RemoveUnusedUVsOperation);
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -41,7 +41,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 // clang-format on
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -68,11 +68,11 @@ RemoveUnusedUVsOperation::RemoveUnusedUVsOperation()
 
 std::string RemoveUnusedUVsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion RemoveUnusedUVsOperation::getVersion() const
+UsdOptimizePluginVersion RemoveUnusedUVsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -174,7 +174,7 @@ static bool _mightUseUVs(const UsdShadeMaterial& material, const std::set<TfToke
 
 OperationResult RemoveUnusedUVsOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|RemoveUnusedUVs|Execute");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|RemoveUnusedUVs|Execute");
 
     // Default list of possible texture coordinate names
     // Can be extended via the "attributes" argument
@@ -306,7 +306,7 @@ OperationResult RemoveUnusedUVsOperation::executeImpl()
     if (getContext()->analysisMode)
     {
         std::string suffix = toRemove.size() == 1 ? "" : "s";
-        SO_LOG_INFO("Found %lu unused UV attribute%s", toRemove.size(), suffix.c_str());
+        USD_OPTIMIZE_LOG_INFO("Found %lu unused UV attribute%s", toRemove.size(), suffix.c_str());
 
         // Append payload - regardless of whether anything was found.
         JsObject resultJson;
@@ -324,7 +324,7 @@ OperationResult RemoveUnusedUVsOperation::executeImpl()
         // Log output
         std::string operation = m_mode == Mode::eRemove ? "Removing" : "Blocking";
         std::string suffix = toRemove.size() == 1 ? "" : "s";
-        SO_LOG_INFO("%s %lu unused UV attribute%s...", operation.c_str(), toRemove.size(), suffix.c_str());
+        USD_OPTIMIZE_LOG_INFO("%s %lu unused UV attribute%s...", operation.c_str(), toRemove.size(), suffix.c_str());
 
         SdfChangeBlock _changeBlock;
 
@@ -332,7 +332,7 @@ OperationResult RemoveUnusedUVsOperation::executeImpl()
         {
             if (getContext()->verbose || getContext()->generateReport)
             {
-                SO_LOG_INFO("%s %s", operation.c_str(), attribute.GetPath().GetAsString().c_str());
+                USD_OPTIMIZE_LOG_INFO("%s %s", operation.c_str(), attribute.GetPath().GetAsString().c_str());
             }
 
             switch (m_mode)
@@ -350,7 +350,7 @@ OperationResult RemoveUnusedUVsOperation::executeImpl()
     }
     else
     {
-        SO_LOG_INFO("Found no unused UV attributes");
+        USD_OPTIMIZE_LOG_INFO("Found no unused UV attributes");
     }
 
     return { true };
@@ -359,17 +359,17 @@ OperationResult RemoveUnusedUVsOperation::executeImpl()
 
 OperationResult RemoveUnusedUVsOperation::executeAnalysisImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|RemoveUnusedUVsOperation|ExecuteAnalysis");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|RemoveUnusedUVsOperation|ExecuteAnalysis");
 
     auto result = executeImpl();
 
     if (getContext()->verbose)
     {
-        SO_LOG_INFO("Analysis result: %s", result.output);
+        USD_OPTIMIZE_LOG_INFO("Analysis result: %s", result.output);
     }
 
     return result;
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

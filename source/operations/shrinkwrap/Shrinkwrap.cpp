@@ -6,10 +6,10 @@
 
 #include <openvdb/tools/ShrinkwrapCore.h>
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // USD
 #include <pxr/base/gf/matrix4d.h>
@@ -24,11 +24,11 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-// Register plugin with SO
-SO_PLUGIN_INIT(omni::scene::optimizer::ShrinkwrapOperation);
+// Register plugin with Usd Optimize
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::ShrinkwrapOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 using openvdb::shrinkwrap::ShrinkwrapMesh;
@@ -117,11 +117,11 @@ ShrinkwrapOperation::~ShrinkwrapOperation() = default;
 
 std::string ShrinkwrapOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion ShrinkwrapOperation::getVersion() const
+UsdOptimizePluginVersion ShrinkwrapOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -144,23 +144,23 @@ OperationResult ShrinkwrapOperation::executeImpl()
     constexpr double kHalfWidth = 3.0;
     constexpr double kIsovalue = 0.0;
 
-    SO_LOG_VERBOSE("Shrinkwrap: voxelSize=%.4f, maxDim=%u, erode=%.2f, threshold=%.2f, halfWidth=%.2f",
-                   m_voxelSize,
-                   m_dim,
-                   m_erode,
-                   m_threshold,
-                   kHalfWidth);
-    SO_LOG_VERBOSE("Shrinkwrap: adaptivity=%.2f, isovalue=%.2f, extractLodPyramid=%s",
-                   m_adaptivity,
-                   kIsovalue,
-                   m_extractLodPyramid ? "true" : "false");
+    USD_OPTIMIZE_LOG_VERBOSE("Shrinkwrap: voxelSize=%.4f, maxDim=%u, erode=%.2f, threshold=%.2f, halfWidth=%.2f",
+                             m_voxelSize,
+                             m_dim,
+                             m_erode,
+                             m_threshold,
+                             kHalfWidth);
+    USD_OPTIMIZE_LOG_VERBOSE("Shrinkwrap: adaptivity=%.2f, isovalue=%.2f, extractLodPyramid=%s",
+                             m_adaptivity,
+                             kIsovalue,
+                             m_extractLodPyramid ? "true" : "false");
 
     // Resolve prims to process
     constexpr bool meshesOnly = true;
     constexpr bool reverse = false;
     std::vector<UsdPrim> primsToProcess = _resolveExpressionsToPrims(getUsdStage(), m_meshPrimPaths, meshesOnly, reverse);
 
-    SO_LOG_INFO("Shrinkwrap: found %zu mesh prim(s) to process", primsToProcess.size());
+    USD_OPTIMIZE_LOG_INFO("Shrinkwrap: found %zu mesh prim(s) to process", primsToProcess.size());
 
     if (primsToProcess.empty())
     {
@@ -171,7 +171,8 @@ OperationResult ShrinkwrapOperation::executeImpl()
     {
         if (prim.IsInstanceProxy())
         {
-            SO_LOG_VERBOSE("Skipped prim %s because it is an instance proxy", prim.GetPath().GetAsString().c_str());
+            USD_OPTIMIZE_LOG_VERBOSE("Skipped prim %s because it is an instance proxy",
+                                     prim.GetPath().GetAsString().c_str());
             continue;
         }
 
@@ -192,15 +193,15 @@ OperationResult ShrinkwrapOperation::executeImpl()
 
         if (usdPoints.empty())
         {
-            SO_LOG_VERBOSE("Shrinkwrap: %s: skipping empty mesh", prim.GetPath().GetAsString().c_str());
+            USD_OPTIMIZE_LOG_VERBOSE("Shrinkwrap: %s: skipping empty mesh", prim.GetPath().GetAsString().c_str());
             continue;
         }
 
-        SO_LOG_VERBOSE("Shrinkwrap: %s ('%s'): input mesh has %zu vertices, %zu faces",
-                       prim.GetPath().GetAsString().c_str(),
-                       prim.GetName().GetString().c_str(),
-                       usdPoints.size(),
-                       faceVertexCounts.size());
+        USD_OPTIMIZE_LOG_VERBOSE("Shrinkwrap: %s ('%s'): input mesh has %zu vertices, %zu faces",
+                                 prim.GetPath().GetAsString().c_str(),
+                                 prim.GetName().GetString().c_str(),
+                                 usdPoints.size(),
+                                 faceVertexCounts.size());
 
         // Get the local-to-world transform for this prim so that the
         // shrinkwrap operates in world space.
@@ -224,29 +225,29 @@ OperationResult ShrinkwrapOperation::executeImpl()
             int count = faceVertexCounts[f];
             if (count < 0)
             {
-                SO_LOG_WARN("Shrinkwrap: %s: skipping face %zu with negative count=%d",
-                            prim.GetPath().GetAsString().c_str(),
-                            f,
-                            count);
+                USD_OPTIMIZE_LOG_WARN("Shrinkwrap: %s: skipping face %zu with negative count=%d",
+                                      prim.GetPath().GetAsString().c_str(),
+                                      f,
+                                      count);
                 break;
             }
             if (count < 3)
             {
-                SO_LOG_WARN("Shrinkwrap: %s: skipping degenerate face %zu (count=%d)",
-                            prim.GetPath().GetAsString().c_str(),
-                            f,
-                            count);
+                USD_OPTIMIZE_LOG_WARN("Shrinkwrap: %s: skipping degenerate face %zu (count=%d)",
+                                      prim.GetPath().GetAsString().c_str(),
+                                      f,
+                                      count);
                 idx += count;
                 continue;
             }
             if (idx + count > faceVertexIndices.size())
             {
-                SO_LOG_WARN("Shrinkwrap: %s: skipping malformed face %zu (count=%d, idx=%zu, total indices=%zu)",
-                            prim.GetPath().GetAsString().c_str(),
-                            f,
-                            count,
-                            idx,
-                            faceVertexIndices.size());
+                USD_OPTIMIZE_LOG_WARN("Shrinkwrap: %s: skipping malformed face %zu (count=%d, idx=%zu, total indices=%zu)",
+                                      prim.GetPath().GetAsString().c_str(),
+                                      f,
+                                      count,
+                                      idx,
+                                      faceVertexIndices.size());
                 break;
             }
             if (count == 3)
@@ -272,9 +273,9 @@ OperationResult ShrinkwrapOperation::executeImpl()
             idx += count;
         }
 
-        SO_LOG_VERBOSE("Shrinkwrap: %s: %zu triangles after triangulation",
-                       prim.GetPath().GetAsString().c_str(),
-                       inputMesh.triangles.size());
+        USD_OPTIMIZE_LOG_VERBOSE("Shrinkwrap: %s: %zu triangles after triangulation",
+                                 prim.GetPath().GetAsString().c_str(),
+                                 inputMesh.triangles.size());
 
         // Compute bounding box from input points
         std::array<float, 3> bboxMin = { FLT_MAX, FLT_MAX, FLT_MAX };
@@ -316,14 +317,15 @@ OperationResult ShrinkwrapOperation::executeImpl()
         }
         else
         {
-            SO_LOG_ERROR("Shrinkwrap: %s: Cannot compute a valid voxel size (dim too small and no explicit voxelSize set)",
-                         prim.GetPath().GetAsString().c_str());
+            USD_OPTIMIZE_LOG_ERROR(
+                "Shrinkwrap: %s: Cannot compute a valid voxel size (dim too small and no explicit voxelSize set)",
+                prim.GetPath().GetAsString().c_str());
             continue;
         }
 
         int effectiveDim = static_cast<int>(maxLength / effectiveVoxelSize + 2.0f * (halfWidth + 1.0f));
 
-        SO_LOG_VERBOSE(
+        USD_OPTIMIZE_LOG_VERBOSE(
             "Shrinkwrap: %s: effectiveVoxelSize=%.6f, effectiveDim=%d (dimLimit=%u, dimVoxelSize=%.6f, userVoxelSize=%.6f)",
             prim.GetPath().GetAsString().c_str(),
             effectiveVoxelSize,
@@ -339,7 +341,7 @@ OperationResult ShrinkwrapOperation::executeImpl()
         int minDim = static_cast<int>(2.0f * (halfWidth + 1.0f)) + 2;
         if (effectiveDim < minDim)
         {
-            SO_LOG_WARN(
+            USD_OPTIMIZE_LOG_WARN(
                 "Shrinkwrap: %s: skipping mesh -- effective grid dimension %d is below "
                 "minimum %d (voxel size %.4f is too large for bounding box %.4f)",
                 prim.GetPath().GetAsString().c_str(),
@@ -364,28 +366,30 @@ OperationResult ShrinkwrapOperation::executeImpl()
 
         if (!swResult.error.empty())
         {
-            SO_LOG_ERROR("Shrinkwrap: %s: %s", prim.GetPath().GetAsString().c_str(), swResult.error.c_str());
+            USD_OPTIMIZE_LOG_ERROR("Shrinkwrap: %s: %s", prim.GetPath().GetAsString().c_str(), swResult.error.c_str());
             continue;
         }
 
         if (swResult.lodMeshes.empty())
         {
-            SO_LOG_WARN("Shrinkwrap produced no meshes for %s", prim.GetPath().GetAsString().c_str());
+            USD_OPTIMIZE_LOG_WARN("Shrinkwrap produced no meshes for %s", prim.GetPath().GetAsString().c_str());
             continue;
         }
 
         // Log grid info only for grids that produced meshes
         size_t meshCount = swResult.lodMeshes.size();
-        SO_LOG_INFO("Shrinkwrap: %s: generated %zu LOD mesh(es)", prim.GetPath().GetAsString().c_str(), meshCount);
+        USD_OPTIMIZE_LOG_INFO("Shrinkwrap: %s: generated %zu LOD mesh(es)",
+                              prim.GetPath().GetAsString().c_str(),
+                              meshCount);
         for (size_t g = 0; g < meshCount && g < swResult.gridInfos.size(); ++g)
         {
             const auto& info = swResult.gridInfos[g];
-            SO_LOG_VERBOSE("Shrinkwrap: %s:   LOD %zu: voxelSize=%.4f, dim=%d, activeVoxels=%zu",
-                           prim.GetPath().GetAsString().c_str(),
-                           g,
-                           info.voxelSize,
-                           info.dim,
-                           info.activeVoxels);
+            USD_OPTIMIZE_LOG_VERBOSE("Shrinkwrap: %s:   LOD %zu: voxelSize=%.4f, dim=%d, activeVoxels=%zu",
+                                     prim.GetPath().GetAsString().c_str(),
+                                     g,
+                                     info.voxelSize,
+                                     info.dim,
+                                     info.activeVoxels);
         }
 
         // The output prim is a sibling (same parent), so we need the
@@ -409,14 +413,15 @@ OperationResult ShrinkwrapOperation::executeImpl()
             SdfPath targetPath = prim.GetPath().GetParentPath().AppendChild(TfToken(outName));
             UsdGeomMesh targetMesh = UsdGeomMesh::Define(getUsdStage(), targetPath);
 
-            SO_LOG_INFO("Shrinkwrap: %s -> '%s': output LOD %zu: %zu vertices, %zu triangles, %zu quads (%zu total faces)",
-                        prim.GetPath().GetAsString().c_str(),
-                        targetPath.GetAsString().c_str(),
-                        g,
-                        outMesh.points.size(),
-                        outMesh.triangles.size(),
-                        outMesh.quads.size(),
-                        outMesh.triangles.size() + outMesh.quads.size());
+            USD_OPTIMIZE_LOG_INFO(
+                "Shrinkwrap: %s -> '%s': output LOD %zu: %zu vertices, %zu triangles, %zu quads (%zu total faces)",
+                prim.GetPath().GetAsString().c_str(),
+                targetPath.GetAsString().c_str(),
+                g,
+                outMesh.points.size(),
+                outMesh.triangles.size(),
+                outMesh.quads.size(),
+                outMesh.triangles.size() + outMesh.quads.size());
 
             targetMesh.GetSubdivisionSchemeAttr().Set(UsdGeomTokens->none);
 
@@ -459,9 +464,9 @@ OperationResult ShrinkwrapOperation::executeImpl()
         }
     }
 
-    SO_LOG_INFO("Shrinkwrap: completed processing %zu prim(s)", primsToProcess.size());
+    USD_OPTIMIZE_LOG_INFO("Shrinkwrap: completed processing %zu prim(s)", primsToProcess.size());
     return { true };
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

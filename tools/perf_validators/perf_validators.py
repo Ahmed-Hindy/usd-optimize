@@ -1,12 +1,12 @@
-"""Run Scene Optimizer performance validators on a USD asset and diff runs.
+"""Run Usd Optimize performance validators on a USD asset and diff runs.
 
 Two subcommands:
 
   run <asset> [--csv path] [--json path] [--summary path] [--fix path]
-      Open the stage, run all default Scene Optimizer validator rules, print a
+      Open the stage, run all default Usd Optimize validator rules, print a
       by-severity / by-rule summary, and optionally write per-issue CSV, the
-      full asset-validator JSON, or a small summary JSON suitable for compare.
-      When --fix is provided, run IssueFixer on the Scene Optimizer issues and
+      full usd-validation-nvidia JSON, or a small summary JSON suitable for compare.
+      When --fix is provided, run IssueFixer on the Usd Optimize issues and
       write the fixed stage to the given USD path.
 
   compare <a.json> <b.json>
@@ -31,9 +31,11 @@ def _status_name(status) -> str:
 
 
 def _run(args: argparse.Namespace) -> int:
-    from omni.asset_validator import IssueCSVData, IssueFixer, ValidationEngine, export_json_file
-    import omni.scene.optimizer.validators
+    from usd_validation_nvidia import IssueCSVData, IssueFixer, ValidationEngine, export_json_file
+    import usd_optimize.validators
     from pxr import Usd
+
+    usd_optimize.validators.register_all()
 
     print(f"Opening: {args.asset}", flush=True)
     t0 = time.time()
@@ -53,9 +55,9 @@ def _run(args: argparse.Namespace) -> int:
     issues = [
         i
         for i in results.issues()
-        if i.rule and i.rule.__module__.startswith("omni.scene.optimizer.validators")
+        if i.rule and i.rule.__module__.startswith("usd_optimize.validators")
     ]
-    print(f"\n=== {len(issues)} Scene-Optimizer issues ===")
+    print(f"\n=== {len(issues)} Usd-Optimize issues ===")
 
     by_rule: Counter = Counter(i.rule.__name__ for i in issues)
     by_severity: Counter = Counter(str(i.severity).split(".")[-1] for i in issues)
@@ -73,7 +75,7 @@ def _run(args: argparse.Namespace) -> int:
         fixed_path = Path(args.fix).resolve()
         fixed_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
 
-        print("\nRunning IssueFixer on Scene-Optimizer issues ...", flush=True)
+        print("\nRunning IssueFixer on Usd-Optimize issues ...", flush=True)
         t0 = time.time()
         fix_results = IssueFixer(stage).fix(issues)
         fix_secs = time.time() - t0
@@ -171,7 +173,7 @@ def _compare(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run Scene Optimizer performance validators on a USD asset.",
+        description="Run Usd Optimize performance validators on a USD asset.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -180,7 +182,7 @@ def main() -> int:
     p_run = sub.add_parser("run", help="run validators on an asset")
     p_run.add_argument("asset", help="path to a .usd / .usda / .usdc / .usdz")
     p_run.add_argument("--csv", help="write per-issue CSV here")
-    p_run.add_argument("--json", help="write full asset-validator JSON here")
+    p_run.add_argument("--json", help="write full usd-validation-nvidia JSON here")
     p_run.add_argument(
         "--summary",
         help="write small summary JSON here (input format for `compare`)",
@@ -188,7 +190,7 @@ def main() -> int:
     p_run.add_argument(
         "--fix",
         metavar="PATH",
-        help="run IssueFixer on Scene Optimizer issues and write the fixed stage here",
+        help="run IssueFixer on Usd Optimize issues and write the fixed stage here",
     )
     p_cmp = sub.add_parser("compare", help="diff two summary JSONs")
     p_cmp.add_argument("a", help="summary JSON from an earlier run")

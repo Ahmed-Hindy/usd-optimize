@@ -4,16 +4,16 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Argument.h"
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/UsdIncludes.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Argument.h"
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/UsdIncludes.h"
 
 // Carbonite
 #include <carb/logging/Log.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // Forward declarations
@@ -29,13 +29,13 @@ constexpr const char* s_displayGroupUtilities = "Utilities";
 
 /// Base Operation Class
 ///
-/// This class provides the base class for implementing Scene Optimizer Operations as plugins.
+/// This class provides the base class for implementing Usd Optimize Operations as plugins.
 ///
 /// It has minimal requirements. Inside your implementation, you can use the following convenience
 /// macro to have your plugin registered:
 ///
 /// \code{.cpp}
-/// SO_PLUGIN_INIT(omni::scene::optimizer::MyOperationClass);
+/// USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::MyOperationClass);
 /// \endcode
 ///
 /// You must implement \ref getAuthor() to provide a useful contact in the case users have
@@ -44,7 +44,7 @@ constexpr const char* s_displayGroupUtilities = "Utilities";
 ///
 /// Optionally you can declare arguments inside your constructor. These will be propagated to the
 /// user interface.
-class OMNI_SO_EXPORT Operation
+class USD_OPTIMIZE_EXPORT Operation
 {
 
 public:
@@ -78,7 +78,7 @@ public:
     virtual std::string getAuthor() const = 0;
 
     // Get the version of this operation.
-    virtual SOPluginVersion getVersion() const = 0;
+    virtual UsdOptimizePluginVersion getVersion() const = 0;
 
     // Get the category to use for reporting
     virtual std::string getCategory() const = 0;
@@ -264,7 +264,7 @@ public:
     virtual void setUserData(void* userData);
 
 
-    /// Entry point for the SO_LOG_X macros. Generally you don't need to call this function directly.
+    /// Entry point for the USD_OPTIMIZE_LOG_X macros. Generally you don't need to call this function directly.
     /// @param level The level. See carb::logging::kLevelVerbose etc.
     /// @param fmt The format string
     static void log(int32_t level, const char* fmt, ...);
@@ -340,4 +340,4 @@ private:
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

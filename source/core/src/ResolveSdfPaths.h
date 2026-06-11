@@ -4,15 +4,15 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/UsdIncludes.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/UsdIncludes.h"
 
 // USD
 #include <pxr/usd/usd/primRange.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// This is a helper function for _resolveExpressionsToPrims.
@@ -24,7 +24,7 @@ namespace omni::scene::optimizer
 ///
 /// If enabled, \p checkParents will check all the ancestors of a prim to see if they are a type
 /// we would normally filter or prune, like a Camera or Light. These prims can have descendants that
-/// are meshes or xforms, but generally speaking, we don't want to touch these in SO operations.
+/// are meshes or xforms, but generally speaking, we don't want to touch these in Usd Optimize operations.
 /// Note that this is expensive, so calling code that is already traversing and can prune should
 /// do that and disable this argument.
 ///
@@ -33,7 +33,7 @@ namespace omni::scene::optimizer
 /// \param primsSet Optional set for uniqueness
 /// \param checkParents If specified, check ancestors to see if they are a camera/light.
 /// \return Whether the prim was valid and added to \p prims.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _resolvePrim(const PXR_NS::UsdStageWeakPtr& usdStage,
                   const PXR_NS::UsdPrim& prim,
                   std::set<PXR_NS::UsdPrim>* primsSet,
@@ -64,7 +64,7 @@ using ResolveFilter = std::function<bool(const PXR_NS::UsdPrim& prim, PXR_NS::Us
 /// \param filter Optional callback for calling code to provide custom filtering
 ///
 /// \return Vector of prims
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 std::vector<PXR_NS::UsdPrim> _resolveExpressionsToPrims(const PXR_NS::UsdPrim& rootPrim,
                                                         const std::vector<std::string>& paths,
                                                         bool meshesOnly,
@@ -75,7 +75,7 @@ std::vector<PXR_NS::UsdPrim> _resolveExpressionsToPrims(const PXR_NS::UsdPrim& r
 /// Resolve prim paths/expressions to UsdPrims.
 ///
 /// This function is an overload that provides an empty callback.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 std::vector<PXR_NS::UsdPrim> _resolveExpressionsToPrims(
     const PXR_NS::UsdPrim& rootPrim,
     const std::vector<std::string>& paths,
@@ -87,7 +87,7 @@ std::vector<PXR_NS::UsdPrim> _resolveExpressionsToPrims(
 ///
 /// This function is an overload that calls the base version with the PseudoRoot of the specified
 /// usd stage.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 std::vector<PXR_NS::UsdPrim> _resolveExpressionsToPrims(
     const PXR_NS::UsdStageWeakPtr& usdStage,
     const std::vector<std::string>& paths,
@@ -95,7 +95,7 @@ std::vector<PXR_NS::UsdPrim> _resolveExpressionsToPrims(
     bool reverse = true,
     PXR_NS::Usd_PrimFlagsPredicate predicate = PXR_NS::UsdPrimDefaultPredicate);
 
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 [[deprecated("Use _resolveExpressionsToPrims")]] std::vector<PXR_NS::UsdPrim> _resolvePathsToPrims(
     const PXR_NS::UsdStageWeakPtr& usdStage,
     const std::vector<std::string>& paths,
@@ -109,13 +109,13 @@ OMNI_SO_EXPORT
 // absolute USD stage paths, or prim names that will be expanded
 // to absolute paths.
 // Maintained for SdfPathVector compatibility
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 PXR_NS::SdfPathVector _resolveSdfPaths(const PXR_NS::UsdStageWeakPtr& usdStage, const std::vector<std::string>& paths);
 
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 [[deprecated("considerHierarchy flag removed, use previous function")]] PXR_NS::SdfPathVector _resolveSdfPaths(
     const PXR_NS::UsdStageWeakPtr& usdStage,
     const std::vector<std::string>& paths,
     bool considerHierarchy);
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

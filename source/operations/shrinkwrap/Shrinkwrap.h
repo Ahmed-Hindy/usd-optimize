@@ -4,11 +4,11 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Operation.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Operation.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Shrinkwrap meshes using a level set approach via OpenVDB.
@@ -25,7 +25,7 @@ public:
 
     std::string getAuthor() const override;
 
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     std::string getCategory() const override;
 
@@ -52,4 +52,4 @@ private:
     bool m_extractLodPyramid;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -3,10 +3,10 @@
 //
 #include "FlattenHierarchy.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/Log.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/Log.h>
 
 // USD
 #include <pxr/usd/usd/primCompositionQuery.h>
@@ -18,10 +18,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::FlattenHierarchyOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::FlattenHierarchyOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 constexpr const char* s_category = "FLATTEN";
@@ -56,11 +56,11 @@ FlattenHierarchyOperation::FlattenHierarchyOperation()
 
 std::string FlattenHierarchyOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion FlattenHierarchyOperation::getVersion() const
+UsdOptimizePluginVersion FlattenHierarchyOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -309,9 +309,9 @@ void FlattenHierarchyOperation::reparent(const SdfPath& from, const SdfPath& to,
                                                                       SdfNamespaceEdit::AtEnd));
             if (getContext()->verbose)
             {
-                SO_LOG_VERBOSE("Reparent and rename %s to %s",
-                               child.GetPrimPath().GetAsString().c_str(),
-                               _targetPath.GetAsString().c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("Reparent and rename %s to %s",
+                                         child.GetPrimPath().GetAsString().c_str(),
+                                         _targetPath.GetAsString().c_str());
             }
         }
         else
@@ -319,7 +319,9 @@ void FlattenHierarchyOperation::reparent(const SdfPath& from, const SdfPath& to,
             flattenData.edits.Add(SdfNamespaceEdit::Reparent(child.GetPrimPath(), to, SdfNamespaceEdit::AtEnd));
             if (getContext()->verbose)
             {
-                SO_LOG_VERBOSE("Reparent %s to %s", child.GetPrimPath().GetAsString().c_str(), to.GetAsString().c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("Reparent %s to %s",
+                                         child.GetPrimPath().GetAsString().c_str(),
+                                         to.GetAsString().c_str());
             }
         }
 
@@ -398,7 +400,7 @@ void FlattenHierarchyOperation::reparent(const SdfPath& from, const SdfPath& to,
 
         if (getContext()->verbose)
         {
-            SO_LOG_VERBOSE("Removing %s", _from.GetAsString().c_str());
+            USD_OPTIMIZE_LOG_VERBOSE("Removing %s", _from.GetAsString().c_str());
         }
 
         // If any prim being removed resets the xform stack, we want to record that.
@@ -721,7 +723,7 @@ void FlattenHierarchyOperation::fixOriginalMaterials(const FlattenData& flattenD
 
         if (getContext()->verbose)
         {
-            SO_LOG_VERBOSE("Fixing moved material %s", newPath.GetPrimPath().GetAsString().c_str());
+            USD_OPTIMIZE_LOG_VERBOSE("Fixing moved material %s", newPath.GetPrimPath().GetAsString().c_str());
         }
 
         // Get the material that has moved, then "fix" it.
@@ -748,7 +750,9 @@ void FlattenHierarchyOperation::fixOriginalMaterials(const FlattenData& flattenD
 
             if (getContext()->verbose)
             {
-                SO_LOG_VERBOSE("Rebinding %s to %s", primPath.GetAsString().c_str(), findIt->second.GetAsString().c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("Rebinding %s to %s",
+                                         primPath.GetAsString().c_str(),
+                                         findIt->second.GetAsString().c_str());
             }
 
             // Get the prim, whether it has moved or not.
@@ -875,7 +879,7 @@ OperationResult FlattenHierarchyOperation::executeImpl()
     // Verify there is actually something to do
     if (prims.empty())
     {
-        SO_LOG_INFO("No prims found to process.");
+        USD_OPTIMIZE_LOG_INFO("No prims found to process.");
         return { true };
     }
 
@@ -901,7 +905,7 @@ OperationResult FlattenHierarchyOperation::executeImpl()
         SdfNamespaceEditDetailVector details;
         if (!layer->CanApply(flattenData.edits, &details))
         {
-            SO_LOG_ERROR("Cannot apply changes:");
+            USD_OPTIMIZE_LOG_ERROR("Cannot apply changes:");
 
             // Include more info from the failed apply.
             for (const auto& detail : details)
@@ -909,7 +913,7 @@ OperationResult FlattenHierarchyOperation::executeImpl()
                 std::ostringstream oss;
                 oss << "Cannot modify currentPath=" << detail.edit.currentPath << ", newPath=" << detail.edit.newPath;
                 oss << ", reason=" << detail.reason;
-                SO_LOG_ERROR(oss.str().c_str());
+                USD_OPTIMIZE_LOG_ERROR(oss.str().c_str());
             }
         }
 
@@ -926,10 +930,10 @@ OperationResult FlattenHierarchyOperation::executeImpl()
     fixOriginalMaterials(flattenData);
 
     std::string suffix = flattenData.toRemove.size() == 1 ? "" : "s";
-    SO_LOG_INFO("Removed %s Xform%s", std::to_string(flattenData.toRemove.size()).c_str(), suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Removed %s Xform%s", std::to_string(flattenData.toRemove.size()).c_str(), suffix.c_str());
 
     return { true };
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

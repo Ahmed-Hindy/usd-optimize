@@ -13,7 +13,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// @brief Container for indices with O(1) operations.
@@ -200,4 +200,4 @@ private:
     std::vector<IndexT> m_ranks;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

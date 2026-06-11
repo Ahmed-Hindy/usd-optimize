@@ -1,36 +1,41 @@
 [project]
-name = "omniverse-scene-optimizer"
+name = "usd-optimize"
 version = "0.0.0" # injected at package time
 description = "Tool to optimize the state of a Usd scene for performance."
 # TODO: readme, license, license files
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "usd-exchange",
-  "omniverse-asset-validator>=1.15.1",
+  "usd-validation-nvidia>=1.19.3",
 ]
 
 
 [project.urls]
-Homepage = "https://github.com/NVIDIA-Omniverse/scene-optimizer-core"
-Documentation = "https://github.com/NVIDIA-Omniverse/scene-optimizer-core"
+Homepage = "https://github.com/NVIDIA-Omniverse/usd-optimize"
+Documentation = "https://github.com/NVIDIA-Omniverse/usd-optimize"
 # TODO: changelog?
 
 
 [project.entry-points."omni.asset_validator"]
-# Entry-point key must be `registrant` per the Asset Validator Entrypoint
-# Plugins spec; the loader discovers plugins via
-# importlib.metadata.entry_points(group="omni.asset_validator", name="registrant").
-registrant = "omni.scene.optimizer.validators:SceneOptimizerValidatorPlugin"
+# usd-validation-nvidia's PluginManager scans both the `usd_validation_nvidia`
+# and (for back-compat) `omni.asset_validator` entry-point groups, discovering
+# every entry in them regardless of name. We keep the `omni.asset_validator`
+# group for maximal compatibility; the `registrant` key name is arbitrary.
+registrant = "usd_optimize.validators:UsdOptimizeValidatorPlugin"
 
 
 [tool.poetry]
 authors = ["NVIDIA"]
 packages = [
-    { include="omni/scene/optimizer/core" },
-    { include="omni/scene/optimizer/impl" },
-    { include="omni/scene/optimizer/validators" },
-    { include="omniverse_scene_optimizer.libs/operations" },
-    { include="omniverse_scene_optimizer.libs/operation_mapping.json" }
+    { include="usd_optimize/core" },
+    { include="usd_optimize/impl" },
+    { include="usd_optimize/validators" },
+    # Back-compat shim for the pre-rename `omni.scene.optimizer.*` namespace.
+    # The package only contains a meta-path finder that redirects to
+    # `usd_optimize.*` (see source/core/python/omni/scene/optimizer/__init__.py).
+    { include="omni/scene/optimizer" },
+    { include="usd_optimize.libs/operations" },
+    { include="usd_optimize.libs/operation_mapping.json" }
 ]
 include = [
     { path="lib", format="wheel" },

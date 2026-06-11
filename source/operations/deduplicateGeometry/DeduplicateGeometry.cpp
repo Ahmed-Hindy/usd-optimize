@@ -3,34 +3,40 @@
 //
 #include "DeduplicateGeometry.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/CudaUtils.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/MeshToolsCommon.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
-#include <omni/scene.optimizer/core/geometry/Bucket.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/MeshToolsCommon.h>
+#include <usd_optimize/core/RemovePrims.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
+#include <usd_optimize/core/geometry/Bucket.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
 
 // USD
+#include <pxr/base/gf/math.h>
+#include <pxr/base/gf/matrix4d.h>
 #include <pxr/usd/usd/primRange.h>
+#include <pxr/usd/usdGeom/pointInstancer.h>
 #include <pxr/usd/usdGeom/primvarsAPI.h>
+#include <pxr/usd/usdGeom/xformCache.h>
 
 // TBB
 #include <tbb/parallel_for.h>
 
 // C++
 #include <iostream>
+#include <memory>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
 // Register plugin
-SO_PLUGIN_INIT(omni::scene::optimizer::DeduplicateGeometryOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::DeduplicateGeometryOperation);
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -90,7 +96,40 @@ DeduplicateGeometryOperation::DeduplicateGeometryOperation()
             { DuplicateOption::eReference, "Reference" },
             { DuplicateOption::eInstanceableReference, "Instanceable Reference" },
             { DuplicateOption::eSetAttribute, "Set Attribute" },
+            { DuplicateOption::ePointInstancer, "Point Instancer" },
         });
+
+    Argument& pointInstancerLocationArg = addArgument("pointInstancerLocation",
+                                                      "Point Instancer Location",
+                                                      kDisplayTypeEnum,
+                                                      "Where to author the PointInstancer for each duplicate set",
+                                                      m_pointInstancerLocation);
+    pointInstancerLocationArg.setEnumValues<PointInstancerLocation>({
+        { PointInstancerLocation::eCommonRoot, "Common Root" },
+        { PointInstancerLocation::eCustomPath, "Custom Path" },
+    });
+
+    Argument& pointInstancerParentPathArg =
+        addArgument("pointInstancerParentPath",
+                    "Parent Path",
+                    kDisplayTypePrimPath,
+                    "Prim path to author the PointInstancer under. Created as an Xform if it does not exist.",
+                    m_pointInstancerParentPath)
+            .setPlaceholder("/World/PointInstancers")
+            .setEnableIf("pointInstancerLocation == 1")
+            .setVisibleIf("pointInstancerLocation == 1");
+
+    Argument& minimumDuplicatesArg =
+        addArgument("minimumDuplicates",
+                    "Minimum Duplicates",
+                    kDisplayTypeInt,
+                    "Minimum number of duplicates a set must contain for a PointInstancer to be created. Sets with "
+                    "fewer duplicates are left untouched.",
+                    m_minimumDuplicates)
+            .setMin(2);
+
+    addGroup("pointInstancerOptions", pointInstancerLocationArg, pointInstancerParentPathArg, minimumDuplicatesArg)
+        .setVisibleIf("duplicateMethod == 4");
 
     addArgument("ignoreAttributes",
                 "Ignore Attributes",
@@ -146,11 +185,11 @@ DeduplicateGeometryOperation::~DeduplicateGeometryOperation() = default;
 
 std::string DeduplicateGeometryOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion DeduplicateGeometryOperation::getVersion() const
+UsdOptimizePluginVersion DeduplicateGeometryOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -206,7 +245,7 @@ inline bool _isSupportedPrim(const UsdPrim& prim, DuplicateOption method, bool i
     // Check for Time Sampled data which we will not process
     if (_hasAuthoredTimeSamples(prim))
     {
-        SO_LOG_INFO("Skipping %s because of time varying attributes", prim.GetPath().GetAsString().c_str());
+        USD_OPTIMIZE_LOG_VERBOSE("Skipping %s because of time varying attributes", prim.GetPath().GetAsString().c_str());
         return false;
     }
 
@@ -225,6 +264,16 @@ inline bool _isSupportedPrim(const UsdPrim& prim, DuplicateOption method, bool i
     if (method == DuplicateOption::eCopyValues)
     {
         if (_containsOrderedXformOpsSuffix(prim, _tokens->copyValuesXformOp))
+        {
+            return false;
+        }
+    }
+    else if (method == DuplicateOption::ePointInstancer)
+    {
+        // Skip meshes that are already serving as prototypes for a PointInstancer. After this mode runs, the
+        // surviving prototype mesh lives directly under a PointInstancer; we don't want to deduplicate those again.
+        const UsdPrim parent = prim.GetParent();
+        if (parent && parent.IsA<UsdGeomPointInstancer>())
         {
             return false;
         }
@@ -253,6 +302,64 @@ GfMatrix4d _getTransformFromTo(const VtArray<GfVec3f>& sourcePoints, const VtArr
     // Compute the transform matrix to position the source points in the same position as the target points.
     return sourceOriginToPivotMatrix.GetInverse() * targetOriginToPivotMatrix;
 }
+
+
+// Captures a prototype mesh's point/topology data (and, for the exact path, its precomputed origin-to-pivot basis) so
+// the "deep transform" that maps prototype-local points onto each duplicate's local points can be computed without
+// re-reading or re-deriving the prototype side per duplicate. Duplicate detection matches meshes up to such a
+// transform, so both _conformUsingComposition and _createPointInstancers need this for every duplicate in a set.
+class _DeepTransformSolver
+{
+public:
+    _DeepTransformSolver(const UsdPrim& prototypePrim, bool fuzzy)
+        : m_fuzzy(fuzzy)
+    {
+        VtVec3fArray points;
+        UsdGeomPointBased(prototypePrim).GetPointsAttr().Get(&points);
+
+        if (m_fuzzy)
+        {
+            // All prims are guaranteed to be UsdGeomMesh in fuzzy mode (filtered by _isSupportedPrim). The solver
+            // caches the prototype's OBB so it is built once for the whole set rather than once per duplicate.
+            VtIntArray faceVertexIndices;
+            VtIntArray faceVertexCounts;
+            UsdGeomMesh mesh(prototypePrim);
+            mesh.GetFaceVertexIndicesAttr().Get(&faceVertexIndices);
+            mesh.GetFaceVertexCountsAttr().Get(&faceVertexCounts);
+            m_fuzzySolver = std::make_unique<FuzzyTransformSolver>(points, faceVertexIndices, faceVertexCounts);
+        }
+        else
+        {
+            // The prototype is the source for every duplicate, so hoist its origin-to-pivot inverse here.
+            m_originToPivotInverse = _getOriginToPivotMatrix(points.AsConst()).GetInverse();
+        }
+    }
+
+    // Transform that maps the prototype's local points onto the given duplicate's local points.
+    GfMatrix4d computeTransformTo(const UsdPrim& duplicatePrim) const
+    {
+        VtVec3fArray points;
+        UsdGeomPointBased(duplicatePrim).GetPointsAttr().Get(&points);
+
+        if (m_fuzzy)
+        {
+            VtIntArray faceVertexIndices;
+            VtIntArray faceVertexCounts;
+            UsdGeomMesh mesh(duplicatePrim);
+            mesh.GetFaceVertexIndicesAttr().Get(&faceVertexIndices);
+            mesh.GetFaceVertexCountsAttr().Get(&faceVertexCounts);
+            return m_fuzzySolver->computeTransformTo(points, faceVertexIndices, faceVertexCounts);
+        }
+
+        // Equivalent to _getTransformFromTo(prototypePoints, points) but reuses the hoisted prototype basis.
+        return m_originToPivotInverse * _getOriginToPivotMatrix(points.AsConst());
+    }
+
+private:
+    bool m_fuzzy;
+    GfMatrix4d m_originToPivotInverse{ 1.0 };
+    std::unique_ptr<FuzzyTransformSolver> m_fuzzySolver;
+};
 
 
 void DeduplicateGeometryOperation::_copyPrimData(const PXR_NS::UsdPrim& sourcePrim, const PXR_NS::UsdPrim& targetPrim)
@@ -602,12 +709,12 @@ PrimVectors DeduplicateGeometryOperation::_findIdenticalMeshes(const PrimVectors
         if (TfStringEndsWith(attributeName, ":"))
         {
             ignoreNamespaces.emplace_back(TfToken(attributeName));
-            SO_LOG_VERBOSE("Ignoring namespace %s", attributeName.c_str());
+            USD_OPTIMIZE_LOG_VERBOSE("Ignoring namespace %s", attributeName.c_str());
         }
         else
         {
             ignoreAttributes.emplace_back(TfToken(attributeName));
-            SO_LOG_VERBOSE("Ignoring attribute %s", attributeName.c_str());
+            USD_OPTIMIZE_LOG_VERBOSE("Ignoring attribute %s", attributeName.c_str());
         }
     }
 
@@ -624,9 +731,12 @@ PrimVectors DeduplicateGeometryOperation::_findIdenticalMeshes(const PrimVectors
             // Bucket the meshes
             Bucketer bucketer(getContext());
 
-            // Material bindings are left on the prim that holds the composition arc and then inherited to the mesh
-            // below. For that reason we do not need to consider the bound material when identifying mesh buckets.
-            bucketer.SetConsiderMaterials(false);
+            // For the composition methods the material binding is left on the prim that holds the composition arc and
+            // inherited by the mesh below, so meshes that differ only by material can still share a prototype and we
+            // do not consider the bound material when bucketing. A PointInstancer has no per-instance binding, so for
+            // that method we let the bucketer split sets by resolved bound material -- each prototype is then
+            // material-homogeneous. ComputeBoundMaterial also resolves inherited and collection-based bindings.
+            bucketer.SetConsiderMaterials(m_duplicateMethod == DuplicateOption::ePointInstancer);
 
             // Consider all attributes so that we know the composed result will be the same as the current state.
             bucketer.SetConsiderPrimAttributes(true);
@@ -776,55 +886,14 @@ void DeduplicateGeometryOperation::_conformUsingComposition(const PrimVectors& d
         auto& targetMatrices = xformsForReferences[prototypePrim.GetPath()];
         targetMatrices.reserve(duplicateCount);
 
-        // Get the points and topology data of the prototype needed to compute transforms.
-        VtVec3fArray prototypePoints;
-        VtIntArray prototypeFaceVertexIndices;
-        VtIntArray prototypeFaceVertexCounts;
-
-        UsdGeomPointBased(prototypePrim).GetPointsAttr().Get(&prototypePoints);
-
-        // For fuzzy mode, we need face topology for OBB-based transform computation.
-        // Note: All prims are guaranteed to be UsdGeomMesh in fuzzy mode (filtered by _isSupportedPrim).
-        if (m_fuzzy)
-        {
-            UsdGeomMesh prototypeMeshGeom(prototypePrim);
-            prototypeMeshGeom.GetFaceVertexIndicesAttr().Get(&prototypeFaceVertexIndices);
-            prototypeMeshGeom.GetFaceVertexCountsAttr().Get(&prototypeFaceVertexCounts);
-        }
+        // The prototype is the source for every duplicate's deep transform; the solver caches its point/topology
+        // data so we don't re-read or re-derive the prototype side per duplicate.
+        const _DeepTransformSolver solver(prototypePrim, m_fuzzy);
 
         for (size_t duplicateIndex = 0; duplicateIndex < duplicateCount; ++duplicateIndex)
         {
             const auto& prim = duplicatePrims[duplicateIndex];
-
-            VtVec3fArray points;
-            UsdGeomPointBased(prim).GetPointsAttr().Get(&points);
-
-            GfMatrix4d transformFromTo;
-
-            if (m_fuzzy)
-            {
-                // Use OBB-based fuzzy transform computation for tolerance-aware matching
-                VtIntArray faceVertexIndices;
-                VtIntArray faceVertexCounts;
-
-                UsdGeomMesh meshGeom(prim);
-                meshGeom.GetFaceVertexIndicesAttr().Get(&faceVertexIndices);
-                meshGeom.GetFaceVertexCountsAttr().Get(&faceVertexCounts);
-
-                transformFromTo = _getTransformFromToFuzzy(prototypePoints.AsConst(),
-                                                           prototypeFaceVertexIndices.AsConst(),
-                                                           prototypeFaceVertexCounts.AsConst(),
-                                                           points.AsConst(),
-                                                           faceVertexIndices.AsConst(),
-                                                           faceVertexCounts.AsConst());
-            }
-            else
-            {
-                // Use point-based transform for exact matching
-                transformFromTo = _getTransformFromTo(prototypePoints.AsConst(), points.AsConst());
-            }
-
-            targetMatrices.push_back(transformFromTo);
+            targetMatrices.push_back(solver.computeTransformTo(prim));
             targetPaths.push_back(prim.GetPath());
         }
     }
@@ -1064,7 +1133,7 @@ void DeduplicateGeometryOperation::_conformUsingComposition(const PrimVectors& d
                 // LCOV_EXCL_START
                 case DuplicateOption::eCopyValues:
                 default:
-                    SO_LOG_WARN("Invalid deduplicate option: %i", static_cast<int>(m_duplicateMethod));
+                    USD_OPTIMIZE_LOG_WARN("Invalid deduplicate option: %i", static_cast<int>(m_duplicateMethod));
                 }
                 // LCOV_EXCL_STOP
 
@@ -1098,7 +1167,324 @@ void DeduplicateGeometryOperation::_conformUsingComposition(const PrimVectors& d
         }
     }
 
-    SO_LOG_INFO("Replaced %zu meshes with references", numReferences);
+    USD_OPTIMIZE_LOG_INFO("Replaced %zu meshes with references", numReferences);
+}
+
+
+// _copyPrim only carries bindings authored on the mesh itself, so a prototype that inherited its material from an
+// ancestor (or via a collection) would lose it once re-parented under the PointInstancer. Resolve the effective bound
+// material for each purpose on the source mesh and author it directly on the prototype copy so the binding survives
+// the move. A directly-authored binding that _copyPrim already carried is simply re-authored to the same value.
+void _rebindResolvedMaterials(const UsdPrim& sourcePrim, const UsdPrim& targetPrim)
+{
+    if (!sourcePrim || !targetPrim)
+    {
+        return; // LCOV_EXCL_LINE
+    }
+
+    const UsdShadeMaterialBindingAPI sourceBinding(sourcePrim);
+    UsdShadeMaterialBindingAPI targetBinding(targetPrim);
+    bool applied = false;
+
+    // GetMaterialPurposes() returns allPurpose first, then the purpose-specific tokens. Purpose-specific lookups fall
+    // back to the all-purpose binding, so we only re-author one when it resolves to a different material.
+    SdfPath allPurposePath;
+    for (const TfToken& purpose : UsdShadeMaterialBindingAPI::GetMaterialPurposes())
+    {
+        const UsdShadeMaterial material = sourceBinding.ComputeBoundMaterial(purpose);
+        if (!material)
+        {
+            continue;
+        }
+
+        if (purpose == UsdShadeTokens->allPurpose)
+        {
+            allPurposePath = material.GetPath();
+        }
+        else if (material.GetPath() == allPurposePath)
+        {
+            continue;
+        }
+
+        if (!applied)
+        {
+            targetBinding = UsdShadeMaterialBindingAPI::Apply(targetPrim);
+            applied = true;
+        }
+        targetBinding.Bind(material, UsdShadeTokens->fallbackStrength, purpose);
+    }
+}
+
+
+// Decompose an affine transform into the translate / rotate / scale triple a UsdGeomPointInstancer stores per
+// instance, writing the (best-fit) triple to the out-params. Returns true only when that triple actually reproduces
+// the matrix: ComputeInstanceTransformsAtTime applies scale, then rotation, then translation, so it cannot represent
+// shear or a scaleOrientation (a rotation composed with non-uniform scale). Callers must not author an instance for
+// which this returns false -- the placement would be visibly wrong.
+bool _decomposeForPointInstancer(const GfMatrix4d& matrix, GfVec3f& position, GfQuath& orientation, GfVec3f& scale)
+{
+    // Factor the matrix into scaleOrientation * scale * rotation * translation (plus an unused projection part).
+    // rotMat is the rotation, scaleVec the scale, translation the position; the scaleOrientation -- the orientation of
+    // a non-uniform scale, i.e. shear -- is the one part a PointInstancer (scale, then rotate, then translate) cannot
+    // reproduce. Factor is cheaper than GfTransform::SetMatrix, which calls Factor then redoes pivot math we never use.
+    GfMatrix4d scaleOrientMat, rotMat, projMat;
+    GfVec3d scaleVec, translation;
+    matrix.Factor(&scaleOrientMat, &scaleVec, &rotMat, &translation, &projMat);
+
+    const GfQuatd rotation = rotMat.ExtractRotationQuat();
+    position = GfVec3f(translation);
+    scale = GfVec3f(scaleVec);
+    orientation = GfQuath(GfQuatf(rotation));
+
+    // Decide representability by rebuilding the matrix exactly as ComputeInstanceTransformsAtTime will (scale, then
+    // rotate, then translate) and comparing its linear (3x3) part to the original. Do NOT test scaleOrientMat against
+    // identity directly: for a uniform scale (the common rigid / similarity case) the scaleOrientation is irrelevant,
+    // yet Factor's Jacobi eigensolve has repeated singular values there and returns an *arbitrary* large rotation for
+    // it from infinitesimal noise -- a value that differs between x86 and aarch64. The reconstruction cancels that
+    // spurious orientation (for uniform scale rotMat collapses to the true rotation), so it measures only what a
+    // PointInstancer genuinely cannot represent: shear / rotated non-uniform scale. Translation is exact, so comparing
+    // just the 3x3 also avoids tolerance issues from large translations.
+    const GfMatrix4d reconstructed = GfMatrix4d(1.0).SetScale(scaleVec) * GfMatrix4d(1.0).SetRotate(rotation) *
+                                     GfMatrix4d(1.0).SetTranslate(translation);
+
+    double maxComponent = 1.0;
+    for (int i = 0; i < 3; ++i)
+    {
+        for (int j = 0; j < 3; ++j)
+        {
+            maxComponent = GfMax(maxComponent, GfAbs(matrix[i][j]));
+        }
+    }
+
+    const double tolerance = 1e-5 * maxComponent;
+    for (int i = 0; i < 3; ++i)
+    {
+        for (int j = 0; j < 3; ++j)
+        {
+            if (GfAbs(matrix[i][j] - reconstructed[i][j]) > tolerance)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+
+// Replace each set of duplicate meshes with a UsdGeomPointInstancer that uses one of the meshes as its prototype.
+// Each duplicate becomes a single instance whose position / orientation / scale reproduces the original worldspace
+// placement of the mesh it replaces. Sets are material-homogeneous here: _findIdenticalMeshes buckets by bound
+// material for this method, so meshes with different materials arrive as separate sets (separate PointInstancers).
+// Duplicates whose placement needs shear or rotated non-uniform scale are left as meshes (a PointInstancer cannot
+// represent them); a set with fewer than two representable duplicates is skipped entirely.
+void DeduplicateGeometryOperation::_createPointInstancers(const PrimVectors& duplicatePrimVectors)
+{
+    const UsdStageWeakPtr stage = getUsdStage();
+    const SdfLayerHandle editLayer = stage->GetEditTarget().GetLayer();
+
+    UsdGeomXformCache xformCache;
+    size_t numReplaced = 0;
+    size_t numInstancers = 0;
+
+    for (const PrimVector& duplicatePrims : duplicatePrimVectors)
+    {
+        // A PointInstancer is only worthwhile for a set with at least m_minimumDuplicates duplicates; smaller sets
+        // are left as their original meshes.
+        if (duplicatePrims.size() < static_cast<size_t>(m_minimumDuplicates))
+        {
+            continue;
+        }
+
+        // Resolve where the new PointInstancer should be authored. The custom-path case is pre-validated in
+        // executeImpl so we can construct the SdfPath directly here.
+        SdfPath parentPath;
+        if (m_pointInstancerLocation == PointInstancerLocation::eCustomPath)
+        {
+            parentPath = SdfPath(m_pointInstancerParentPath);
+        }
+        else
+        {
+            // Compute the deepest common ancestor of the duplicate meshes' parents.
+            parentPath = duplicatePrims.front().GetPath().GetParentPath();
+            for (size_t i = 1; i < duplicatePrims.size(); ++i)
+            {
+                parentPath = parentPath.GetCommonPrefix(duplicatePrims[i].GetPath().GetParentPath());
+            }
+            if (parentPath.IsEmpty())
+            {
+                parentPath = SdfPath::AbsoluteRootPath();
+            }
+        }
+
+        // Ensure the parent prim exists. In common-root mode it always does (it's an ancestor of the duplicates); in
+        // custom-path mode it may be missing, so author it -- and any missing intermediate ancestors -- as Xforms via
+        // the shared helper so they get a consistent specifier/type in the edit layer.
+        UsdPrim parentPrim;
+        if (parentPath == SdfPath::AbsoluteRootPath())
+        {
+            parentPrim = stage->GetPseudoRoot();
+        }
+        else
+        {
+            parentPrim = stage->GetPrimAtPath(parentPath);
+            if (!parentPrim || !parentPrim.IsDefined())
+            {
+                SdfLayerHandle parentLayer = editLayer;
+                _safeCreatePrim(stage,
+                                parentPath,
+                                _tokens->typeXform.GetString(),
+                                _tokens->typeXform.GetString(),
+                                parentLayer);
+                parentPrim = stage->GetPrimAtPath(parentPath);
+                if (!parentPrim)
+                {
+                    USD_OPTIMIZE_LOG_WARN("Failed to create PointInstancer parent at '%s'; skipping duplicate set",
+                                          parentPath.GetAsString().c_str());
+                    continue; // LCOV_EXCL_LINE
+                }
+            }
+        }
+
+        // The PointInstancer itself has identity local transform, so its local-to-world equals the parent's. We map
+        // each duplicate's local-to-world into the PointInstancers local space via this inverse. XformCache returns
+        // identity for the pseudo-root, so this is correct when the parent is the pseudo-root too.
+        const GfMatrix4d parentWorldToLocal = xformCache.GetLocalToWorldTransform(parentPrim).GetInverse();
+
+        // Pick the prototype source. Whichever prim we copy under the PointInstancer must itself become an instance
+        // (it has an identity deep transform, so its instance transform is just its own placement) and so be deleted;
+        // otherwise its mesh data would be left in the scene alongside the copy. Only a prim whose own placement a
+        // PointInstancer can represent can play that role, so use the first such prim and keep its decomposed
+        // transform for the pass below. If none qualifies, no leftover-free PointInstancer is possible -- skip the set.
+        VtVec3fArray positions;
+        VtQuathArray orientations;
+        VtVec3fArray scales;
+        std::vector<UsdPrim> instancedPrims;
+        positions.reserve(duplicatePrims.size());
+        orientations.reserve(duplicatePrims.size());
+        scales.reserve(duplicatePrims.size());
+        instancedPrims.reserve(duplicatePrims.size());
+
+        UsdPrim prototypeSource;
+        GfVec3f prototypePosition;
+        GfQuath prototypeOrientation;
+        GfVec3f prototypeScale;
+
+        for (const UsdPrim& candidate : duplicatePrims)
+        {
+            const GfMatrix4d ownXform = xformCache.GetLocalToWorldTransform(candidate) * parentWorldToLocal;
+            if (_decomposeForPointInstancer(ownXform, prototypePosition, prototypeOrientation, prototypeScale))
+            {
+                prototypeSource = candidate;
+                break;
+            }
+        }
+
+        if (!prototypeSource)
+        {
+            USD_OPTIMIZE_LOG_WARN(
+                "Skipping PointInstancer for duplicate set under '%s': no duplicate's placement can be represented",
+                parentPath.GetAsString().c_str());
+            continue;
+        }
+        const TfToken prototypeName = prototypeSource.GetName();
+
+        // The prototype is the source for every duplicate's deep transform (which maps prototype-local points onto
+        // each duplicate's local points). The duplicate detection matches meshes up to such a transform, so when a
+        // duplicate's local points differ from the prototype's we bake that delta into the per-instance transform.
+        const _DeepTransformSolver solver(prototypeSource, m_fuzzy);
+
+        // First pass (no stage edits yet): keep each duplicate a PointInstancer can faithfully reproduce. A duplicate
+        // whose placement needs shear or a scaleOrientation is left as its original mesh rather than authored as a
+        // visibly-wrong instance. Each prim is decomposed exactly once -- the prototype's transform was already
+        // computed during selection above, so it is reused here rather than recomputed.
+        for (const UsdPrim& dupPrim : duplicatePrims)
+        {
+            GfVec3f position;
+            GfQuath orientation;
+            GfVec3f scale;
+
+            if (dupPrim == prototypeSource)
+            {
+                position = prototypePosition;
+                orientation = prototypeOrientation;
+                scale = prototypeScale;
+            }
+            else
+            {
+                // USD row-vector convention; most-local first. Apply the deep transform to bring prototype-local
+                // points into the duplicate's local frame, then the duplicate's own local-to-world, then map back into
+                // the PointInstancer's local space (PI is at identity in its parent, so this is its world-to-local).
+                const GfMatrix4d deepTransform = solver.computeTransformTo(dupPrim);
+                const GfMatrix4d meshLocalToWorld = xformCache.GetLocalToWorldTransform(dupPrim);
+                const GfMatrix4d instanceXform = deepTransform * meshLocalToWorld * parentWorldToLocal;
+                if (!_decomposeForPointInstancer(instanceXform, position, orientation, scale))
+                {
+                    USD_OPTIMIZE_LOG_WARN(
+                        "Leaving '%s' as a mesh: its placement needs shear or rotated non-uniform scale, which a "
+                        "PointInstancer cannot represent",
+                        dupPrim.GetPath().GetAsString().c_str());
+                    continue;
+                }
+            }
+
+            positions.push_back(position);
+            orientations.push_back(orientation);
+            scales.push_back(scale);
+            instancedPrims.push_back(dupPrim);
+        }
+
+        // Check minDuplicates again against the final number of prims
+        if (instancedPrims.size() < static_cast<size_t>(m_minimumDuplicates))
+        {
+            continue;
+        }
+
+        // Pick a unique name for the new PointInstancer under the chosen parent. _getUniqueChildPaths accounts for
+        // existing children (including deactivated ones) and matches the naming convention used across the library.
+        const TfToken baseName(prototypeName.GetString() + "_Instancer");
+        const SdfPath instancerPath = _getUniqueChildPaths(stage, parentPath, { baseName }).front();
+
+        // Create the PointInstancer and copy the prototype mesh underneath it as a direct child. Copying via the
+        // shared helper preserves the prototype's material binding, primvars and api schemas.
+        UsdGeomPointInstancer pointInstancer = UsdGeomPointInstancer::Define(stage, instancerPath);
+        if (!pointInstancer)
+        {
+            USD_OPTIMIZE_LOG_WARN("Failed to create PointInstancer at '%s'; skipping duplicate set",
+                                  instancerPath.GetAsString().c_str());
+            continue; // LCOV_EXCL_LINE
+        }
+
+        const SdfPath prototypePath = instancerPath.AppendChild(prototypeName);
+        _copyPrim(prototypeSource, editLayer, prototypePath);
+        const UsdPrim prototypePrim = stage->GetPrimAtPath(prototypePath);
+
+        // The prototype sits at identity so its worldspace contribution comes from the PointInstancers parent only.
+        // Strip any xform ops and the xformOpOrder that were copied from the source mesh.
+        _clearXformOps(prototypePrim);
+
+        // Re-author the source mesh's resolved material binding so an inherited or collection-based binding is not
+        // lost now that the prototype no longer sits under its original ancestors.
+        _rebindResolvedMaterials(prototypeSource, prototypePrim);
+
+        // Only one prototype is authored per PointInstancer, so every protoIndex is 0.
+        const VtIntArray protoIndices(instancedPrims.size(), 0);
+
+        pointInstancer.CreatePositionsAttr().Set(positions);
+        pointInstancer.CreateOrientationsAttr().Set(orientations);
+        pointInstancer.CreateScalesAttr().Set(scales);
+        pointInstancer.CreateProtoIndicesAttr().Set(protoIndices);
+        pointInstancer.CreatePrototypesRel().AddTarget(prototypePath);
+
+        // Remove only the duplicates we actually instanced; any left as meshes (not representable) stay in place. Use
+        // the shared helper so prims defined outside the edit layer fall back to deactivation instead of being skipped.
+        _deletePrims(stage, instancedPrims, /*deactivate=*/true);
+
+        numReplaced += instancedPrims.size();
+        numInstancers += 1;
+    }
+
+    std::string suffix = numInstancers == 1 ? "" : "s";
+    USD_OPTIMIZE_LOG_INFO("Replaced %zu meshes with %zu PointInstancer%s", numReplaced, numInstancers, suffix.c_str());
 }
 
 
@@ -1118,7 +1504,7 @@ void DeduplicateGeometryOperation::computeEqualGeometrySets(std::vector<UsdPrim>
     // At this point, check that we have found something to process. If not, log a note and finish.
     if (resolvedPrims.empty())
     {
-        SO_LOG_INFO("Found no prims to process");
+        USD_OPTIMIZE_LOG_INFO("Found no prims to process");
         return;
     }
 
@@ -1127,20 +1513,21 @@ void DeduplicateGeometryOperation::computeEqualGeometrySets(std::vector<UsdPrim>
 
     if (m_useGpu && !isCudaAvailable())
     {
-        SO_LOG_WARN("GPU requested but CUDA is not available. Falling back to CPU.");
+        USD_OPTIMIZE_LOG_WARN("GPU requested but CUDA is not available. Falling back to CPU.");
         m_useGpu = false;
     }
 
     primVectors = m_fuzzy ? _computeEqualMeshPrimsFuzzy(resolvedPrims, m_tolerance, m_allowScaling, m_useGpu) :
                             _computeEqualMeshPrims(resolvedPrims, m_considerDeepTransforms, m_tolerance, ignoreNormals);
 
-    // If we are using composition to deduplicate we need to ensure that all attributes on the prims are
-    // equal not just the topology attributes. By comparing attribute values on the prims within the
-    // equal prim sets we can divide the sets into subsets of prims.
+    // If we are using composition to deduplicate or replacing duplicates with a PointInstancer we need to ensure that
+    // all attributes on the prims are equal not just the topology attributes. By comparing attribute values on the
+    // prims within the equal prim sets we can divide the sets into subsets of prims.
     switch (m_duplicateMethod)
     {
     case DuplicateOption::eReference:
     case DuplicateOption::eInstanceableReference:
+    case DuplicateOption::ePointInstancer:
         primVectors = _findIdenticalMeshes(primVectors);
         break;
     default:
@@ -1178,13 +1565,13 @@ void DeduplicateGeometryOperation::computeEqualGeometrySets(std::vector<UsdPrim>
 
     // Report the number of equal mesh sets found.
     std::string suffix = primVectors.size() == 1 ? "" : "s";
-    SO_LOG_INFO("Found %lu set%s of equal meshes", primVectors.size(), suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Found %lu set%s of equal meshes", primVectors.size(), suffix.c_str());
 }
 
 
 OperationResult DeduplicateGeometryOperation::executeAnalysisImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|DeduplicateGeometry|Analysis");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|DeduplicateGeometry|Analysis");
 
     // Compute duplicate geometry
     std::vector<UsdPrim> resolvedPrims;
@@ -1204,7 +1591,7 @@ OperationResult DeduplicateGeometryOperation::executeAnalysisImpl()
     OperationResult result{ true };
     result.output = getCStr(JsWriteToString(resultJson));
 
-    SO_LOG_VERBOSE("Analysis result: %s", result.output);
+    USD_OPTIMIZE_LOG_VERBOSE("Analysis result: %s", result.output);
 
     return result;
 }
@@ -1212,13 +1599,37 @@ OperationResult DeduplicateGeometryOperation::executeAnalysisImpl()
 
 OperationResult DeduplicateGeometryOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|DeduplicateGeometry|Execute");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|DeduplicateGeometry|Execute");
 
     if (getContext()->generateReport)
     {
-        SO_LOG_INFO("Running deduplicate, deep=%d, fuzzy=%d",
-                    static_cast<int>(m_considerDeepTransforms),
-                    static_cast<int>(m_fuzzy));
+        USD_OPTIMIZE_LOG_INFO("Running deduplicate, deep=%d, fuzzy=%d",
+                              static_cast<int>(m_considerDeepTransforms),
+                              static_cast<int>(m_fuzzy));
+    }
+
+    // Fail fast on bad configs before spending time finding duplicates. In Create-PointInstancer mode with a custom
+    // parent path, the path must be a non-empty absolute prim path -- there is no recoverable per-set fallback.
+    if (m_duplicateMethod == DuplicateOption::ePointInstancer &&
+        m_pointInstancerLocation == PointInstancerLocation::eCustomPath)
+    {
+        if (m_pointInstancerParentPath.empty())
+        {
+            USD_OPTIMIZE_LOG_WARN("PointInstancer parent path is empty");
+            return { false };
+        }
+        if (!SdfPath::IsValidPathString(m_pointInstancerParentPath))
+        {
+            USD_OPTIMIZE_LOG_WARN("Invalid PointInstancer parent path '%s'", m_pointInstancerParentPath.c_str());
+            return { false };
+        }
+        const SdfPath parentPath(m_pointInstancerParentPath);
+        if (!parentPath.IsAbsolutePath() || !parentPath.IsAbsoluteRootOrPrimPath())
+        {
+            USD_OPTIMIZE_LOG_WARN("PointInstancer parent path '%s' is not an absolute prim path",
+                                  m_pointInstancerParentPath.c_str());
+            return { false };
+        }
     }
 
     // Compute duplicate geometry
@@ -1236,10 +1647,10 @@ OperationResult DeduplicateGeometryOperation::executeImpl()
     {
         for (const auto& primVector : equalMeshVectors)
         {
-            SO_LOG_VERBOSE("Duplicates (%lu):", primVector.size());
+            USD_OPTIMIZE_LOG_VERBOSE("Duplicates (%lu):", primVector.size());
             for (const auto& prim : primVector)
             {
-                SO_LOG_VERBOSE("%s", prim.GetPrimPath().GetAsString().c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("%s", prim.GetPrimPath().GetAsString().c_str());
             }
         }
     }
@@ -1272,6 +1683,10 @@ OperationResult DeduplicateGeometryOperation::executeImpl()
         }
         return { true };
     }
+    else if (m_duplicateMethod == DuplicateOption::ePointInstancer)
+    {
+        _createPointInstancers(equalMeshVectors);
+    }
     else
     {
         _conformUsingComposition(equalMeshVectors);
@@ -1280,4 +1695,4 @@ OperationResult DeduplicateGeometryOperation::executeImpl()
     return { true };
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

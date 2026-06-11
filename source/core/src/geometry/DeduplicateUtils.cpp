@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/geometry/DeduplicateUtils.h"
+#include "usd_optimize/core/geometry/DeduplicateUtils.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/CudaUtils.h"
-#include "omni/scene.optimizer/core/MeshToolsCommon.h"
-#include "omni/scene.optimizer/core/TransformUtils.h"
-#include "omni/scene.optimizer/core/Utils.h"
+// Usd Optimize Core
+#include "usd_optimize/core/CudaUtils.h"
+#include "usd_optimize/core/MeshToolsCommon.h"
+#include "usd_optimize/core/TransformUtils.h"
+#include "usd_optimize/core/Utils.h"
 
 // Mesh Tools
 #include "MeshTools/DuplicationChecker.h"
@@ -32,7 +32,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 // clang-format on
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Typedefs
@@ -533,4 +533,4 @@ PrimVectors _computeEqualMeshPrimsFuzzy(const PrimVector& prims, float tolerance
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

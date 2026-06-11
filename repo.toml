@@ -6,7 +6,7 @@
 logging = "warn"
 
 # Repository Name. It is used for solution name and final package name
-name = "scene-optimizer-core"
+name = "usd-optimize"
 
 # Default USD flavor tokens.
 # Override via: ./repo.sh --set-token usd_flavor:<flavor> --set-token usd_ver:<ver> --set-token python_ver:<py_ver> build
@@ -56,7 +56,7 @@ docker.enabled = false
 # a VS; if a broken/partial 2019 is chosen, pin to an install that has MSVC, e.g.:
 #   msbuild.vs_version = "vs2022"
 msbuild.link_host_toolchain = true
-msbuild.sln_file = "scene-optimizer-core.sln"
+msbuild.sln_file = "usd-optimize.sln"
 msbuild.vs_version = ""  # "vs2019" | "vs2022" | "" (vswhere; prefer an install with MSVC + Win SDK)
 
 # Generate deps/usd-deps.generated.packman.xml before pulling dependencies.
@@ -112,9 +112,9 @@ extra_premake_args = ["--python-ver=${python_ver}"]
 
 
 [[repo_build.rc_file]]
-file_path = "${root}/_build/scene-optimizer.rc"
-product_name = "NVIDIA Omniverse Scene Optimizer"
-file_Description = "NVIDIA Omniverse Scene Optimizer Library"
+file_path = "${root}/_build/usd-optimize.rc"
+product_name = "NVIDIA Omniverse Usd Optimize"
+file_Description = "NVIDIA Omniverse Usd Optimize Library"
 
 
 [repo_cxx_coverage]
@@ -135,7 +135,7 @@ exclude_paths = [
 [repo_test]
 test_root = "${root}/_build/${platform}/${config}"
 default_suite = ["cpp", "python"]
-archive_pattern = "${root}/_build/packages/scene_optimizer_core_tests*.${config}.*"
+archive_pattern = "${root}/_build/packages/usd_optimize_tests*.${config}.*"
 
 [repo_test.suites.cpp]
 kind = "catch2"
@@ -207,10 +207,10 @@ paths = ["$root/_build/$platform/release"]
 # Packaging
 ########################################################################################################################
 
-[repo_package.packages.scene_optimizer_core]
+[repo_package.packages.usd_optimize]
 ziponly = true
 omniverse_flow_version_scheme = true
-archive_name = "scene_optimizer_core_${usd_flavor}_${usd_ver}_py_${python_ver}"
+archive_name = "usd_optimize_${usd_flavor}_${usd_ver}_py_${python_ver}"
 warn_if_not_exist = true
 package_per_config = true
 remove_pycache = true
@@ -238,10 +238,10 @@ files_exclude = [
 # Test-only archive. Superset of the shipping package's runtime, plus the
 # catch2/python test wrappers, the test binary, and the test data tree.
 # Consumed by `repo_test` via `archive_pattern` above; not published.
-[repo_package.packages.scene_optimizer_core_tests]
+[repo_package.packages.usd_optimize_tests]
 ziponly = true
 omniverse_flow_version_scheme = true
-archive_name = "scene_optimizer_core_tests_${usd_flavor}_${usd_ver}_py_${python_ver}"
+archive_name = "usd_optimize_tests_${usd_flavor}_${usd_ver}_py_${python_ver}"
 warn_if_not_exist = true
 package_per_config = true
 remove_pycache = true
@@ -285,5 +285,5 @@ install_dir = "$root/_build/packages"
 
 [repo_publish]
 enabled = true
-packages = ["scene_optimizer_core"]
+packages = ["usd_optimize"]
 

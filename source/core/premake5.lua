@@ -1,19 +1,19 @@
-so_build = require("tools/premake/scene-optimizer-public")
+usd_optimize_build = require("tools/premake/usd-optimize-public")
 
 -- Set up the location names for the plugin
-local namespace = "omni/scene/optimizer/core"
+local namespace = "usd_optimize/core"
 local plugin_source_path = "plugins"
 
 
-project_with_location("omni.scene.optimizer.core")
+project_with_location("usd_optimize.core")
 
-    -- build the shared library for scene optimizer core
-    so_build.shared_library({
+    -- build the shared library for usd optimize core
+    usd_optimize_build.shared_library({
         library_name = "core",
         headers = { "src/**/*.h" },
         sources = { "src/**.cpp" }
     })
-    removefiles { "src/SceneOptimizerInterface.cpp", "src/sceneOptimizer.cpp" }
+    removefiles { "src/UsdOptimizeInterface.cpp", "src/usdOptimize.cpp" }
 
     local lib_dir = "%{root}/_build/%{cfg.system}-%{cfg.platform}/%{config}/lib"
 
@@ -44,24 +44,37 @@ project_with_location("omni.scene.optimizer.core")
 
 project_with_location("core_python")
 
-    dependson( "omni.scene.optimizer.core" )
+    dependson( "usd_optimize.core" )
 
-    -- build the python bindings for scene optimizer core
-    so_build.use_python()
-    so_build.use_usd()
-    so_build.use_mesh_tools()
-    so_build.use_omni_mesh()
-    so_build.use_so_core()
+    -- build the python bindings for usd optimize core
+    usd_optimize_build.use_python()
+    usd_optimize_build.use_usd()
+    usd_optimize_build.use_mesh_tools()
+    usd_optimize_build.use_omni_mesh()
+    usd_optimize_build.use_usd_optimize_core()
 
-    so_build.python_bindings({
-        bindings_module_name = "omni_scene_optimizer_impl_core",
+    -- `module_name` is set explicitly because the helper's auto-derivation
+    -- (`bindings_module_name:gsub("_", ".")`) would split `usd_optimize`
+    -- into `usd.optimize` — the package is a single dotted segment.
+    usd_optimize_build.python_bindings({
+        module_name = "usd_optimize.impl.core",
+        bindings_module_name = "usd_optimize_impl_core",
         bindings_sources = "bindings/BindingsPython.cpp",
-        python_sources = "python/omni/scene/optimizer/impl/core/*.py",
+        python_sources = "python/usd_optimize/impl/core/*.py",
     })
 
-    so_build.symlink_folder({
-        target_dir = "python/omni/scene/optimizer/core",
-        source_dir = "python/omni/scene/optimizer/core",
+    usd_optimize_build.symlink_folder({
+        target_dir = "python/usd_optimize/core",
+        source_dir = "python/usd_optimize/core",
+    })
+
+    -- Back-compat shim: `import omni.scene.optimizer.<sub>` is transparently
+    -- aliased to `usd_optimize.<sub>` by a sys.meta_path finder installed in
+    -- the shim's __init__.py. Drop this symlink once the deprecation window
+    -- closes.
+    usd_optimize_build.symlink_folder({
+        target_dir = "python/omni/scene/optimizer",
+        source_dir = "python/omni/scene/optimizer",
     })
 
 
@@ -69,9 +82,9 @@ project_with_location("core_python")
 -- Currently this is only built locally, for dev purposes
 if not os.getenv("CI_PIPELINE_ID") then
 
-    project_with_location("sceneOptimizer")
+    project_with_location("usdOptimize")
 
-        dependson("omni.scene.optimizer.core")
+        dependson("usd_optimize.core")
 
         kind "ConsoleApp"
         staticruntime "Off"
@@ -107,14 +120,14 @@ if not os.getenv("CI_PIPELINE_ID") then
         -- Copy batch file to set environment for execution
         if os.target() == "windows" then
             repo_build.prebuild_copy{
-                {"%{root}/source/core/src/sceneOptimizer.bat", "%{root}/_build/%{cfg.system}-%{cfg.platform}/%{config}"},
+                {"%{root}/source/core/src/usdOptimize.bat", "%{root}/_build/%{cfg.system}-%{cfg.platform}/%{config}"},
             }
         end
 
         enable_gcov()
 
         -- source code to compile
-        files { "src/SceneOptimizerInterface.cpp", "src/sceneOptimizer.cpp" }
+        files { "src/UsdOptimizeInterface.cpp", "src/usdOptimize.cpp" }
 
         repo_build.prebuild_copy {
             {target_deps.."/python/lib/libpython*", extra_dir},
@@ -139,11 +152,11 @@ if not os.getenv("CI_PIPELINE_ID") then
             linkoptions { "-Wl,--disable-new-dtags" }
         filter {}
 
-        so_build.use_python()
-        so_build.use_so_core()
+        usd_optimize_build.use_python()
+        usd_optimize_build.use_usd_optimize_core()
 
-        -- Link against the actual scene optimizer shared lib
-        links {'omni.scene.optimizer.core'}
+        -- Link against the actual usd optimize shared lib
+        links {'usd_optimize.core'}
 
         add_usd {"ar","vt", "gf", "pcp", "sdf", "arch", "usd", "tf", "js", "trace", "usdUtils", "usdGeom", "usdPhysics", "usdShade", "usdSkel", "work", "kind"}
         add_usd {"usdLux", "plug", "python"}

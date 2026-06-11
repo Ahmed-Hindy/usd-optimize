@@ -1,0 +1,22 @@
+#usda 1.0
+
+def Xform "World"
+{
+    # "Ref" directly references the content layer. Its child "Sub" therefore carries only an
+    # ANCESTRAL reference arc - it does not author a reference itself. We locally author an empty
+    # leaf (LocalEmpty) inside Sub. Searching from "/World/Ref" must treat Sub as a normal prim
+    # (so LocalEmpty is found as a prunable leaf), NOT atomically as a reference. If _isReference
+    # mistakenly counted ancestral arcs, Sub would be handled atomically and LocalEmpty would be
+    # missed.
+    def Xform "Ref" (
+        prepend references = @./pruneLeavesAncestralRefContent.usda@</Root>
+    )
+    {
+        over "Sub"
+        {
+            def Xform "LocalEmpty"
+            {
+            }
+        }
+    }
+}

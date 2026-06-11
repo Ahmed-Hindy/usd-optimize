@@ -96,7 +96,7 @@ decimation config.
 ## Anti-pattern: omitting `pinBoundaries`
 
 **`pinBoundaries: true` must appear literally in every `decimateMeshes` JSON
-config that is intended to preserve silhouettes.** The SO parameter default is
+config that is intended to preserve silhouettes.** The Usd Optimize parameter default is
 `false`; omitting it from JSON means the decimator can collapse boundary edges.
 This is easy to miss because safe examples usually discuss boundary
 preservation in prose. When building configs, include the field explicitly.

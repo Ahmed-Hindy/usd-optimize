@@ -4,11 +4,11 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/UsdIncludes.h"
+// Usd Optimize Core
+#include "usd_optimize/core/UsdIncludes.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -99,4 +99,4 @@ struct MergedValues
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

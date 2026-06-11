@@ -1,6 +1,6 @@
 ---
 name: build
-description: Build Scene Optimizer from source via repo.sh (Linux) or repo.bat (Windows). Use when compiling the repo, switching configs, or selecting a USD flavor.
+description: Build Usd Optimize from source via repo.sh (Linux) or repo.bat (Windows). Use when compiling the repo, switching configs, or selecting a USD flavor.
 version: "1.0.0"
 allowed-tools: Shell
 metadata:
@@ -11,7 +11,7 @@ metadata:
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# Building Scene Optimizer
+# Building Usd Optimize
 
 > The repo ships two equivalent entry scripts: `./repo.sh` for Linux/bash-compatible shells and `repo.bat` for Windows `cmd.exe`/PowerShell. They accept the same arguments — every example below shows both. Pick whichever matches the active shell.
 >
@@ -122,7 +122,7 @@ repo.bat ci format
 
 ## Purpose
 
-Compile Scene Optimizer from a source checkout into a runnable build tree
+Compile Usd Optimize from a source checkout into a runnable build tree
 under `_build/<platform>/<config>/`, including the C++ libraries, Python
 bindings, and operation plugins that every other skill in this repo relies
 on. Use this skill when starting work on a fresh clone, after pulling

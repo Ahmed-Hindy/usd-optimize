@@ -18,7 +18,7 @@ class TestRenaming(Test_Operation):
         # argument name.
         old_config = [{"operation": "findCoincidingMeshes", "meshPrimPaths": ["foo"]}]
 
-        # Use the exposed SO mapping function to update the config
+        # Use the exposed Usd Optimize mapping function to update the config
         mapped = standalone.map_config(json.dumps(old_config))
         mapped_config = json.loads(mapped)
 

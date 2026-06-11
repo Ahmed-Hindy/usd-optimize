@@ -4,17 +4,17 @@
 
 #include "RtxMeshCount.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/geometry/GeometryProcessor.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/geometry/GeometryProcessor.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::RtxMeshCountOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::RtxMeshCountOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -37,11 +37,11 @@ RtxMeshCountOperation::~RtxMeshCountOperation() = default;
 
 std::string RtxMeshCountOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion RtxMeshCountOperation::getVersion() const
+UsdOptimizePluginVersion RtxMeshCountOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -102,4 +102,4 @@ OperationResult RtxMeshCountOperation::executeAnalysisImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

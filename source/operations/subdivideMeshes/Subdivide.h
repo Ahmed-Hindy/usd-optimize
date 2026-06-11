@@ -4,15 +4,15 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Defs.h>
-#include <omni/scene.optimizer/core/OmniOperation.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Defs.h>
+#include <usd_optimize/core/OmniOperation.h>
 
 // OmniMeshOps
 #include <OmniMeshOps/Subdivide.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Subdivide meshes using OmniMesh.
@@ -31,7 +31,7 @@ public:
     std::string getAuthor() const override;
 
     /// Get the version of this plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     /// Get the category for reporting.
     std::string getCategory() const override;
@@ -54,4 +54,4 @@ private:
     omo::SubdivisionMethod m_subdivisionMethod = omo::SubdivisionMethod::CatmullClark;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

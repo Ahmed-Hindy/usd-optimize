@@ -4,17 +4,17 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Defs.h>
-#include <omni/scene.optimizer/core/Operation.h>
-#include <omni/scene.optimizer/core/RemovePrims.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Defs.h>
+#include <usd_optimize/core/Operation.h>
+#include <usd_optimize/core/RemovePrims.h>
 
 // C++
 #include <string>
 #include <vector>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -29,7 +29,7 @@ public:
     std::string getAuthor() const override;
 
     /// Get the version of this plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     /// Get the category for reporting.
     std::string getCategory() const override;
@@ -54,4 +54,4 @@ private:
     bool m_useGpu = true;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

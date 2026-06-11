@@ -4,13 +4,13 @@
 
 #include "OptimizeMaterials.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/RemovePrims.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/TbbCompat.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/RemovePrims.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/TbbCompat.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -37,10 +37,10 @@ TF_DEFINE_PRIVATE_TOKENS(
 // LCOV_EXCL_STOP
 // clang-format on
 
-SO_PLUGIN_INIT(omni::scene::optimizer::OptimizeMaterialsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::OptimizeMaterialsOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // Constants
@@ -136,11 +136,11 @@ OptimizeMaterialsOperation::OptimizeMaterialsOperation()
 
 std::string OptimizeMaterialsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion OptimizeMaterialsOperation::getVersion() const
+UsdOptimizePluginVersion OptimizeMaterialsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -166,7 +166,7 @@ bool OptimizeMaterialsOperation::getSupportsAnalysis() const
 
 OperationResult OptimizeMaterialsOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|OptimizeMaterialsOperation|Execute");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|OptimizeMaterialsOperation|Execute");
     // If a filter is specified then resolve the paths. If there is no filter then don't resolve - while this
     // is functionally correct (it will resolve all materials in the scene), it is a performance hit we don't
     // need to suffer.
@@ -196,7 +196,7 @@ OperationResult OptimizeMaterialsOperation::executeImpl()
 
 bool OptimizeMaterialsOperation::removeUnboundMaterials(const std::vector<UsdPrim>& prims)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|OptimizeMaterialsOperation|removeUnboundMaterials");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|OptimizeMaterialsOperation|removeUnboundMaterials");
 
     // Do an initial traversal of the stage to find all materials. We will populate this set with all of them, and
     // then traverse again, removing any that we find to be bound.
@@ -316,11 +316,11 @@ bool OptimizeMaterialsOperation::removeUnboundMaterials(const std::vector<UsdPri
 
         std::ostringstream oss;
         oss << "Removed " << materialsToDelete.size() << " unused materials.";
-        SO_LOG_INFO(oss.str().c_str());
+        USD_OPTIMIZE_LOG_INFO(oss.str().c_str());
     }
     else
     {
-        SO_LOG_INFO("No materials found.");
+        USD_OPTIMIZE_LOG_INFO("No materials found.");
     }
 
     return true;
@@ -449,8 +449,8 @@ static void _hashMaterial(const UsdPrim& prim,
                 if (target == prim)
                 {
                     // LCOV_EXCL_START
-                    SO_LOG_WARN("Not hashing material with reference target of itself: %s",
-                                target.GetPrimPath().GetString().c_str());
+                    USD_OPTIMIZE_LOG_WARN("Not hashing material with reference target of itself: %s",
+                                          target.GetPrimPath().GetString().c_str());
                     continue;
                     // LCOV_EXCL_STOP
                 }
@@ -476,7 +476,7 @@ static void _hashMaterial(const UsdPrim& prim,
     else
     {
         // LCOV_EXCL_START
-        SO_LOG_WARN("Failed to find boundary for %s", prim.GetPrimPath().GetAsString().c_str());
+        USD_OPTIMIZE_LOG_WARN("Failed to find boundary for %s", prim.GetPrimPath().GetAsString().c_str());
         // LCOV_EXCL_STOP
     }
 
@@ -542,9 +542,9 @@ static UsdPrim _createNewMaterial(const UsdPrim& originalMaterial, const std::st
     UsdPrim newMaterial = _copyPrim(originalMaterial, layer, SdfPath(newPath));
     if (!newMaterial)
     {
-        SO_LOG_WARN("Failed to copy material %s to %s",
-                    originalMaterial.GetPrimPath().GetAsString().c_str(),
-                    newPath.c_str());
+        USD_OPTIMIZE_LOG_WARN("Failed to copy material %s to %s",
+                              originalMaterial.GetPrimPath().GetAsString().c_str(),
+                              newPath.c_str());
     }
 
     return newMaterial;
@@ -1202,7 +1202,7 @@ bool OptimizeMaterialsOperation::convertToPrimvars(const std::vector<UsdPrim>& p
                 auto hashIt = hashCache.find(child);
                 if (hashIt == hashCache.end())
                 {
-                    SO_LOG_WARN("Shader %s missing hash", child.GetPrimPath().GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_WARN("Shader %s missing hash", child.GetPrimPath().GetAsString().c_str());
                     continue;
                 }
 
@@ -1211,7 +1211,7 @@ bool OptimizeMaterialsOperation::convertToPrimvars(const std::vector<UsdPrim>& p
                 auto newShaderIt = shaders.find(hashIt->second);
                 if (newShaderIt == shaders.end())
                 {
-                    SO_LOG_WARN("Couldn't find new shader for %s", child.GetPrimPath().GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_WARN("Couldn't find new shader for %s", child.GetPrimPath().GetAsString().c_str());
                     continue;
                 }
 
@@ -1233,7 +1233,7 @@ bool OptimizeMaterialsOperation::convertToPrimvars(const std::vector<UsdPrim>& p
                     UsdShadeInput targetInput = newShader.GetInput(name);
                     if (!targetInput)
                     {
-                        SO_LOG_WARN("Couldn't find shader input %s", name.GetText());
+                        USD_OPTIMIZE_LOG_WARN("Couldn't find shader input %s", name.GetText());
                         continue;
                     }
 
@@ -1306,14 +1306,14 @@ bool OptimizeMaterialsOperation::convertToPrimvars(const std::vector<UsdPrim>& p
             first = false;
         }
 
-        SO_LOG_INFO("Created new material %s", newMaterialPrim.GetPrimPath().GetText());
+        USD_OPTIMIZE_LOG_INFO("Created new material %s", newMaterialPrim.GetPrimPath().GetText());
 
         if (getContext()->verbose)
         {
-            SO_LOG_VERBOSE("Replaces duplicates:");
+            USD_OPTIMIZE_LOG_VERBOSE("Replaces duplicates:");
             for (const auto& materialPrim : materials)
             {
-                SO_LOG_VERBOSE("%s", materialPrim.GetPrimPath().GetText());
+                USD_OPTIMIZE_LOG_VERBOSE("%s", materialPrim.GetPrimPath().GetText());
             }
         }
     }
@@ -1330,7 +1330,7 @@ bool OptimizeMaterialsOperation::convertToPrimvars(const std::vector<UsdPrim>& p
 
 bool OptimizeMaterialsOperation::optimizeMaterials(const std::vector<UsdPrim>& prims)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|OptimizeMaterialsOperation|optimizeMaterials");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|OptimizeMaterialsOperation|optimizeMaterials");
 
     // Set of materials to consider for deduplication.
     std::set<UsdPrim> primSet(prims.begin(), prims.end());
@@ -1399,7 +1399,7 @@ bool OptimizeMaterialsOperation::optimizeMaterials(const std::vector<UsdPrim>& p
                 {
                     std::ostringstream oss;
                     oss << prim.GetPrimPath() << " is a duplicate of " << insertIt.first->second;
-                    SO_LOG_VERBOSE(oss.str().c_str());
+                    USD_OPTIMIZE_LOG_VERBOSE(oss.str().c_str());
                 }
             }
         }
@@ -1590,11 +1590,11 @@ bool OptimizeMaterialsOperation::optimizeMaterials(const std::vector<UsdPrim>& p
         std::ostringstream oss;
         std::string suffix = rebind.size() == 1 ? "" : "s";
         oss << "Rebound " << rebind.size() << " duplicate material" << suffix << ".";
-        SO_LOG_INFO(oss.str().c_str());
+        USD_OPTIMIZE_LOG_INFO(oss.str().c_str());
     }
     else
     {
-        SO_LOG_INFO("Did not find any prims with duplicate materials.");
+        USD_OPTIMIZE_LOG_INFO("Did not find any prims with duplicate materials.");
     }
 
     // Delete the now-unused duplicate materials
@@ -1605,11 +1605,11 @@ bool OptimizeMaterialsOperation::optimizeMaterials(const std::vector<UsdPrim>& p
         std::ostringstream oss;
         std::string suffix = materialsToDelete.size() == 1 ? "" : "s";
         oss << "Removed " << materialsToDelete.size() << " unused duplicate material" << suffix << ".";
-        SO_LOG_INFO(oss.str().c_str());
+        USD_OPTIMIZE_LOG_INFO(oss.str().c_str());
     }
     else
     {
-        SO_LOG_INFO("No unused duplicate materials to remove.");
+        USD_OPTIMIZE_LOG_INFO("No unused duplicate materials to remove.");
     }
     return true;
 }
@@ -1617,7 +1617,7 @@ bool OptimizeMaterialsOperation::optimizeMaterials(const std::vector<UsdPrim>& p
 
 OperationResult OptimizeMaterialsOperation::executeAnalysisImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|OptimizeMaterialsOperation|ExecuteAnalysis");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|OptimizeMaterialsOperation|ExecuteAnalysis");
 
     // Scoped Resolver
     ArResolverScopedCache parentResolverScopedCache;
@@ -1761,11 +1761,11 @@ OperationResult OptimizeMaterialsOperation::executeAnalysisImpl()
 
     if (getContext()->verbose)
     {
-        SO_LOG_INFO("Analysis Result: %s", result.output);
+        USD_OPTIMIZE_LOG_INFO("Analysis Result: %s", result.output);
     }
 
     return result;
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

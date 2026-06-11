@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/Operation.h"
+#include "usd_optimize/core/Operation.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Core.h"
-#include "omni/scene.optimizer/core/Log.h"
-#include "omni/scene.optimizer/core/Utils.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Core.h"
+#include "usd_optimize/core/Log.h"
+#include "usd_optimize/core/Utils.h"
 
 // carb
 #include <carb/Framework.h>
@@ -28,7 +28,7 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 struct OperationLogger : public carb::logging::Logger2
@@ -67,7 +67,7 @@ struct OperationLogger : public carb::logging::Logger2
         // Note that if we are logging to the report, nothing is printed to the console.
         if (m_report && m_fromOperation)
         {
-            // Map carb level to SO level, for the report
+            // Map carb level to Usd Optimize level, for the report
             auto reportLevel = LogLevel::eInfo;
 
             switch (message.level)
@@ -107,7 +107,7 @@ struct OperationLogger : public carb::logging::Logger2
 
         // In the case there is no carb, therefore messages were not filtered prior to this function,
         // avoid printing verbose logs unless the context verbose flag was set.
-        if (_level < carb::logging::kLevelInfo && m_verbose)
+        if (_level < carb::logging::kLevelInfo && !m_verbose)
         {
             return;
         }
@@ -146,7 +146,7 @@ struct ScopedOperationLogger
     ScopedOperationLogger(const std::string& operationName, const std::string& category, bool verbose)
         : m_logger(operationName, category, verbose)
     {
-        carb::logging::ILogging* ilogging = SceneOptimizerCore::getInstance().getLoggingInterface();
+        carb::logging::ILogging* ilogging = UsdOptimizeCore::getInstance().getLoggingInterface();
         if (ilogging != nullptr)
         {
             // If reporting is enabled we might overwrite the log level verbosity. In case we do,
@@ -166,7 +166,7 @@ struct ScopedOperationLogger
         s_logger = nullptr;
 
         // Remove the custom logger and restore what we had previous.
-        carb::logging::ILogging* ilogging = SceneOptimizerCore::getInstance().getLoggingInterface();
+        carb::logging::ILogging* ilogging = UsdOptimizeCore::getInstance().getLoggingInterface();
         if (ilogging != nullptr)
         {
             ilogging->removeLogger(&m_logger);
@@ -179,7 +179,7 @@ struct ScopedOperationLogger
     {
         m_logger.setReport(report);
 
-        carb::logging::ILogging* ilogging = SceneOptimizerCore::getInstance().getLoggingInterface();
+        carb::logging::ILogging* ilogging = UsdOptimizeCore::getInstance().getLoggingInterface();
         if (ilogging != nullptr)
         {
             // Override the log level to ensure that we receive info messages (that we want in a report)
@@ -525,14 +525,14 @@ OperationResult Operation::execute(ExecutionContext* context, const JsObject& ar
     pImpl->m_context = context;
     if (!pImpl->m_context)
     {
-        SO_LOG_ERROR("invalid context");
+        USD_OPTIMIZE_LOG_ERROR("invalid context");
         return { false };
     }
 
     // If the context is in analysis mode, ensure the operation supports it.
     if (pImpl->m_context->analysisMode && !getSupportsAnalysis())
     {
-        SO_LOG_ERROR("Operation %s does not support analysis mode", pImpl->m_name.c_str());
+        USD_OPTIMIZE_LOG_ERROR("Operation %s does not support analysis mode", pImpl->m_name.c_str());
         return { false };
     }
 
@@ -555,7 +555,7 @@ OperationResult Operation::execute(ExecutionContext* context, const JsObject& ar
                      getCStr("Stage id " + std::to_string(stageId) +
                              " not found in UsdUtilsStageCache. The Python pxr bindings and the C++ core may be "
                              "linked against different libusd builds — check that the pxr you import resolves to "
-                             "the same libusd_*.so the Scene Optimizer core was built against."),
+                             "the same libusd_*.so the Usd Optimize core was built against."),
                      nullptr };
         }
     }
@@ -580,7 +580,7 @@ OperationResult Operation::execute(ExecutionContext* context, const JsObject& ar
         }
         else
         {
-            reportPath = _getTempFile("sceneOptimizer", "");
+            reportPath = _getTempFile("usdOptimize", "");
         }
 
         // Create Report object
@@ -616,13 +616,13 @@ OperationResult Operation::execute(ExecutionContext* context, const JsObject& ar
     // Wrap the operation around a BEGIN/END marker for filtering the output later.
     if (pImpl->m_report)
     {
-        SO_LOG_INFO("BEGIN %s", pImpl->m_displayName.c_str());
+        USD_OPTIMIZE_LOG_INFO("BEGIN %s", pImpl->m_displayName.c_str());
     }
 
     OperationResult result{ true, nullptr, nullptr };
 
     // Ensure config is up to date
-    JsObject mappedArgs = SceneOptimizerCore::getInstance().mapOperation(getName(), args);
+    JsObject mappedArgs = UsdOptimizeCore::getInstance().mapOperation(getName(), args);
 
     // Set execution arguments.
     // It is an error if anything goes wrong here.
@@ -631,7 +631,7 @@ OperationResult Operation::execute(ExecutionContext* context, const JsObject& ar
     {
         // Warn, but don't abort: let the rest of the cleanup code later happen.
         // The execution will *not* happen, but we do want to reset arguments etc.
-        SO_LOG_ERROR("Failed to set arguments, cannot execute operation.");
+        USD_OPTIMIZE_LOG_ERROR("Failed to set arguments, cannot execute operation.");
     }
 
     // Also record how long the operation takes
@@ -656,7 +656,7 @@ OperationResult Operation::execute(ExecutionContext* context, const JsObject& ar
     {
         double duration =
             double(std::chrono::duration_cast<std::chrono::milliseconds>(timeEnd - timeStart).count()) / 1000.0;
-        SO_LOG_INFO("END %s (%ss)", pImpl->m_displayName.c_str(), std::to_string(duration).c_str());
+        USD_OPTIMIZE_LOG_INFO("END %s (%ss)", pImpl->m_displayName.c_str(), std::to_string(duration).c_str());
 
         // Nil out the report. This will destroy it and flush it to disk.
         pImpl->m_report = nullptr;
@@ -805,7 +805,7 @@ static int _vscprintf(const char* format, va_list pargs)
 #endif
 
 
-void soLog(int32_t level, const char* fmt, ...)
+void usdOptimizeLog(int32_t level, const char* fmt, ...)
 {
     va_list args;
     va_list argsCopy;
@@ -819,7 +819,7 @@ void soLog(int32_t level, const char* fmt, ...)
     // Verify
     if (numChars < 0)
     {
-        CARB_LOG_ERROR("soLog got invalid string");
+        CARB_LOG_ERROR("usdOptimizeLog got invalid string");
         return;
     }
 
@@ -851,7 +851,7 @@ void soLog(int32_t level, const char* fmt, ...)
 
     // RAII object to signal to the logger that we are originating from here.
     SignalFromOperationLog scopedSignal;
-    if (SceneOptimizerCore::getInstance().getLoggingInterface() != nullptr && !scopedSignal.reporting)
+    if (UsdOptimizeCore::getInstance().getLoggingInterface() != nullptr && !scopedSignal.reporting)
     {
         switch (level)
         {
@@ -917,8 +917,8 @@ void Operation::log(int32_t level, const char* fmt, ...)
     vsnprintf(message, numChars + 1, fmt, args);
     va_end(args);
 
-    // Delegate to soLog with the pre-formatted message
-    soLog(level, "%s", message);
+    // Delegate to usdOptimizeLog with the pre-formatted message
+    usdOptimizeLog(level, "%s", message);
 
     delete[] message;
 }
@@ -932,4 +932,4 @@ OperationResult Operation::executeAnalysisImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

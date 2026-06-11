@@ -3,9 +3,9 @@
 //
 #include "Manifold.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/Utils.h>
 
 // OmniMeshOps
 #include <OmniMeshOps/Manifold.h>
@@ -14,10 +14,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::ManifoldOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::ManifoldOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -34,11 +34,11 @@ ManifoldOperation::ManifoldOperation()
 
 std::string ManifoldOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion ManifoldOperation::getVersion() const
+UsdOptimizePluginVersion ManifoldOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -75,12 +75,12 @@ ProcessedData* ManifoldOperation::processMesh(const UsdPrim& prim, tbb::task_gro
         // The host<->device mesh copying took longer than the manifold operation itself.
         result = new ProcessedHostMesh(mesh, prim);
 
-        SO_LOG_VERBOSE("%s: %u -> %u vertices", prim.GetName().GetText(), srcVertexVount, mesh.vertexCount());
+        USD_OPTIMIZE_LOG_VERBOSE("%s: %u -> %u vertices", prim.GetName().GetText(), srcVertexVount, mesh.vertexCount());
     }
     catch (const std::exception& e)
     {
         std::string errorMsg = prim.GetPath().GetAsString() + ": " + std::string(e.what());
-        SO_LOG_ERROR(errorMsg.c_str());
+        USD_OPTIMIZE_LOG_ERROR(errorMsg.c_str());
         if (result)
         {
             delete result;
@@ -91,4 +91,4 @@ ProcessedData* ManifoldOperation::processMesh(const UsdPrim& prim, tbb::task_gro
     return result;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

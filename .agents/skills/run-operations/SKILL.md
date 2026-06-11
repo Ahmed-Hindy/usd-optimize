@@ -1,6 +1,6 @@
 ---
 name: run-operations
-description: Run Scene Optimizer operations against a USD asset and save the optimized result. Use when applying ops or after interpret-validators recommends fixes.
+description: Run Usd Optimize operations against a USD asset and save the optimized result. Use when applying ops or after interpret-validators recommends fixes.
 version: "1.0.0"
 allowed-tools: Bash
 metadata:
@@ -20,7 +20,7 @@ metadata:
 > **Python invocation.** Examples below use `python3` (POSIX). On Windows
 > use `py -3` (Python launcher) or the bundled interpreter at
 > `_build\target-deps\python\python.exe`. Optional helper scripts mentioned
-> below may be used only when the selected SO environment or build checkout
+> below may be used only when the selected Usd Optimize environment or build checkout
 > provides them. Do not assume Kit, standalone package, or wheel installs ship
 > these repo helper wrappers.
 >
@@ -62,7 +62,7 @@ exactly one source for the operation chain, plus optional flags:
 | `--config '<json>'` | **Inline JSON only.** A list of operation dicts. Friendliest for ad-hoc fixes from validator findings. For a path, use `--config-file`. |
 | `--config-file <path>` | Path to a JSON file containing the operation list. Use for reusable pipelines. |
 | `--pipeline <name>` | Named pipeline from `tools/perf_operations/pipelines.json` (e.g., `memory-reduction`). Run `list-pipelines` to see options. |
-| `--output <path>` | Output USD path. **If omitted, defaults to `<tmp>/scene-optimizer-operations/<sha1>/<asset_stem>.optimized.usdc`** — same default as `resolve_output.py`. |
+| `--output <path>` | Output USD path. **If omitted, defaults to `<tmp>/usd-optimize-operations/<sha1>/<asset_stem>.optimized.usdc`** — same default as `resolve_output.py`. |
 | `--no-save` | Run operations without saving. Useful for timing or dry-runs. Mutually exclusive with `--output` — passing both is rejected with a clear error. |
 | `--summary <path>` | Per-operation timing + success summary JSON. |
 | `--verbose` | Set `ExecutionContext.verbose = 1`. |
@@ -84,7 +84,7 @@ is not registered, do not run the chain. Surface the missing op key, the
 runtime/version being used, and a nearest supported fallback if one is obvious.
 
 This check is especially important across source-tree builds, Kit extensions,
-standalone packages, and older Scene Optimizer drops. Missing operations may
+standalone packages, and older Usd Optimize drops. Missing operations may
 otherwise fail late or produce misleading no-op reports.
 
 ## Step 1 — Validate the input
@@ -98,7 +98,7 @@ layer.
 
 ## Step 2 — Resolve the output path
 
-Choose an output USD path, output directory, and log path. If the selected SO
+Choose an output USD path, output directory, and log path. If the selected Usd Optimize
 environment or build checkout provides the cross-platform helper, you may use
 it; otherwise choose explicit paths before invoking the driver.
 
@@ -116,7 +116,7 @@ When used, the helper prints a single JSON object on stdout with keys: `output_d
 used in Step 3.
 
 The optional helper's output dir defaults to
-`<temp>/scene-optimizer-operations/<sha1(asset_abs)>/` where `<temp>` is
+`<temp>/usd-optimize-operations/<sha1(asset_abs)>/` where `<temp>` is
 `$TMPDIR` / `%TEMP%` / `/tmp` depending on platform. The default output
 filename is `<asset_stem>.optimized.usdc` regardless of input format — `.usdc`
 (binary) is preferred for downstream consumption.
@@ -126,7 +126,7 @@ specific path), pass `--output <path>` to the helper and to the driver.
 
 ## Step 3 — Invoke the driver
 
-When present in the selected SO environment or build checkout, both wrappers
+When present in the selected Usd Optimize environment or build checkout, both wrappers
 set up the build's bundled Python, `LD_LIBRARY_PATH` / `PATH`, and
 `PYTHONPATH`, then invoke `run_operations.py`. They take the same arguments.
 **When using this path, go through the wrapper** — never invoke
@@ -317,7 +317,7 @@ keys: `verbose`, `captureStats`, `generateReport`, `singleThreaded`,
 ```
 
 For **analysis-only** runs (read-only "what would this do?" checks), use
-`/run-validators` instead — every Scene Optimizer validator rule wraps an
+`/run-validators` instead — every Usd Optimize validator rule wraps an
 analysis-mode operation, and the validator framework already handles
 result aggregation. The `run-operations` skill is for executing
 optimizations that mutate the stage; it does **not** expose `analysisMode`
@@ -325,7 +325,7 @@ through the JSON config (it's not in the recognized executionContext keys
 above). If you need direct access to `analysisMode` from Python, see
 `.agents/operations/INVOCATION.md`.
 
-For the full Python-API surface (`SceneOptimizerCore.executeOperation`,
+For the full Python-API surface (`UsdOptimizeCore.executeOperation`,
 `executeConfig`, `analysisMode`, output inspection), see
 `.agents/operations/INVOCATION.md`.
 
@@ -348,7 +348,7 @@ stop.
 
 ## Purpose
 
-Apply a chain of Scene Optimizer operations to a USD stage and save the
+Apply a chain of Usd Optimize operations to a USD stage and save the
 optimized result. Use checkout-provided helper wrappers when they are present,
 or the selected runtime's equivalent operation API/path when they are not.
 Closes the validate → optimize → re-validate loop. Handles input validation,
@@ -357,7 +357,7 @@ post-run summary, and re-validation hand-off.
 
 ## Prerequisites
 
-- A selected SO runtime. Checkout-provided helper wrappers require a built
+- A selected Usd Optimize runtime. Checkout-provided helper wrappers require a built
   repo (`./repo.sh build` or `repo.bat build`); Kit, standalone package, and
   wheel installs may not provide those wrappers.
 - A USD asset (`.usd` / `.usda` / `.usdc` / `.usdz`).

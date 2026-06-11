@@ -12,7 +12,7 @@ De-duplicate Geometry finds meshes that are geometrically identical (or near-ide
 
 The fuzzy matching mode works by computing oriented bounding boxes (OBBs) via PCA for each mesh and mapping them to points in a 3D space based on their half-extents. Meshes that map to nearby points are candidates for matching. This approach is independent of tessellation and vertex ordering, enabling detection of duplicates that differ in mesh topology. The GPU path accelerates the pairwise comparison.
 
-In non-fuzzy mode, the operation compares meshes using vertex data directly and can detect duplicates even when they differ by transform. **`duplicateMethod`** controls how duplicates are handled: `Instanceable Reference` creates USD instanceable references, `Reference` creates non-instanceable references, `Copy Values` bakes the prototype data into duplicates, and `Set Attribute` tags duplicates with an attribute.
+In non-fuzzy mode, the operation compares meshes using vertex data directly and can detect duplicates even when they differ by transform. **`duplicateMethod`** controls how duplicates are handled: `Instanceable Reference` creates USD instanceable references, `Reference` creates non-instanceable references, `Copy Values` bakes the prototype data into duplicates, `Set Attribute` tags duplicates with an attribute, and `Point Instancer` replaces each set of duplicates with a `UsdGeomPointInstancer` whose single prototype is one of the duplicate meshes and whose per-instance positions / orientations / scales reproduce each original duplicate's worldspace placement. For this method duplicate sets are split by bound material, so duplicates that differ only by material become separate PointInstancers — each prototype keeps its own material and none is lost.
 
 **`tolerance`** controls how close vertices must match for meshes to be considered duplicates (maps to `relTolerance` in the underlying library). **`fuzzy`** enables the OBB-based approximate matching. **`allowScaling`** permits matches between meshes that differ only by a uniform scale.
 
@@ -24,7 +24,10 @@ In non-fuzzy mode, the operation compares meshes using vertex data directly and 
 |---|---|---|---|
 | `meshPrimPaths` | string[] | `[]` (all meshes) | Prim paths to process. Empty = all meshes. |
 | `tolerance` | float | `0.001` | Vertex matching tolerance (stage units, worldspace). |
-| `duplicateMethod` | enum | `Instanceable Reference` (2) | How to handle duplicates: `Copy Values` (0), `Reference` (1), `Instanceable Reference` (2), `Set Attribute` (3). |
+| `duplicateMethod` | enum | `Instanceable Reference` (2) | How to handle duplicates: `Copy Values` (0), `Reference` (1), `Instanceable Reference` (2), `Set Attribute` (3), `Point Instancer` (4). |
+| `pointInstancerLocation` | enum | `Common Root` (0) | When method is `Point Instancer`, where to author each new PointInstancer: `Common Root` (deepest common ancestor of the duplicate meshes) or `Custom Path` (use `pointInstancerParentPath`). Hidden unless method is `Point Instancer`. |
+| `pointInstancerParentPath` | string | `""` | When `pointInstancerLocation` is `Custom Path`, prim path to author each PointInstancer under. Created as an `Xform` if it does not exist. |
+| `minimumDuplicates` | int | `2` (min `2`) | When method is `Point Instancer`, the smallest duplicate set that is converted; sets with fewer duplicates are left as meshes. Hidden unless method is `Point Instancer`. |
 | `ignoreAttributes` | string[] | `[]` | Attributes/namespaces to ignore during comparison. Entries ending with `:` ignore entire namespaces. Visible for Reference/Instanceable Reference methods. |
 | `fuzzy` | bool | `false` | Enable fuzzy matching via OBB-based shape comparison. |
 | `allowScaling` | bool | `false` | Allow matches between meshes that differ by uniform scale. Visible when fuzzy is enabled. |
@@ -35,7 +38,7 @@ In non-fuzzy mode, the operation compares meshes using vertex data directly and 
 ## Tuning Order
 
 1. **`tolerance` first** — Start with default 0.001. Increase if known duplicates aren't being detected.
-2. **`duplicateMethod` second** — `Instanceable Reference` is generally preferred for memory savings; `Reference` is useful when instanceable references aren't supported downstream; `Copy Values` bakes the duplicate data.
+2. **`duplicateMethod` second** — `Instanceable Reference` is generally preferred for memory savings; `Reference` is useful when instanceable references aren't supported downstream; `Copy Values` bakes the duplicate data; `Point Instancer` collapses each duplicate set into a single `UsdGeomPointInstancer` (one prototype mesh, one instance per former duplicate); duplicates that differ by material are split into separate PointInstancers so each keeps its material. Pick it when the downstream consumer prefers point instancers (e.g. some renderers' fast instancing paths) over USD instanceable references.
 3. **`ignoreAttributes` third** — Add attribute names or namespaces (ending with `:`) to ignore during comparison.
 4. **`fuzzy` fourth** — Enable if meshes have been re-exported and vertices are in different order.
 5. **`allowScaling` fifth** — Disable if differently-scaled meshes should remain separate.
@@ -64,6 +67,16 @@ In non-fuzzy mode, the operation compares meshes using vertex data directly and 
 **Strict deduplication** (low tolerance):
 ```json
 [{"operation": "deduplicateGeometry", "tolerance": 0.0001}]
+```
+
+**Create PointInstancer per duplicate set** (authored at the common root of each set):
+```json
+[{"operation": "deduplicateGeometry", "duplicateMethod": 4}]
+```
+
+**Create PointInstancer under a user-supplied parent**:
+```json
+[{"operation": "deduplicateGeometry", "duplicateMethod": 4, "pointInstancerLocation": 1, "pointInstancerParentPath": "/World/Instancers"}]
 ```
 
 ## Prerequisites & Workflows

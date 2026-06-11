@@ -1,4 +1,4 @@
-"""Resolve the default output path for a USD asset under Scene Optimizer.
+"""Resolve the default output path for a USD asset under Usd Optimize.
 
 Pure-stdlib helper used by the run-operations skill so it doesn't have to
 depend on POSIX-only utilities. Runs under any Python 3 on any OS.
@@ -10,7 +10,7 @@ a single JSON object with an `error` key on stdout and exits non-zero.
 Output (success) is a single JSON object on stdout:
 
     {
-      "output_dir":   "/tmp/scene-optimizer-operations/<sha1>",
+      "output_dir":   "/tmp/usd-optimize-operations/<sha1>",
       "output":       "<output_dir>/<asset_stem>.optimized.usdc",
       "log":          "<output_dir>/run.log",
       "asset_abs":    "<absolute path to asset>"
@@ -43,7 +43,7 @@ def default_output_path(asset_abs: str, asset_stem: str) -> Path:
     function so the two stay in sync.
     """
     h = hashlib.sha1(asset_abs.encode("utf-8")).hexdigest()
-    return temp_root() / "scene-optimizer-operations" / h / f"{asset_stem}.optimized.usdc"
+    return temp_root() / "usd-optimize-operations" / h / f"{asset_stem}.optimized.usdc"
 
 
 def main(argv: list[str]) -> int:
@@ -53,7 +53,7 @@ def main(argv: list[str]) -> int:
         "--output",
         default=None,
         help="Override the output USD path. If omitted, defaults to "
-        "<tmp>/scene-optimizer-operations/<sha1>/<asset_stem>.optimized.usdc.",
+        "<tmp>/usd-optimize-operations/<sha1>/<asset_stem>.optimized.usdc.",
     )
     args = p.parse_args(argv)
 

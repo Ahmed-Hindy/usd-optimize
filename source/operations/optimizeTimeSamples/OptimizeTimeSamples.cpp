@@ -4,10 +4,10 @@
 
 #include "OptimizeTimeSamples.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -18,10 +18,10 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 // Plugin initialization
-SO_PLUGIN_INIT(omni::scene::optimizer::OptimizeTimeSamplesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::OptimizeTimeSamplesOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // Constants
@@ -76,11 +76,11 @@ OptimizeTimeSamplesOperation::OptimizeTimeSamplesOperation()
 
 std::string OptimizeTimeSamplesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion OptimizeTimeSamplesOperation::getVersion() const
+UsdOptimizePluginVersion OptimizeTimeSamplesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -306,6 +306,7 @@ size_t filterInterpolated(const std::vector<double>& times, double epsilon, SdfT
 {
     T lastValue{};
     T lastDiff{};
+    bool hasLastDiff = false;
     double lastDelta = 0;
 
     size_t removed = 0;
@@ -330,7 +331,7 @@ size_t filterInterpolated(const std::vector<double>& times, double epsilon, SdfT
             T tempLast = diff;
 
             // For the third sample on, we now have deltas to compare
-            if (index > 1)
+            if (index > 1 && hasLastDiff)
             {
                 // Non-sequential compensation
                 if (delta != lastDelta)
@@ -348,6 +349,7 @@ size_t filterInterpolated(const std::vector<double>& times, double epsilon, SdfT
             }
 
             lastDiff = tempLast;
+            hasLastDiff = true;
             lastDelta = times[index] - times[index - 1];
         }
 
@@ -371,7 +373,7 @@ size_t filterInterpolated(const std::vector<double>& times, double epsilon, SdfT
 }
 
 
-#define SO_FILTER_TYPE(TYPENAME, T, E)                                                                                 \
+#define USD_OPTIMIZE_FILTER_TYPE(TYPENAME, T, E)                                                                       \
     if (typeName == TYPENAME)                                                                                          \
     {                                                                                                                  \
         if (m_removeInterpolated)                                                                                      \
@@ -404,35 +406,35 @@ size_t OptimizeTimeSamplesOperation::filterTimeSamples(const UsdAttribute& attri
         const SdfValueTypeName& typeName = attribute.GetTypeName();
 
         // Switch on the attribute type
-        SO_FILTER_TYPE(SdfValueTypeNames->Double, double, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->DoubleArray, VtDoubleArray, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->Double2, GfVec2d, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->Double2Array, VtVec2dArray, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->Double3, GfVec3d, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->Double3Array, VtVec3dArray, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->Double4, GfVec4d, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->Double4Array, VtVec4dArray, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Double, double, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->DoubleArray, VtDoubleArray, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Double2, GfVec2d, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Double2Array, VtVec2dArray, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Double3, GfVec3d, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Double3Array, VtVec3dArray, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Double4, GfVec4d, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Double4Array, VtVec4dArray, m_epsilonD)
 
-        SO_FILTER_TYPE(SdfValueTypeNames->Float, float, m_epsilonF)
-        SO_FILTER_TYPE(SdfValueTypeNames->FloatArray, VtFloatArray, m_epsilonF)
-        SO_FILTER_TYPE(SdfValueTypeNames->Float2, GfVec2f, m_epsilonF)
-        SO_FILTER_TYPE(SdfValueTypeNames->Float2Array, VtVec2fArray, m_epsilonF)
-        SO_FILTER_TYPE(SdfValueTypeNames->Float3, GfVec3f, m_epsilonF)
-        SO_FILTER_TYPE(SdfValueTypeNames->Float3Array, VtVec3fArray, m_epsilonF)
-        SO_FILTER_TYPE(SdfValueTypeNames->Float4, GfVec4f, m_epsilonF)
-        SO_FILTER_TYPE(SdfValueTypeNames->Float4Array, VtVec4fArray, m_epsilonF)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Float, float, m_epsilonF)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->FloatArray, VtFloatArray, m_epsilonF)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Float2, GfVec2f, m_epsilonF)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Float2Array, VtVec2fArray, m_epsilonF)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Float3, GfVec3f, m_epsilonF)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Float3Array, VtVec3fArray, m_epsilonF)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Float4, GfVec4f, m_epsilonF)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Float4Array, VtVec4fArray, m_epsilonF)
 
-        SO_FILTER_TYPE(SdfValueTypeNames->Matrix2d, GfMatrix2d, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->Matrix3d, GfMatrix3d, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->Matrix4d, GfMatrix4d, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Matrix2d, GfMatrix2d, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Matrix3d, GfMatrix3d, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Matrix4d, GfMatrix4d, m_epsilonD)
 
-        SO_FILTER_TYPE(SdfValueTypeNames->Quatd, GfQuatd, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->QuatdArray, VtQuatdArray, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->Quatf, GfQuatf, m_epsilonF)
-        SO_FILTER_TYPE(SdfValueTypeNames->QuatfArray, VtQuatfArray, m_epsilonF)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Quatd, GfQuatd, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->QuatdArray, VtQuatdArray, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Quatf, GfQuatf, m_epsilonF)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->QuatfArray, VtQuatfArray, m_epsilonF)
 
-        SO_FILTER_TYPE(SdfValueTypeNames->Half, GfHalf, m_epsilonD)
-        SO_FILTER_TYPE(SdfValueTypeNames->HalfArray, VtHalfArray, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Half, GfHalf, m_epsilonD)
+        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->HalfArray, VtHalfArray, m_epsilonD)
     }
 
     // For anything else we can do a much simpler duplicate removal.
@@ -529,7 +531,7 @@ void OptimizeTimeSamplesOperation::processAttributes(const AttributeCallback& ca
 
 OperationResult OptimizeTimeSamplesOperation::executeAnalysisImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|OptimizeTimeSamples|Analysis");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|OptimizeTimeSamples|Analysis");
 
     // Simple struct for use with concurrent_vector, so we can multithread
     // the main collection
@@ -594,8 +596,8 @@ OperationResult OptimizeTimeSamplesOperation::executeAnalysisImpl()
     OperationResult result{ true };
     result.output = getCStr(JsWriteToString(resultJson));
 
-    SO_LOG_INFO("Found %lu of %lu redundant time samples", totalRedundant.load(), totalSamples.load());
-    SO_LOG_VERBOSE("Analysis result: %s", result.output);
+    USD_OPTIMIZE_LOG_INFO("Found %lu of %lu redundant time samples", totalRedundant.load(), totalSamples.load());
+    USD_OPTIMIZE_LOG_VERBOSE("Analysis result: %s", result.output);
 
     return result;
 }
@@ -603,7 +605,7 @@ OperationResult OptimizeTimeSamplesOperation::executeAnalysisImpl()
 
 OperationResult OptimizeTimeSamplesOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|OptimizeTimeSamples");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|OptimizeTimeSamples");
 
     size_t totalChecked = 0;
     size_t totalRemoved = 0;
@@ -627,7 +629,7 @@ OperationResult OptimizeTimeSamplesOperation::executeImpl()
             {
                 std::ostringstream oss;
                 oss << attribute.GetPath() << ": replaced single time sample with value";
-                SO_LOG_INFO(oss.str().c_str());
+                USD_OPTIMIZE_LOG_INFO(oss.str().c_str());
             }
 
             ++totalRemoved;
@@ -678,7 +680,7 @@ OperationResult OptimizeTimeSamplesOperation::executeImpl()
         {
             std::ostringstream oss;
             oss << attribute.GetPath() << ": removed " << redundant << "/" << originalSize << " time samples";
-            SO_LOG_INFO(oss.str().c_str());
+            USD_OPTIMIZE_LOG_INFO(oss.str().c_str());
         }
     };
 
@@ -692,11 +694,11 @@ OperationResult OptimizeTimeSamplesOperation::executeImpl()
     {
         std::ostringstream oss;
         oss << "Removed " << totalRemoved << "/" << totalChecked << " total time samples";
-        SO_LOG_INFO(oss.str().c_str());
+        USD_OPTIMIZE_LOG_INFO(oss.str().c_str());
     }
 
     return { true };
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

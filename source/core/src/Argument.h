@@ -4,8 +4,8 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
 
 // USD
 #include <pxr/base/js/json.h>
@@ -14,7 +14,7 @@
 #include <vector>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Argument Display Types
@@ -49,7 +49,7 @@ enum class ArgumentArrayType
 };
 
 /// Returns the default list of float presets for the `UsdGeomLinearUnits` definitions.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 FloatPresetsVector _getDefaultLinearUnitsPresets();
 
 /// Generic argument class.
@@ -61,7 +61,7 @@ FloatPresetsVector _getDefaultLinearUnitsPresets();
 /// The idea is that Arguments can store enough info that all configuration for an operation
 /// can be specified within the plugin, with no extra configuration required elsewhere to build
 /// a rich user interface.
-class OMNI_SO_EXPORT Argument
+class USD_OPTIMIZE_EXPORT Argument
 {
 
 public:
@@ -206,7 +206,7 @@ public:
     /// True in order to enable the widget or False in order to disable it. The expression will have access to
     /// local variables for each of the other current argument values.
     ///
-    /// The current Scene Optimizer user interface is written in python, so it is assumed to be python.
+    /// The current Usd Optimize user interface is written in python, so it is assumed to be python.
     ///
     /// For example, to enable this argument if the value of another matches some condition you would use:
     /// \code{.py}
@@ -310,7 +310,7 @@ private:
 /// A group supports conditional expressions (visibleIf, enableIf) so that
 /// groups of arguments can conveniently be hidden or disabled, but
 /// otherwise is really just a container.
-class OMNI_SO_EXPORT Group : public Argument
+class USD_OPTIMIZE_EXPORT Group : public Argument
 {
 public:
     /// Constructor
@@ -341,4 +341,4 @@ private:
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

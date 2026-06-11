@@ -34,9 +34,9 @@ without re-running.
 The CSV is the source of truth — it contains issues from **both** rule
 families:
 
-- **Base** — `omni.asset_validator`'s `DefaultPlugin` rules (Kind, DefaultPrim,
+- **Base** — `usd_validation_nvidia`'s `DefaultPlugin` rules (Kind, DefaultPrim,
   OmniOrphanedPrim, etc.). The driver's stdout summary hides these; the CSV does not.
-- **SO** — `SceneOptimizer*Checker` rules from this repo. Each wraps an analysis-mode
+- **Usd Optimize** — `UsdOptimize*Checker` rules from this repo. Each wraps an analysis-mode
   operation in `source/operations/`.
 
 For the CSV schema, the entry-point allow-list, and other infrastructure details,
@@ -46,7 +46,7 @@ see the `validators` skill.
 
 ## What this skill covers
 
-Each section below is load-bearing — read past Step 4 before concluding info is missing. Search for keywords like `family`, `base`, `SO`, `REQUIRES_MESH`, `Tier`, `T1`, `T2`, `T3`, `headline takeaway`, `findings`, `Rule reference` to jump.
+Each section below is load-bearing — read past Step 4 before concluding info is missing. Search for keywords like `family`, `base`, `Usd Optimize`, `REQUIRES_MESH`, `Tier`, `T1`, `T2`, `T3`, `headline takeaway`, `findings`, `Rule reference` to jump.
 
 - **Usage** — what arguments are accepted, what follow-up questions it answers.
 - **Step 1** — resolve the input (asset / CSV / summary JSON), including branching
@@ -57,9 +57,9 @@ Each section below is load-bearing — read past Step 4 before concluding info i
   (**bypass:** project embedded `findings` analysis payloads when CSV is
   missing — § Partial-report mode). Summarizer already lowercases severity,
   classifies family, normalizes locations, groups failures, sorts rules.
-- **Step 4** — present the report (header + summary table with `family` column showing both base and SO rules, failure details, headline takeaway).
-- **Step 5** — follow-up questions, including "Show me only base rules / only SO rules" and the "How do I fix `<RuleName>`?" answer flow.
-- **Rule reference** — full Rule → backing op → tier table for **both** SceneOptimizer rules **and** base asset-validator rules. Base rules are not an afterthought — they get equivalent SO-op mappings where one exists.
+- **Step 4** — present the report (header + summary table with `family` column showing both base and Usd Optimize rules, failure details, headline takeaway).
+- **Step 5** — follow-up questions, including "Show me only base rules / only Usd Optimize rules" and the "How do I fix `<RuleName>`?" answer flow.
+- **Rule reference** — full Rule → backing op → tier table for **both** UsdOptimize rules **and** base usd-validation-nvidia rules. Base rules are not an afterthought — they get equivalent Usd Optimize-op mappings where one exists.
 - **Error handling** — what to say when artifacts are missing/corrupt.
 
 Companion skills:
@@ -85,7 +85,7 @@ saved artifact:
 
 ### Partial-report summary mode (missing `issues.csv`)
 
-The CSV carries base + Scene Optimizer rows and is the authoritative source when
+The CSV carries base + Usd Optimize rows and is the authoritative source when
 present. Sometimes only `summary.json` exists beside the artifact directory —
 for example standalone analysis-mode output from `run-validators`, or a
 driver-written summary augmented with serialized operation analysis payloads.
@@ -119,12 +119,12 @@ Use this only for logging/context; both feed the **same derivation** afterwards.
 
 - Fingerprint Kit-style `--summary` output (for example JSON from the repo
   driver's `perf_validators.py`): top-level keys such as **`asset`**,
-  **`validate_secs`**, **`open_secs`**, **`total`**, **`by_rule`** (SO-filtered
+  **`validate_secs`**, **`open_secs`**, **`total`**, **`by_rule`** (Usd Optimize-filtered
   counts — see §Step 3 note on `summary.json`), and **`by_severity`**.
 - **Combined case:** envelope B keys **plus** a top-level **`findings`** object
   (same layout expected by `interpret-validators` as standalone: derive from
   `findings[<op>].output.analysis`).
-- **`issues.csv` missing:** even though `total`/`by_rule` summarize SO rules,
+- **`issues.csv` missing:** even though `total`/`by_rule` summarize Usd Optimize rules,
   you still take this partial-report path so prim-level failure narratives match
   the analysis payloads instead of pretending CSV-backed detail exists.
 
@@ -154,10 +154,10 @@ For envelopes A and B, perform **identical** processing:
 5. **Headline takeaway:** must include **exactly** this line verbatim (characters
    and hyphen length as shown):
 
-   > `(standalone fallback — base omni.asset_validator rules not covered)`
+   > `(standalone fallback — base usd_validation_nvidia rules not covered)`
 
    — for **either** envelope when CSV-derived detail is unavailable, because
-   row-level/base rule coverage depends on CSV + full asset-validator emission
+   row-level/base rule coverage depends on CSV + full usd-validation-nvidia emission
    and this branch does not recreate base plugin issues.
 
 Adapt the Step 4 **Header** source line when CSV is absent (e.g. cite
@@ -174,7 +174,7 @@ Follow-up questions (no re-run needed):
 - "Which prims are affected by `<RuleName>`?"
 - "How do I fix `<RuleName>`?"
 - "Show all `<RuleName>` failures" (when truncated in the initial report)
-- "Show me only base rules" / "Show me only SO rules"
+- "Show me only base rules" / "Show me only Usd Optimize rules"
 - "Show me `<RuleName>` issues on `<prim_path>`"
 - "Re-run validation"
 
@@ -198,7 +198,7 @@ If no path is given, ask which asset / artifact to interpret.
 
 ## Step 2 — Run vs. replay decision (asset mode)
 
-If the selected SO environment provides the optional artifact resolver, use it:
+If the selected Usd Optimize environment provides the optional artifact resolver, use it:
 
 ```bash
 # POSIX
@@ -260,7 +260,7 @@ unless the user explicitly asks to add tooling. It must:
   top-level keys: `totals`, sorted `rules`, and capped grouped `failures`; see
   shape below).
 - Normalize severity, rule, message, suggestion, and location fields
-  defensively because Asset Validator column names vary by version.
+  defensively because usd-validation-nvidia column names vary by version.
 - Optionally add sibling metadata keys `report_path`, `report_bytes`, and
   `truncated` (boolean) — these are **not** emitted by repo
   `tools/perf_validators/summarize_csv.py`, only useful for the ephemeral
@@ -289,11 +289,11 @@ The output is a single JSON object. **Always** emit the three core sections belo
     "rows": 3690,
     "rules": 25,
     "by_severity": {"failure": 147, "warning": 3543},
-    "by_family":   {"SO": 3251, "base": 439},
+    "by_family":   {"Usd Optimize": 3251, "base": 439},
     "failures_by_rule": {"MissingReferenceChecker": 80, ...}
   },
   "rules": [
-    {"rule": "<Name>", "family": "SO|base",
+    {"rule": "<Name>", "family": "Usd Optimize|base",
      "by_severity": {"failure": N, "warning": N, "error": N, "info": N},
      "affected_prims": <distinct location count>},
     ...
@@ -318,7 +318,7 @@ Notes on what the summarizer does for you:
 - **Severity casing** — already lowercased (CSV uses title case `Warning`/`Failure`,
   `summary.json` uses upper case `WARNING`/`FAILED_CHECK`; the summarizer
   collapses both to lowercase keys: `warning`, `failure`, `error`, `info`).
-- **Family classification** — `family` is `"SO"` for `SceneOptimizer*` rules
+- **Family classification** — `family` is `"Usd Optimize"` for `UsdOptimize*` rules
   and `"base"` for everything else.
 - **Location normalization** — strips `Prim </…>` / `Stage </…>` /
   `Attribute (…) Prim </…>` wrappers so `locations` contains bare paths.
@@ -332,7 +332,7 @@ Notes on what the summarizer does for you:
 
 If a `summary.json` is also available alongside the CSV, read its
 `validate_secs` / `open_secs` for the report header. Note: `summary.json`'s
-`total` / `by_rule` are filtered to SO rules only (`perf_validators.py` filters
+`total` / `by_rule` are filtered to Usd Optimize rules only (`perf_validators.py` filters
 before writing summary). Always derive the real totals from the summarizer's
 `totals` section, not from `summary.json`.
 
@@ -350,7 +350,7 @@ Source: replayed from <csv_path> (saved <csv_mtime>)        # or "fresh run"
 Validate time: X.Xs (open Y.Ys)                             # if summary.json present
 
 Summary: <N> failures, <N> warnings, <N> errors across <N> rules
-         (base: <count>, SceneOptimizer: <count>)
+         (base: <count>, UsdOptimize: <count>)
 ```
 
 **Partial-report / missing CSV:** omit the CSV replay line unless a CSV existed;
@@ -368,7 +368,7 @@ full column names:
 ```
 | Rule | Family | Failures | Warnings | Errors | Affected prims | Fix tier | Operation |
 |------|--------|----------|----------|--------|----------------|----------|-----------|
-| ...  | SO/base|    N     |    N     |   N    |       N        | T1/T2/T3 | <op> or — |
+| ...  | Usd Optimize/base|    N     |    N     |   N    |       N        | T1/T2/T3 | <op> or — |
 ```
 
 - **Affected prims** = `affected_prims` from the summarizer (distinct
@@ -423,16 +423,16 @@ issues. This converts the long table into a clear next step. Examples:
 > export — fixable by re-flattening on a machine with the textures or rewriting
 > absolute paths to relative ones.
 
-> 86% of warnings come from `SceneOptimizerEmptyLeafChecker` and
-> `SceneOptimizerUnusedUVsChecker` — `pruneLeaves` + `removeUnusedUVs` would
+> 86% of warnings come from `UsdOptimizeEmptyLeafChecker` and
+> `UsdOptimizeUnusedUVsChecker` — `pruneLeaves` + `removeUnusedUVs` would
 > clear most of them.
 
-> All 198 issues are base asset-validator rules; 0 Scene Optimizer issues
-> fired because the asset has no `UsdGeomMesh` prims (mesh-only SO rules
+> All 198 issues are base usd-validation-nvidia rules; 0 Usd Optimize issues
+> fired because the asset has no `UsdGeomMesh` prims (mesh-only Usd Optimize rules
 > short-circuit via `REQUIRES_MESH` — see `validators/SKILL.md`
-> §Performance behavior). Six SO hierarchy / materials / animation rules
+> §Performance behavior). Six Usd Optimize hierarchy / materials / animation rules
 > still ran and passed. The fix path is upstream (CAD export, references)
-> rather than Scene Optimizer.
+> rather than Usd Optimize.
 
 ### Footer
 
@@ -441,7 +441,7 @@ You can ask follow-up questions like:
   - "Which prims are affected by <RuleName>?"
   - "How do I fix <RuleName>?" — I'll print concrete commands then.
   - "Show all <RuleName> failures" — expands the truncated list.
-  - "Show me only base rules" / "only SO rules"
+  - "Show me only base rules" / "only Usd Optimize rules"
   - "Re-run validation"
 ```
 
@@ -461,7 +461,7 @@ of these:
 - "How do I fix `<RuleName>`?" — tier-aware response template.
 - "Show all `<RuleName>` failures" — re-summarize uncapped.
 - "Show me `<RuleName>` issues on `<prim_path>`" — `--locations` + substring filter.
-- "Show me only base rules" / "only SO rules" — family filter on Step 4.
+- "Show me only base rules" / "only Usd Optimize rules" — family filter on Step 4.
 - "Re-run validation" — hand off to the `run-validators` skill.
 - "Only check `<RuleName>`" — explain there's no `--rule` flag; filter post-hoc.
 
@@ -469,21 +469,18 @@ of these:
 
 ## Rule reference
 
-The full Rule → backing op → tier table — for both SceneOptimizer rules
-and base asset-validator rules — lives in **`references/rule-reference.md`**.
+The full Rule → backing op → tier table — for both UsdOptimize rules
+and base usd-validation-nvidia rules — lives in **`references/rule-reference.md`**.
 Read that file when populating the `Fix tier` and `Operation` columns of the
 Step 4 summary table, and when answering "How do I fix `<RuleName>`?" follow-ups
 in Step 5.
 
 The reference covers:
 
-- **SceneOptimizer rules (default)** — every `SceneOptimizer*Checker`
-  registered with its backing op and tier.
-- **SceneOptimizer rules (expensive)** — slower Scene Optimizer checks
-  listed separately from the default rule table.
-- **Base asset-validator rules** — stage / metadata / external-reference
-  rules with no SO equivalent (T3 / manual), plus geometry rules that
-  *do* map cleanly onto an SO op (labelled `T1-equiv` / `T2-equiv`).
+- **UsdOptimize rules** — every `UsdOptimize*Checker` registered with its backing op and tier.
+- **Base usd-validation-nvidia rules** — stage / metadata / external-reference
+  rules with no Usd Optimize equivalent (T3 / manual), plus geometry rules that
+  *do* map cleanly onto an Usd Optimize op (labelled `T1-equiv` / `T2-equiv`).
 
 For rules not listed in the reference, treat as **T3 / manual** and
 surface the CSV `Suggestion` column verbatim. Don't invent fix
@@ -511,7 +508,7 @@ present a structured, tier-classified report — header, summary table
 failure details, and a headline takeaway — without re-running the
 validator. Then answer follow-up questions ("which prims are affected
 by X?", "how do I fix Y?", "show all <Rule> failures", base-only /
-SO-only filters) from the parsed JSON in context.
+Usd Optimize-only filters) from the parsed JSON in context.
 
 ## Prerequisites
 
@@ -531,7 +528,7 @@ SO-only filters) from the parsed JSON in context.
   the Rule reference table; the user invokes `run-operations` to apply
   them.
 - The CSV is the source of truth — `summary.json`'s `total` /
-  `by_rule` are filtered to SO rules only. The skill always derives
+  `by_rule` are filtered to Usd Optimize rules only. The skill always derives
   totals from the summarizer's `totals` section.
 - The initial report caps each rule at 10 failure rows
   (`--max-failures-per-rule 10`) to keep context manageable. The
@@ -546,7 +543,7 @@ failure modes. Additional meta-troubleshooting:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Summary numbers don't match `summary.json` totals | `summary.json` is SO-filtered; the CSV is unfiltered. | Always derive totals from `summarize_csv.py` against the CSV — never read `summary.json.total` directly. |
+| Summary numbers don't match `summary.json` totals | `summary.json` is Usd Optimize-filtered; the CSV is unfiltered. | Always derive totals from `summarize_csv.py` against the CSV — never read `summary.json.total` directly. |
 | "Show all <Rule>" output truncates again | Forgot to drop `--max-failures-per-rule` on the re-run. | Omit the flag; alternatively pass `--limit 0`. |
 | Rule appears in CSV but not in the Step 4 table | Rule emitted only `info` / `warning` rows (no `failure`) and the user asked for failures only. | Re-render the table without severity filter; or use `--locations` to enumerate. |
 | Fix tier shows `?` for a rule | Rule isn't in `references/rule-reference.md`. | Treat as T3 / manual and surface the CSV `Suggestion` column verbatim. Don't guess. |

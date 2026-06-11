@@ -7,16 +7,16 @@
 #include <OmniMeshOps/Manifold.h>
 #include <OmniMeshOps/usd/Mesh.h>
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/Utils.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::MergeVerticesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::MergeVerticesOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -66,11 +66,11 @@ MergeVerticesOperation::MergeVerticesOperation()
 
 std::string MergeVerticesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion MergeVerticesOperation::getVersion() const
+UsdOptimizePluginVersion MergeVerticesOperation::getVersion() const
 {
     return { 2, 0, 0 };
 }
@@ -133,11 +133,11 @@ ProcessedData* MergeVerticesOperation::processMesh(const UsdPrim& prim, tbb::tas
 
         std::string debugMessage = prim.GetName().GetString() + ": " + std::to_string(beforeVertexCount) + " -> " +
                                    std::to_string(result->vertexCount()) + " vertices";
-        SO_LOG_VERBOSE(debugMessage.c_str());
+        USD_OPTIMIZE_LOG_VERBOSE(debugMessage.c_str());
     }
 
     return result;
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -4,9 +4,9 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Defs.h>
-#include <omni/scene.optimizer/core/UsdIncludes.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Defs.h>
+#include <usd_optimize/core/UsdIncludes.h>
 
 // USD
 #include <pxr/usd/usd/primRange.h>
@@ -28,13 +28,13 @@ struct doctest::StringMaker<PXR_NS::UsdStageRefPtr>
 };
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 namespace testutils
 {
 
-/// Get the path for a file within the test data directory of omni.scene.optimizer.core extension
+/// Get the path for a file within the test data directory of usd_optimize.core extension
 std::string _getTestDataFilePath(const std::string& name);
 
 
@@ -65,4 +65,4 @@ size_t _countPrimsOfType(const PXR_NS::UsdStageWeakPtr& stage)
 
 } // namespace testutils
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

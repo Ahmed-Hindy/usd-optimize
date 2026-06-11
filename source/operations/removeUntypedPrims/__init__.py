@@ -3,8 +3,8 @@
 #
 
 
-from omni.scene.optimizer.core.operation import Operation
 from pxr import Usd
+from usd_optimize.core.operation import Operation
 
 
 class RemoveUntypedPrims(Operation):
@@ -15,7 +15,7 @@ class RemoveUntypedPrims(Operation):
 
     @property
     def author(self):
-        return "Scene Optimizer (Internal)"
+        return "Usd Optimize (Internal)"
 
     @property
     def version(self):
@@ -47,9 +47,9 @@ class RemoveUntypedPrims(Operation):
 
 
 #####################################
-# Register Scene Optimizer Plugin
+# Register Usd Optimize Plugin
 #####################################
 
 
-def sceneOptimizerPluginInit():
+def usdOptimizePluginInit():
     return RemoveUntypedPrims()

@@ -4,14 +4,14 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Defs.h>
-#include <omni/scene.optimizer/core/Operation.h>
-#include <omni/scene.optimizer/core/UsdIncludes.h>
-#include <omni/scene.optimizer/core/geometry/DeduplicateUtils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Defs.h>
+#include <usd_optimize/core/Operation.h>
+#include <usd_optimize/core/UsdIncludes.h>
+#include <usd_optimize/core/geometry/DeduplicateUtils.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -22,12 +22,20 @@ enum class DuplicateOption
     eReference = 1, // Reference composition arc
     eInstanceableReference = 2, // Reference composition arc with instanceable true
     eSetAttribute = 3, // Set duplication set attribute
+    ePointInstancer = 4, // Replace duplicate meshes with a UsdGeomPointInstancer per duplicate set
 };
 
 
 /// Identify identical mesh prims in the stage and ensure they are seen as duplicates.
 class DeduplicateGeometryOperation : public Operation
 {
+
+    // Where to author PointInstancers
+    enum class PointInstancerLocation
+    {
+        eCommonRoot = 0, // Use the deepest common ancestor of the duplicate meshes as the parent
+        eCustomPath = 1, // Use a user-supplied parent path (created as an Xform if missing)
+    };
 
 public:
     /// Constructor
@@ -40,7 +48,7 @@ public:
     std::string getAuthor() const override;
 
     /// Get the version of this plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     /// Get the category for reporting.
     std::string getCategory() const override;
@@ -61,6 +69,7 @@ protected:
 private:
     void _conformUsingComposition(const PrimVectors& equalMeshVectors);
     void _conformTopologyAttributeValues(const PrimVector& prims);
+    void _createPointInstancers(const PrimVectors& equalMeshVectors);
     PrimVectors _findIdenticalMeshes(const PrimVectors& equalMeshVectors);
     void _copyPrimData(const PXR_NS::UsdPrim& source, const PXR_NS::UsdPrim& target);
 
@@ -82,7 +91,10 @@ private:
     bool m_allowScaling = false;
     bool m_fuzzyOnly = false;
     std::vector<std::string> m_ignoreAttributes;
+    PointInstancerLocation m_pointInstancerLocation = PointInstancerLocation::eCommonRoot;
+    std::string m_pointInstancerParentPath;
+    int m_minimumDuplicates = 2;
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

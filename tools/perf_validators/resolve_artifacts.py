@@ -7,7 +7,7 @@ date -d). Runs under any Python 3 on any OS.
 Output is a single JSON object on stdout:
 
     {
-      "artifact_dir": "/tmp/scene-optimizer-validation/<sha1>",
+      "artifact_dir": "/tmp/usd-optimize-validation/<sha1>",
       "csv":          "<artifact_dir>/issues.csv",
       "summary":      "<artifact_dir>/summary.json",
       "log":          "<artifact_dir>/run.log",
@@ -50,7 +50,7 @@ def main(argv: list[str]) -> int:
     p.add_argument(
         "--logs-dir",
         default=None,
-        help="Override the artifact dir (otherwise: <tmp>/scene-optimizer-validation/<sha1>).",
+        help="Override the artifact dir (otherwise: <tmp>/usd-optimize-validation/<sha1>).",
     )
     args = p.parse_args(argv)
 
@@ -64,7 +64,7 @@ def main(argv: list[str]) -> int:
         artifact_dir = Path(args.logs_dir).resolve()
     else:
         h = hashlib.sha1(asset_abs.encode("utf-8")).hexdigest()
-        artifact_dir = _temp_root() / "scene-optimizer-validation" / h
+        artifact_dir = _temp_root() / "usd-optimize-validation" / h
 
     # Pure resolve: do not create the directory here. Callers that intend to
     # write into it (run-validators) create it themselves; read-only callers

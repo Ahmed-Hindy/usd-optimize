@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/MeshToolsCommon.h"
+#include "usd_optimize/core/MeshToolsCommon.h"
 
 // MeshTools
 #include <MeshTools/Geometry.h>
@@ -19,11 +19,11 @@ using namespace MeshTools;
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
-void convert(const VtArray<GfVec3f>& source, std::vector<Vec3>& target, GfMatrix4d* globalTransform = nullptr)
+static void convert(const VtVec3fArray& source, std::vector<Vec3>& target, GfMatrix4d* globalTransform = nullptr)
 {
     target.resize(source.size());
 
@@ -35,7 +35,7 @@ void convert(const VtArray<GfVec3f>& source, std::vector<Vec3>& target, GfMatrix
 }
 
 
-void convert(const VtArray<int>& source, std::vector<int>& target)
+static void convert(const VtIntArray& source, std::vector<int>& target)
 {
     target.resize(source.size());
 
@@ -52,7 +52,7 @@ bool _isTransparent(const UsdPrim& prim, UsdTimeCode time = UsdTimeCode::Default
     if (prim.IsA<UsdGeomGprim>())
     {
         UsdGeomPrimvarsAPI primvarsAPI(prim);
-        UsdGeomPrimvar opacityPrimvar = primvarsAPI.GetPrimvar(TfToken("displayOpacity"));
+        UsdGeomPrimvar opacityPrimvar = primvarsAPI.GetPrimvar(UsdGeomTokens->primvarsDisplayOpacity);
 
         if (opacityPrimvar)
         {
@@ -127,9 +127,9 @@ std::shared_ptr<Mesh> _GetMesh(const UsdPrim& prim, UsdGeomXformCache& xformCach
     std::vector<int> indices;
     std::vector<int> faceSizes;
 
-    VtArray<GfVec3f> points;
-    VtArray<int> faceVertexIndices;
-    VtArray<int> faceVertexCounts;
+    VtVec3fArray points;
+    VtIntArray faceVertexIndices;
+    VtIntArray faceVertexCounts;
 
     if (!prim.IsA<UsdGeomMesh>())
     {
@@ -210,7 +210,9 @@ std::shared_ptr<Mesh> _GetMesh(const UsdPrim& prim, UsdGeomXformCache& xformCach
 }
 
 
-std::shared_ptr<Stage> GetStage(UsdStageRefPtr usdStage, const std::vector<UsdPrim>& prims, bool ignoreTransparentMeshes)
+std::shared_ptr<Stage> GetStage(const UsdStageRefPtr& usdStage,
+                                const std::vector<UsdPrim>& prims,
+                                bool ignoreTransparentMeshes)
 {
     UsdGeomXformCache xformCache(0.0);
 
@@ -241,7 +243,7 @@ std::shared_ptr<Stage> GetStage(UsdStageRefPtr usdStage, const std::vector<UsdPr
         }
     }
 
-    auto stage = std::shared_ptr<Stage>(new Stage());
+    auto stage = std::make_shared<Stage>();
 
     if (!meshes.empty())
     {
@@ -252,35 +254,29 @@ std::shared_ptr<Stage> GetStage(UsdStageRefPtr usdStage, const std::vector<UsdPr
 }
 
 
-GfMatrix4d _getTransformFromToFuzzy(const VtArray<GfVec3f>& sourcePoints,
-                                    const VtArray<int> sourceIndices,
-                                    const VtArray<int> sourceFaceSizes,
-                                    const VtArray<GfVec3f>& targetPoints,
-                                    const VtArray<int> targetIndices,
-                                    const VtArray<int> targetFaceSizes)
+// Compute the oriented bounding box of a mesh given as USD point/topology arrays.
+static OBB _computeMeshOBB(const VtVec3fArray& points, const VtIntArray& indices, const VtIntArray& faceSizes)
 {
     std::vector<Vec3> vertices;
-    std::vector<int> indices;
-    std::vector<int> faceSizes;
+    std::vector<int> ids;
+    std::vector<int> sizes;
 
-    convert(sourcePoints, vertices);
-    convert(sourceIndices, indices);
-    convert(sourceFaceSizes, faceSizes);
+    convert(points, vertices);
+    convert(indices, ids);
+    convert(faceSizes, sizes);
 
-    // If true, optimzes towards the volume minimizing OBB using multiple 2d projections.
+    // If true, optimizes towards the volume minimizing OBB using multiple 2d projections.
     // This increases the computation time.
-    bool optimizeOBB = true;
+    constexpr bool optimizeOBB = true;
 
-    auto sourceOBB = computeOBBFromSurface(vertices, indices, faceSizes, optimizeOBB);
+    return computeOBBFromSurface(vertices, ids, sizes, optimizeOBB);
+}
 
-    convert(targetPoints, vertices);
-    convert(targetIndices, indices);
-    convert(targetFaceSizes, faceSizes);
 
-    auto targetOBB = computeOBBFromSurface(vertices, indices, faceSizes, optimizeOBB);
-
+// Convert the affine OBB-to-OBB transform into a USD matrix.
+static GfMatrix4d _obbToObbMatrix(const OBB& sourceOBB, const OBB& targetOBB)
+{
     AffineTransform transform;
-
     getObbToObbTransform(sourceOBB, targetOBB, transform);
 
     Vec4 c0(transform.A.column0, 0.0f);
@@ -304,6 +300,45 @@ GfMatrix4d _getTransformFromToFuzzy(const VtArray<GfVec3f>& sourcePoints,
                       c3[1],
                       c3[2],
                       c3[3]);
+}
+
+
+GfMatrix4d _getTransformFromToFuzzy(const PXR_NS::VtVec3fArray& sourcePoints,
+                                    const PXR_NS::VtIntArray& sourceIndices,
+                                    const PXR_NS::VtIntArray& sourceFaceSizes,
+                                    const PXR_NS::VtVec3fArray& targetPoints,
+                                    const PXR_NS::VtIntArray& targetIndices,
+                                    const PXR_NS::VtIntArray& targetFaceSizes)
+{
+    const OBB sourceOBB = _computeMeshOBB(sourcePoints, sourceIndices, sourceFaceSizes);
+    const OBB targetOBB = _computeMeshOBB(targetPoints, targetIndices, targetFaceSizes);
+    return _obbToObbMatrix(sourceOBB, targetOBB);
+}
+
+
+struct FuzzyTransformSolver::Impl
+{
+    OBB sourceOBB;
+};
+
+
+FuzzyTransformSolver::FuzzyTransformSolver(const VtVec3fArray& sourcePoints,
+                                           const VtIntArray& sourceIndices,
+                                           const VtIntArray& sourceFaceSizes)
+    : m_impl(new Impl{ _computeMeshOBB(sourcePoints, sourceIndices, sourceFaceSizes) })
+{
+}
+
+
+FuzzyTransformSolver::~FuzzyTransformSolver() = default;
+
+
+GfMatrix4d FuzzyTransformSolver::computeTransformTo(const VtVec3fArray& targetPoints,
+                                                    const VtIntArray& targetIndices,
+                                                    const VtIntArray& targetFaceSizes) const
+{
+    const OBB targetOBB = _computeMeshOBB(targetPoints, targetIndices, targetFaceSizes);
+    return _obbToObbMatrix(m_impl->sourceOBB, targetOBB);
 }
 
 bool _GetMeshDescriptor(ClashMeshDescriptor& meshDesc, const UsdPrim& prim, UsdGeomXformCache& xformCache)
@@ -344,7 +379,7 @@ bool _GetMeshDescriptor(ClashMeshDescriptor& meshDesc, const UsdPrim& prim, UsdG
     // get the points
 
     UsdAttribute pointsAttr = usdMesh.GetPointsAttr();
-    VtArray<GfVec3f> points;
+    VtVec3fArray points;
 
     if (!pointsAttr.Get(&points, UsdTimeCode::Default()) || points.empty())
     {
@@ -367,7 +402,7 @@ bool _GetMeshDescriptor(ClashMeshDescriptor& meshDesc, const UsdPrim& prim, UsdG
     // get the indices
 
     UsdAttribute faceVertexIndicesAttr = usdMesh.GetFaceVertexIndicesAttr();
-    VtArray<int> faceVertexIndices;
+    VtIntArray faceVertexIndices;
 
     if (!faceVertexIndicesAttr.Get(&faceVertexIndices, UsdTimeCode::Default()) || faceVertexIndices.empty())
     {
@@ -391,7 +426,7 @@ bool _GetMeshDescriptor(ClashMeshDescriptor& meshDesc, const UsdPrim& prim, UsdG
     // get the face sizes
 
     UsdAttribute faceVertexCountsAttr = usdMesh.GetFaceVertexCountsAttr();
-    VtArray<int> faceVertexCounts;
+    VtIntArray faceVertexCounts;
 
     if (!faceVertexCountsAttr.Get(&faceVertexCounts, UsdTimeCode::Default()) || faceVertexCounts.empty())
     {
@@ -450,7 +485,7 @@ bool _GetMeshDescriptor(ClashMeshDescriptor& meshDesc, const UsdPrim& prim, UsdG
 
 void GetStageMeshDescriptors(std::vector<ClashMeshDescriptor>& meshDescriptors,
                              SdfPathVector& paths,
-                             UsdStageRefPtr usdStage,
+                             const UsdStageRefPtr& usdStage,
                              const std::vector<UsdPrim>& prims)
 {
     UsdGeomXformCache xformCache(0.0);
@@ -482,4 +517,4 @@ void GetStageMeshDescriptors(std::vector<ClashMeshDescriptor>& meshDescriptors,
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

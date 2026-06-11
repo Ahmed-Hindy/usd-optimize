@@ -1,6 +1,6 @@
 ---
 name: debug-operation
-description: Triage a failing Scene Optimizer operation. Use when an op errors, silently no-ops, or returns unexpected output.
+description: Triage a failing Usd Optimize operation. Use when an op errors, silently no-ops, or returns unexpected output.
 version: "1.0.0"
 allowed-tools: Shell, Read, Grep, Glob
 metadata:
@@ -75,7 +75,7 @@ exists. Common mistakes:
 ### 2b. Wrong operation key
 
 The operation key is the first string argument to the `Operation(...)` base
-constructor, not the class name or the `SO_PLUGIN_INIT` argument. Verify:
+constructor, not the class name or the `USD_OPTIMIZE_PLUGIN_INIT` argument. Verify:
 
 ```bash
 rg 'Operation\(' source/operations/<key>/ --glob '*.cpp' -A1 | head -5
@@ -101,7 +101,7 @@ If the basics check out, run in analysis mode to see what the operation
 *would* do without mutating the stage:
 
 ```python
-from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
 from pxr import Usd, UsdUtils
 
 stage = Usd.Stage.Open("<asset>")
@@ -110,7 +110,7 @@ context.usdStageId = UsdUtils.StageCache.Get().Insert(stage).ToLongInt()
 context.analysisMode = 1
 context.verbose = 1
 
-success, error, output = SceneOptimizerCore.getInstance().executeOperation(
+success, error, output = UsdOptimizeCore.getInstance().executeOperation(
     "<key>", context, {<args>}
 )
 
@@ -138,7 +138,7 @@ For the full `ExecutionContext` flags reference, see
 | Log pattern | Likely cause | Fix |
 |---|---|---|
 | `Stage not found` or `Invalid stage id` | `ExecutionContext.usdStageId` not set or stale. | Use `context.set_stage(stage)` or set `usdStageId` via `UsdUtils.StageCache`. |
-| `Operation '<key>' not found` | Operation plugin didn't load — either not built or not on the plugin search path. | Rebuild (`./repo.sh build`). Check `SceneOptimizerCore.getInstance().getOperations()` for the registered list. |
+| `Operation '<key>' not found` | Operation plugin didn't load — either not built or not on the plugin search path. | Rebuild (`./repo.sh build`). Check `UsdOptimizeCore.getInstance().getOperations()` for the registered list. |
 | `libusd` mismatch / stage-cache miss (see `Operation.cpp` error) | Two copies of `libusd` loaded — Python's `pxr` resolves to a different one than the C++ core. | Use the build's bundled Python via the wrapper scripts. See `validators` skill § Known CLI issues. |
 | Crash / segfault during execution | Usually a real bug. | Isolate the failing prim path, write a minimal repro, and file against the operation. |
 
@@ -210,7 +210,7 @@ For the full `ExecutionContext` flags reference, see
 
 ## Purpose
 
-Provide a structured triage workflow for an SO operation that fails,
+Provide a structured triage workflow for an Usd Optimize operation that fails,
 silently no-ops, or produces unexpected output. Unifies log reading,
 argument verification, verbose / analysis-mode invocation, and a
 per-family cheat-sheet of common failure patterns so the agent can move
@@ -240,7 +240,7 @@ guessing.
 
 ## Troubleshooting
 
-This whole skill *is* a troubleshooting guide for SO operations. The
+This whole skill *is* a troubleshooting guide for Usd Optimize operations. The
 table below covers the meta-failure modes — when this skill itself
 can't make progress.
 
@@ -249,5 +249,5 @@ can't make progress.
 | Verbose log is empty | `executionContext` step missing or placed after the failing op. | Put `{"operation":"executionContext","verbose":true,"captureStats":true}` as the first config entry. |
 | Analysis mode reports `not supported` | Operation doesn't implement `executeAnalysisImpl`. | Drop analysis mode; run on a copy of the stage with `--no-save`. |
 | Op succeeds standalone but fails in chain | Earlier step in the chain mutated the stage in a way that invalidates the inputs. | Bisect the chain — run the failing op directly after the input is loaded. |
-| `libusd` mismatch error from `Operation.cpp` | Two `libusd` builds loaded — typical with system `pxr` + dev-tree SO. | Use the build's bundled Python via the wrapper scripts (`tools/perf_*/run.sh`). See `validators` skill § Known CLI issues. |
+| `libusd` mismatch error from `Operation.cpp` | Two `libusd` builds loaded — typical with system `pxr` + dev-tree Usd Optimize. | Use the build's bundled Python via the wrapper scripts (`tools/perf_*/run.sh`). See `validators` skill § Known CLI issues. |
 

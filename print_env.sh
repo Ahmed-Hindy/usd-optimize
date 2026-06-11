@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (c) 2023-2026, NVIDIA CORPORATION.
-# Reports environment information useful for diagnosing Scene Optimizer issues.
+# Reports environment information useful for diagnosing Usd Optimize issues.
 # Usage:
 #   ./print_env.sh           — prints GitHub-friendly HTML block to stdout
 #   ./print_env.sh > env.txt — save to a file and attach when filing an issue
@@ -19,7 +19,7 @@ print_env() {
     fi
     echo
 
-    echo "***Scene Optimizer***"
+    echo "***Usd Optimize***"
     if [[ -f "${SCRIPT_DIR}/VERSION.md" ]]; then
         echo "VERSION.md: $(tr -d '\n' <"${SCRIPT_DIR}/VERSION.md")"
     fi

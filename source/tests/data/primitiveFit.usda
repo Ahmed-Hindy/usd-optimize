@@ -175,7 +175,7 @@ def Xform "World" (
                 def Shader "diffuseColorTex"
                 {
                     uniform token info:id = "UsdUVTexture"
-                    asset inputs:file = @../../../../../ov_kit-scene-optimizer_saved/source/extensions/omni.scene.optimizer.validators/data/icon.png@
+                    asset inputs:file = @../../../../../ov_kit-usd-optimize_saved/source/extensions/usd_optimize.validators/data/icon.png@
                     float2 inputs:st.connect = </World/Textured/Looks/PreviewSurfaceTexture/st.outputs:result>
                     float outputs:a
                     float outputs:b

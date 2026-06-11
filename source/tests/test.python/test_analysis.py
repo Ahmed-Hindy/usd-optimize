@@ -4,8 +4,8 @@
 
 import unittest
 
-from omni.scene.optimizer.core import analysis
 from pxr import Sdf, Usd
+from usd_optimize.core import analysis
 
 from .test_utils import _get_test_data_file_path
 

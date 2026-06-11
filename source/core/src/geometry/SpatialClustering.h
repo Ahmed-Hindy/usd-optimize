@@ -4,17 +4,17 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Argument.h"
-#include "omni/scene.optimizer/core/Operation.h"
-#include "omni/scene.optimizer/core/RemovePrims.h"
-#include "omni/scene.optimizer/core/Utils.h"
-#include "omni/scene.optimizer/core/geometry/Bucket.h"
-#include "omni/scene.optimizer/core/geometry/Cluster.h"
-#include "omni/scene.optimizer/core/geometry/VirtualMesh.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Argument.h"
+#include "usd_optimize/core/Operation.h"
+#include "usd_optimize/core/RemovePrims.h"
+#include "usd_optimize/core/Utils.h"
+#include "usd_optimize/core/geometry/Bucket.h"
+#include "usd_optimize/core/geometry/Cluster.h"
+#include "usd_optimize/core/geometry/VirtualMesh.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // Typedefs
@@ -50,9 +50,11 @@ struct MergeBoundaryLookup
 constexpr double SPATIAL_THRESHOLD = 10.0;
 constexpr double SPATIAL_MAX_SIZE = 0.0;
 constexpr int SPATIAL_VERTEX_COUNT = 10000;
+constexpr double BOUNDARY_TOLERANCE = 1e-5;
+constexpr int BOUNDARY_MIN_SHARED_VERTICES = 2;
 
 // Helper class to be used by Operation that need to perform spatial clustering of meshes
-class OMNI_SO_EXPORT SpatialClustering
+class USD_OPTIMIZE_EXPORT SpatialClustering
 {
 public:
     // clustering parameters
@@ -68,6 +70,8 @@ public:
     double m_spatialThreshold = SPATIAL_THRESHOLD;
     double m_spatialMaxSize = SPATIAL_MAX_SIZE;
     int m_spatialVertexCount = SPATIAL_VERTEX_COUNT;
+    double m_boundaryTolerance = BOUNDARY_TOLERANCE;
+    int m_boundaryMinSharedVertices = BOUNDARY_MIN_SHARED_VERTICES;
     std::vector<std::string> m_treatAsPrimvars;
     bool m_spatialDebug = false;
 
@@ -96,7 +100,11 @@ public:
     Argument& addAllowSingleMeshesArg(Operation* operation);
 
     /// Adds the "Spatial Clustering Mode" argument to the given operation and returns a reference to it
-    Argument& addSpatialModeArg(Operation* operation);
+    ///
+    /// \param includeCoincidentBoundary When true, the "Coincident Boundary Vertices" (shared-seam) mode is offered as
+    ///                                   an option. Defaults to false so operations must opt in explicitly - it is a
+    ///                                   merge-only mode and is not meaningful for operations such as splitMeshes.
+    Argument& addSpatialModeArg(Operation* operation, bool includeCoincidentBoundary = false);
 
     /// Adds the "Spatial Threshold" argument to the given operation and returns a reference to it
     Argument& addSpatialThresholdArg(Operation* operation, const std::string& enableIf = "spatialMode == 1");
@@ -106,6 +114,12 @@ public:
 
     /// Adds the "Spatial Vertex Count" argument to the given operation and returns a reference to it
     Argument& addSpatialVertexCountArg(Operation* operation, const std::string& enableIf = "spatialMode == 2");
+
+    /// Adds the "Boundary Tolerance" argument to the given operation and returns a reference to it
+    Argument& addBoundaryToleranceArg(Operation* operation, const std::string& enableIf = "spatialMode == 3");
+
+    /// Adds the "Minimum Shared Vertices" argument to the given operation and returns a reference to it
+    Argument& addBoundaryMinSharedVerticesArg(Operation* operation, const std::string& enableIf = "spatialMode == 3");
 
     /// Adds the "Treat As Primvars" argument to the given operation and returns a reference to it
     Argument& addTreatAsPrimvarsArg(Operation* operation);
@@ -136,7 +150,7 @@ public:
     /// Calling this function is equivalent to calling \p bucket followed by \p write. They are provided so that
     /// multiple buckets can be processed prior to calling a single write to author the new data.
     ///
-    /// \param operation The pointer to the Scene Optimizer operation which is calling this function - used for logging
+    /// \param operation The pointer to the Usd Optimize operation which is calling this function - used for logging
     /// \param lookup MergeBoundaryLookup object which is used as look table to determine merge boundaries for clustered
     ///               VirtualMeshes.
     /// \param virtualMeshes lists of VirtualMeshes grouped by parent paths - where the parent path is the merge boundry
@@ -200,4 +214,4 @@ private:
     size_t m_numPrimsRemoved = 0;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -4,8 +4,8 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/OmniOperation.h>
+// Usd Optimize Core
+#include <usd_optimize/core/OmniOperation.h>
 
 // C++
 #include <atomic>
@@ -14,7 +14,7 @@
 #include <tbb/concurrent_vector.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Merge vertices using OmniMesh.
@@ -27,7 +27,7 @@ public:
     std::string getAuthor() const override;
 
     /// Get the version of this plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     /// Get the category for reporting.
     std::string getCategory() const override;
@@ -40,6 +40,9 @@ public:
 
 protected:
     ProcessedData* processMesh(const PXR_NS::UsdPrim& prim, tbb::task_group_context&);
+
+    /// Log a summary of the cleanup result (vertices/faces removed).
+    void executePost(const TotalStats& totalStats) override;
 
     /// Entry-point for analysis
     OperationResult executeAnalysisImpl() override;
@@ -89,4 +92,4 @@ private:
     Report m_report;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

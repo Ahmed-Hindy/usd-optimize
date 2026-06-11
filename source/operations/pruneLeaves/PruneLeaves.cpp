@@ -3,26 +3,27 @@
 //
 #include "PruneLeaves.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/RemovePrims.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/RemovePrims.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // USD
 #include <pxr/usd/ar/resolverScopedCache.h>
-#include <pxr/usd/usd/primCompositionQuery.h>
+#include <pxr/usd/pcp/node.h>
+#include <pxr/usd/pcp/primIndex.h>
 
 // C++
 #include <algorithm>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::PruneLeavesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::PruneLeavesOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // Constants
@@ -40,13 +41,19 @@ TF_DEFINE_PRIVATE_TOKENS(
 // clang-format on
 
 
-// Returns whether a prim has a reference composition ARC attached to it
+// Returns whether a prim directly composes a reference arc.
+//
+// Two deliberate choices here:
+//  - We walk the cached GetPrimIndex() rather than HasAuthoredReferences() (which would also count an empty or
+//    fully-deleted "references" list op that composes no arc) or UsdPrimCompositionQuery (which recomputes an
+//    expanded prim index on every call - far too costly to run per grouping prim during traversal).
+//  - !IsDueToAncestor() restricts us to references introduced at this prim, matching the original
+//    GetDirectReferences "Direct" filter, so a prim is not flagged just for living inside a referenced subtree.
 static bool _isReference(const UsdPrim& prim)
 {
-    UsdPrimCompositionQuery compositionQuery = UsdPrimCompositionQuery::GetDirectReferences(prim);
-    for (const auto& arc : compositionQuery.GetCompositionArcs())
+    for (const PcpNodeRef& node : prim.GetPrimIndex().GetNodeRange())
     {
-        if (arc.GetArcType() == PcpArcTypeReference)
+        if (node.GetArcType() == PcpArcTypeReference && !node.IsDueToAncestor())
         {
             return true;
         }
@@ -66,6 +73,16 @@ static bool _isGroupingPrim(const UsdPrim& prim)
     }
 
     return false;
+}
+
+
+/// Returns whether a prim has an authored payload that has not been loaded.
+///
+/// A prim with an unloaded payload may compose meaningful content that is not currently present on the stage. Because
+/// we cannot see what it would contribute, such a prim must never be treated as an empty leaf and pruned.
+static bool _hasUnloadedPayload(const UsdPrim& prim)
+{
+    return prim.HasAuthoredPayloads() && !prim.IsLoaded();
 }
 
 
@@ -89,16 +106,23 @@ PruneLeavesOperation::PruneLeavesOperation()
                 kDisplayTypeBool,
                 "Do not consider inactive prims empty",
                 m_filterInactive);
+
+    addArgument("preserveUnloadedPayloads",
+                "Preserve Unloaded Payloads",
+                kDisplayTypeBool,
+                "Do not prune leaf prims that carry an unloaded payload (they may contribute content once loaded). "
+                "Disable to prune them anyway.",
+                m_preserveUnloadedPayloads);
 }
 
 
 std::string PruneLeavesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion PruneLeavesOperation::getVersion() const
+UsdOptimizePluginVersion PruneLeavesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -150,7 +174,7 @@ static OperationResult reportAnalysis(const std::vector<UsdPrim>& leaves)
     OperationResult result{ true };
     result.output = getCStr(JsWriteToString(resultJson));
 
-    SO_LOG_VERBOSE("Analysis result: %s", result.output);
+    USD_OPTIMIZE_LOG_VERBOSE("Analysis result: %s", result.output);
 
     return result;
 }
@@ -167,11 +191,23 @@ OperationResult PruneLeavesOperation::executeImpl()
 
     if (!getUsdStage())
     {
-        SO_LOG_ERROR("No usd stage.");
+        USD_OPTIMIZE_LOG_ERROR("No usd stage.");
+        return { false };
+    }
+
+    // 'Ignore' removes nothing, so running it as a real optimization is pointless work. In analysis mode the removal
+    // method is irrelevant (we only report the leaves we would prune), so it is allowed there.
+    if (m_mode == RemoveMethod::eIgnore && !getContext()->analysisMode)
+    {
+        USD_OPTIMIZE_LOG_ERROR("pruneMode 'Ignore' would remove nothing. Use Delete, Deactivate, or Hide.");
         return { false };
     }
 
     std::vector<UsdPrim> leaves;
+
+    // Per-prototype leaf-ness is memoized for the duration of a single run. Clear it up front so that repeated
+    // executions (whose predicate/payload settings may differ) never reuse a stale answer.
+    m_prototypeLeafCache.clear();
 
     // Convert paths to prims
     setPrimsFromPaths(m_primPaths);
@@ -224,26 +260,42 @@ OperationResult PruneLeavesOperation::executeImpl()
         {
             for (const UsdPrim& leaf : leaves)
             {
-                SO_LOG_VERBOSE("Pruning %s", leaf.GetPrimPath().GetString().c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("Pruning %s", leaf.GetPrimPath().GetString().c_str());
             }
         }
 
+        const char* verb = "Pruned";
+        switch (m_mode)
+        {
+        case RemoveMethod::eDelete:
+            verb = "Deleted";
+            break;
+        case RemoveMethod::eDeactivate:
+            verb = "Deactivated";
+            break;
+        case RemoveMethod::eHide:
+            verb = "Hid";
+            break;
+        default:
+            break;
+        }
+
         std::ostringstream oss;
-        oss << (m_mode == RemoveMethod::eDelete ? "Deleted" : "Deactivated") << " " << leaves.size();
+        oss << verb << " " << leaves.size();
         oss << (leaves.size() == 1 ? " leaf." : " leaves.");
 
-        SO_LOG_INFO(oss.str().c_str());
+        USD_OPTIMIZE_LOG_INFO(oss.str().c_str());
     }
     else
     {
-        SO_LOG_INFO("Did not find any leaves to prune.");
+        USD_OPTIMIZE_LOG_INFO("Did not find any leaves to prune.");
     }
 
     return { true };
 }
 
 bool PruneLeavesOperation::findLeaves(const UsdPrim& prim,
-                                      Usd_PrimFlagsPredicate predicate,
+                                      const Usd_PrimFlagsPredicate& predicate,
                                       std::vector<UsdPrim>& leafPrims) const
 {
 
@@ -251,6 +303,63 @@ bool PruneLeavesOperation::findLeaves(const UsdPrim& prim,
     // then we can disregard this and instead consider the prim itself a leaf. If not, we will copy this
     // to the output parameter later.
     std::vector<UsdPrim> leaves;
+    bool allLeaves = findChildLeaves(prim, predicate, leaves);
+
+    // Once we have finished processing the children we know whether this prim is technically a leaf grouping prim (eg
+    // it's an xform with nothing but leaf xforms underneath it). If that's the case we just append this prim to the
+    // output. If not, then append the local leaves result.
+    // Don't consider a prim a leaf if it carries an unloaded payload (it may compose content we can't see), unless the
+    // caller has opted out of that protection. This also guards the case where such a prim is supplied directly as a
+    // starting search path.
+    const bool preserveForPayload = m_preserveUnloadedPayloads && _hasUnloadedPayload(prim);
+    if (allLeaves && _isGroupingPrim(prim) && !preserveForPayload)
+    {
+        leafPrims.push_back(prim);
+    }
+    else
+    {
+        leafPrims.insert(leafPrims.end(), leaves.begin(), leaves.end());
+
+        // Adjust return value as not everything is a leaf
+        allLeaves = false;
+    }
+
+    return allLeaves;
+}
+
+
+bool PruneLeavesOperation::prototypeAllLeaves(const UsdPrim& instance, const Usd_PrimFlagsPredicate& predicate) const
+{
+    const UsdPrim proto = instance.GetPrototype();
+    if (!proto)
+    {
+        return false;
+    }
+
+    const SdfPath& protoPath = proto.GetPath();
+    auto it = m_prototypeLeafCache.find(protoPath);
+    if (it != m_prototypeLeafCache.end())
+    {
+        return it->second;
+    }
+
+    // Evaluate the prototype's subtree once. We discard the collected leaves: they live inside a prototype and are
+    // only ever surfaced as non-editable instance proxies, so they can never be pruned. We only need to know whether
+    // the prototype is composed entirely of leaf grouping prims, which is what decides whether an instancing prim that
+    // points at it is itself an empty leaf group. We classify the prototype's children (findChildLeaves) rather than
+    // the prototype root, which is a typeless container.
+    std::vector<UsdPrim> discard;
+    const bool allLeaves = findChildLeaves(proto, predicate, discard);
+
+    m_prototypeLeafCache[protoPath] = allLeaves;
+    return allLeaves;
+}
+
+
+bool PruneLeavesOperation::findChildLeaves(const UsdPrim& prim,
+                                           const Usd_PrimFlagsPredicate& predicate,
+                                           std::vector<UsdPrim>& leaves) const
+{
 
     bool allLeaves = true;
     auto primRange = prim.GetFilteredChildren(predicate);
@@ -261,6 +370,34 @@ bool PruneLeavesOperation::findLeaves(const UsdPrim& prim,
 
         bool childIsGroupingPrim = _isGroupingPrim(child);
 
+        // A prim with an unloaded payload may bring in meaningful content that isn't currently composed onto the
+        // stage. We can't see inside it and (unless explicitly told otherwise) must not prune it, so treat it as a
+        // non-leaf and stop descending here.
+        if (m_preserveUnloadedPayloads && _hasUnloadedPayload(child))
+        {
+            allLeaves = false;
+            continue;
+        }
+
+        // An instance's descendants live in its prototype and are surfaced only as non-editable instance proxies, so
+        // we never collect leaves from inside an instance. The instance prim itself is the only prunable candidate,
+        // and it is a leaf iff it is a grouping prim whose prototype contains only leaf groups. Because that answer is
+        // identical for every instance of a given prototype, prototypeAllLeaves() evaluates each prototype once and
+        // caches it - avoiding a redundant per-instance walk of the prototype's instance proxies.
+        if (child.IsInstance())
+        {
+            if (childIsGroupingPrim && prototypeAllLeaves(child, predicate))
+            {
+                leaves.push_back(child);
+            }
+            else
+            {
+                allLeaves = false;
+            }
+
+            continue;
+        }
+
         // Need to handle references a little differently. We don't want to return results from within a reference,
         // but if a reference itself contains only leaves then we can remove it.
         if (childIsGroupingPrim && _isReference(child))
@@ -268,9 +405,11 @@ bool PruneLeavesOperation::findLeaves(const UsdPrim& prim,
             // Recurse in to this child to see if it is a leaf. Note we don't use the output referenceLeaves, we only
             // care about whether the reference itself is a leaf grouping prim.
             //
-            // Also need to traverse in to instance proxies as this might be an instance.
+            // Reuse the same predicate as the rest of the traversal so that inactive-prim filtering and unloaded
+            // payloads inside the reference are handled consistently. The predicate already traverses instance
+            // proxies (set at the top-level call), which matters as this child might be an instance.
             std::vector<UsdPrim> referenceLeaves;
-            bool isLeafReference = findLeaves(child, UsdTraverseInstanceProxies(), referenceLeaves);
+            bool isLeafReference = findLeaves(child, predicate, referenceLeaves);
 
             // If the child reference only contains other leaf grouping prims then we can remove the reference itself.
             if (isLeafReference)
@@ -306,22 +445,7 @@ bool PruneLeavesOperation::findLeaves(const UsdPrim& prim,
         }
     }
 
-    // Once we have finished processing the children we know whether this prim is technically a leaf grouping prim (eg
-    // it's an xform with nothing but leaf xforms underneath it). If that's the case we just append this prim to the
-    // output. If not, then append the local leaves result.
-    if (allLeaves && _isGroupingPrim(prim))
-    {
-        leafPrims.push_back(prim);
-    }
-    else
-    {
-        leafPrims.insert(leafPrims.end(), leaves.begin(), leaves.end());
-
-        // Adjust return value as not everything is a leaf
-        allLeaves = false;
-    }
-
     return allLeaves;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

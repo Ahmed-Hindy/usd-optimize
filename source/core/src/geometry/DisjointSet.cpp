@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/geometry/DisjointSet.h"
+#include "usd_optimize/core/geometry/DisjointSet.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Core.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Core.h"
 
 // C++
 #include <fstream>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 class DisjointSet::Impl
@@ -103,4 +103,4 @@ void DisjointSet::unionSet(int x, int y)
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

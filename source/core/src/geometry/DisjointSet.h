@@ -4,16 +4,16 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Disjoint-set/union-find object
 /// Implements union via union by rank
-class OMNI_SO_EXPORT DisjointSet
+class USD_OPTIMIZE_EXPORT DisjointSet
 {
 public:
     /// Initialize a new set.
@@ -40,4 +40,4 @@ private:
     Impl* pImpl;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -4,12 +4,12 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/Log.h"
-#include "omni/scene.optimizer/core/Report.h"
-#include "omni/scene.optimizer/core/Types.h"
-#include "omni/scene.optimizer/core/UsdIncludes.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/Log.h"
+#include "usd_optimize/core/Report.h"
+#include "usd_optimize/core/Types.h"
+#include "usd_optimize/core/UsdIncludes.h"
 
 // USD
 #include <pxr/base/gf/half.h>
@@ -22,7 +22,7 @@
 #include <type_traits>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -43,7 +43,7 @@ public:
     ///
     /// \param label Label to print when the timer finishes.
     /// \param paused Whether the timer will be initialised in a paused state
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     ScopedTimer(const std::string& label, bool paused = false);
 
     /// Create a timer with a category and logging level.
@@ -56,11 +56,11 @@ public:
     /// \param category The category (used for reporting)
     /// \param level The log level of messages from this timer.
     /// \param paused Whether the timer will be initialised in a paused state
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     ScopedTimer(const std::string& label, const std::string& category, LogLevel level, bool paused = false);
 
     /// Destructor
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     virtual ~ScopedTimer();
 
     /// Disable copying
@@ -68,23 +68,23 @@ public:
     ScopedTimer& operator=(const ScopedTimer&) = delete;
 
     /// (Re)start timing.
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     void start();
 
     /// Temporarily pause timing.
     ///
     /// When paused, the accumulated duration is updated. Timing can be restarted with \p start.
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     void pause();
 
     /// Stop timing.
     ///
     /// This will also print/log the duration of the timer to stdout/reports.
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     void stop();
 
     /// Set the logging level of this timer.
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     void setLogLevel(LogLevel level);
 
 private:
@@ -275,21 +275,21 @@ using IncludeAttrValueFn = std::function<bool(const PXR_NS::UsdAttribute&)>;
 /// \param cache Optional cache to track prims that were already hashed
 /// \param includeFn Optional function to allow ignoring attribute values in the hash
 /// \return The calculated hash
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 size_t _hashPrim(const PXR_NS::UsdStageWeakPtr& usdStage,
                  const PXR_NS::UsdPrim& prim,
                  HashCache* cache,
                  const IncludeAttrValueFn& includeFn);
 
 /// Kept for backwards compatibility, overload that requires a hash cache.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 size_t _hashPrim(const PXR_NS::UsdStageWeakPtr& usdStage,
                  const PXR_NS::UsdPrim& prim,
                  HashCache& cache,
                  const IncludeAttrValueFn& includeFn);
 
 /// This is an overload that just passes a null filter for \p includeFn.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 size_t _hashPrim(const PXR_NS::UsdStageWeakPtr& usdStage, const PXR_NS::UsdPrim& prim, HashCache& cache);
 
 
@@ -304,7 +304,7 @@ size_t _hashPrim(const PXR_NS::UsdStageWeakPtr& usdStage, const PXR_NS::UsdPrim&
 /// \param parentPath The path of the parent prim on the stage
 /// \param preferredNames Names that the paths would ideally have provided there are no collisions
 /// \return Unique paths for new prims
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 PXR_NS::SdfPathVector _getUniqueChildPaths(const PXR_NS::UsdStageWeakPtr& usdStage,
                                            const PXR_NS::SdfPath& parentPath,
                                            const PXR_NS::TfTokenVector& preferredNames);
@@ -318,12 +318,19 @@ PXR_NS::SdfPathVector _getUniqueChildPaths(const PXR_NS::UsdStageWeakPtr& usdSta
 /// \param typeName Type name for the prim created
 /// \param parentTypeName Type name for any parent prims created
 /// \param editLayer Layer in which the prim specs should be created
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _safeCreatePrim(const PXR_NS::UsdStageWeakPtr& usdStage,
                      const PXR_NS::SdfPath& primPath,
                      const std::string& typeName,
                      const std::string& parentTypeName,
                      PXR_NS::SdfLayerHandle& editLayer);
+
+/// Reset a prims local transform to identity by removing all of its transform ops, clearing its xformOpOrder, and
+/// clearing the reset-xform-stack flag. Does nothing for prims that are not transformable.
+///
+/// \param prim The prim whose local transform should be cleared
+USD_OPTIMIZE_EXPORT
+void _clearXformOps(const PXR_NS::UsdPrim& prim);
 
 /// Determine a color value that can be used as display color instead of this material.
 ///
@@ -337,7 +344,7 @@ void _safeCreatePrim(const PXR_NS::UsdStageWeakPtr& usdStage,
 /// \param material The material to check
 /// \param colorValue Output to populate with color values
 /// \return Whether a valid color was found.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _getMaterialAlbedo(const PXR_NS::UsdShadeMaterial& material, ColorValue& colorValue);
 
 
@@ -349,39 +356,39 @@ bool _getMaterialAlbedo(const PXR_NS::UsdShadeMaterial& material, ColorValue& co
 ///
 /// \param stage The USD stage
 /// \param instancedPrims Set of instanced prims to populate.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _findInstancedPrims(const PXR_NS::UsdStageWeakPtr& stage, std::set<PXR_NS::UsdPrim>& instancedPrims);
 
 // Conversion functions for convenience.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 PXR_NS::SdfPathVector _convertToSdfPaths(const std::vector<PXR_NS::UsdPrim>& prims);
 
 // Returns true if at least one op in OrderedXformOps contains the given suffix.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _containsOrderedXformOpsSuffix(const PXR_NS::UsdPrim& prim, const PXR_NS::TfToken& suffix);
 
 /// Return true if an attribute of the prim ValueMightBeTimeVarying.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _mightBeTimeVarying(const PXR_NS::UsdPrim& prim);
 
 /// Return true if an attribute of the prim has any authored time samples
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _hasAuthoredTimeSamples(const PXR_NS::UsdPrim& prim);
 
 /// Filter a list of prims, removing a prim if an attribute has any authored time samples
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _removePrimsWithAuthoredTimeSamples(std::vector<PXR_NS::UsdPrim>& prims);
 
 /// Convert HSV values to an RGB color.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 PXR_NS::GfVec3f _hsvToRgb(float hue, float saturation, float value);
 
 /// Returns true if the prim has authored UVs with values
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _primHasAuthoredUVsWithValues(const PXR_NS::UsdPrim& prim);
 
 /// Flattens this property to a property spec with the same name beneath the given parent prim spec.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _flattenPropertyToPrimSpec(const PXR_NS::UsdProperty& property, const PXR_NS::SdfPrimSpecHandle& spec);
 
 /// Flattens a property to a property spec on a prim spec, with an optional custom value.
@@ -389,7 +396,7 @@ void _flattenPropertyToPrimSpec(const PXR_NS::UsdProperty& property, const PXR_N
 /// \param property The UsdProperty to flatten
 /// \param spec The prim spec to copy the property to
 /// \param value An optional value to use instead of the existing property value
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _flattenPropertyToPrimSpecWithValue(const PXR_NS::UsdProperty& property,
                                          const PXR_NS::SdfPrimSpecHandle& spec,
                                          const PXR_NS::VtValue& value);
@@ -398,17 +405,17 @@ void _flattenPropertyToPrimSpecWithValue(const PXR_NS::UsdProperty& property,
 //
 // This is used to determine which properties can remain on a parent when splitting a prim into a parent Xform and
 // child Gprim
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _isInheritableProperty(const PXR_NS::UsdProperty& property);
 
 // Adds MaterialBindingAPI to the list of applied schemas on the prim spec if it is not already present. Returns true if
 // the API schema was added, false if it was already present.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _addMaterialBindingAPIToSchemas(PXR_NS::SdfListOp<PXR_NS::TfToken>& apiSchemas);
 
 // For each prim, add a child prim of the same type and flatten non-inheritable properties onto a child prim while
 // repurposing the current prim as an Xform.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _batchedSplitIntoXformAndChild(const PXR_NS::UsdStageWeakPtr& stage, const std::vector<PXR_NS::SdfPath>& primPaths);
 
 
@@ -419,14 +426,14 @@ void _batchedSplitIntoXformAndChild(const PXR_NS::UsdStageWeakPtr& stage, const 
 ///
 /// \param prefix Filename prefix (name before the pid)
 /// \param suffix Filename suffix (name after the pid)
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 std::string _getTempFile(const std::string& prefix, const std::string& suffix);
 
 /// Calculates the UV scaling value to apply for UV generation tasks.
 /// The scaling value is based on the `scaleFactor` multiplied by the distance `scaleUnits` in relation to the distance
 /// units of the Usd stage. Where `scaleUnits` of 0.0 signify that distance units should not be applied to the
 /// calculated scaling value.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 float _calculteUVScaleValue(const PXR_NS::UsdStageWeakPtr& stage, float scaleFactor, float scaleUnits);
 
 /// Get a new char* from a std::string.
@@ -436,7 +443,7 @@ float _calculteUVScaleValue(const PXR_NS::UsdStageWeakPtr& stage, float scaleFac
 ///
 /// \param name The string to get a c string for.
 /// \return A new char* the caller now owns.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 char* getCStr(const std::string& name);
 
 /// Create a copy of \p prim at \p targetPath.
@@ -444,7 +451,7 @@ char* getCStr(const std::string& name);
 /// \param prim The prim to copy
 /// \param targetLayer The layer to create the new prim in
 /// \param targetPath The full path and name of the new prim to create
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 PXR_NS::UsdPrim _copyPrim(const PXR_NS::UsdPrim& prim,
                           const PXR_NS::SdfLayerHandle& targetLayer,
                           const PXR_NS::SdfPath& targetPath);
@@ -460,7 +467,7 @@ PXR_NS::UsdPrim _copyPrim(const PXR_NS::UsdPrim& prim,
 /// went away it would still exist on its own.
 ///
 /// \return Whether flattening succeeded
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 bool _flattenInstance(const PXR_NS::UsdPrim& prim);
 
 /// Given a number of bytes, format a human-readable string.
@@ -469,7 +476,7 @@ bool _flattenInstance(const PXR_NS::UsdPrim& prim);
 ///
 /// \param bytes The raw number of bytes
 /// \return Formatted string
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 std::string _getFormattedBytes(double bytes);
 
 
@@ -480,7 +487,7 @@ std::string _getFormattedBytes(double bytes);
 ///
 /// \param value The type to get a size from
 /// \return The size of the C++ data type, or zero if an unsupported type
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 size_t _getSizeFromSdfValueType(const PXR_NS::SdfValueTypeName& value);
 
 
@@ -493,7 +500,7 @@ size_t _getSizeFromSdfValueType(const PXR_NS::SdfValueTypeName& value);
 ///
 /// \param value The VtValue to get a default single value for.
 /// \return A default single VtValue of the same type or element type - or an empty VtValue if unsupported.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 PXR_NS::VtValue _getDefaultSingleVtValue(const PXR_NS::VtValue& value);
 
 
@@ -502,7 +509,7 @@ PXR_NS::VtValue _getDefaultSingleVtValue(const PXR_NS::VtValue& value);
 ///
 /// \param value The VtValue to convert to an array
 /// \return A VtValue holding an array of the same type or element type - or an empty VtValue if unsupported.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 PXR_NS::VtValue _toArrayVtValue(const PXR_NS::VtValue& value);
 
 
@@ -514,7 +521,7 @@ PXR_NS::VtValue _toArrayVtValue(const PXR_NS::VtValue& value);
 ///         are found.
 ///
 /// Kept for ABI compatibility -- forwards to the 2-arg overload with includeInverseOps=false.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 std::vector<PXR_NS::UsdGeomXformOp> _getPivotXformOps(const std::vector<PXR_NS::UsdGeomXformOp>& orderedXformOps);
 
 /// \param orderedXformOps The list of ordered xform ops to find pivots in.
@@ -524,7 +531,7 @@ std::vector<PXR_NS::UsdGeomXformOp> _getPivotXformOps(const std::vector<PXR_NS::
 /// \return A list of xform ops that participate in a pivot/!invert pair, in the same order they were in the original
 ///         list. Orphan pivot ops (forward without a matching inverse, or vice versa) are skipped. Empty if no pivot
 ///         pairs are found.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 std::vector<PXR_NS::UsdGeomXformOp> _getPivotXformOps(const std::vector<PXR_NS::UsdGeomXformOp>& orderedXformOps,
                                                       bool includeInverseOps);
 
@@ -609,4 +616,4 @@ inline bool isClose(const PXR_NS::VtArray<T>& a, const PXR_NS::VtArray<T>& b, do
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

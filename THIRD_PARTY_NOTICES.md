@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-**Scene Optimizer Core** is Copyright (c) 2020-2026, NVIDIA CORPORATION and is licensed
+**Usd Optimize Core** is Copyright (c) 2020-2026, NVIDIA CORPORATION and is licensed
 under the Apache License, Version 2.0. See the `LICENSE` file at the root of this
 repository for the full product license text, or
 https://www.apache.org/licenses/LICENSE-2.0 for the canonical Apache 2.0 license.
@@ -102,7 +102,7 @@ limitations under the License.
 Component: `pybind11` (version 2.11.1)
 
 Attribution Statements: The proprietary code includes pybind11 headers and uses its
-macros/types to define Python binding modules that expose the C++ scene optimizer API to
+macros/types to define Python binding modules that expose the C++ usd optimize API to
 Python. This is a compile-time, header-only interaction. Source code is available at
 https://github.com/pybind/pybind11.
 
@@ -146,7 +146,7 @@ Component: `Eigen` (transitive, bundled inside the `autouv-core` NVIDIA package)
 
 Attribution Statements: The proprietary code does not include Eigen headers directly.
 Eigen is bundled inside the `autouv-core` NVIDIA package and used internally by that
-library for linear algebra. Scene Optimizer depends on `autouv-core` at the shared
+library for linear algebra. Usd Optimize depends on `autouv-core` at the shared
 library level, so Eigen is a transitive, indirect dependency. Source code is available
 at https://gitlab.com/libeigen/eigen.
 
@@ -242,7 +242,7 @@ from NVIDIA CORPORATION is strictly prohibited.
 
 Component: `omnimesh_ops_usd` (version 110.0.3)
 
-Attribution Statements: NVIDIA-developed mesh-operations library used by Scene Optimizer
+Attribution Statements: NVIDIA-developed mesh-operations library used by Usd Optimize
 operations. Refer to the package's bundled `LICENSE` and `THIRD_PARTY_NOTICES` files for
 any embedded third-party components.
 
@@ -357,7 +357,7 @@ from NVIDIA CORPORATION is strictly prohibited.
   they are not redistributed with the product.
 * **Python (CPython, PSF License)** is pulled in via `deps/usd-deps.generated.packman.xml` as a
   host-environment dependency used only for building the pybind11 bindings. The CPython
-  interpreter is not redistributed as part of Scene Optimizer Core (consumers supply
+  interpreter is not redistributed as part of Usd Optimize Core (consumers supply
   their own Python runtime), so it is intentionally omitted from the OSS attribution
   list above. If a downstream product bundles the CPython runtime sourced from this
   package, that product must add the PSF License attribution to its own notices file.
@@ -365,4 +365,4 @@ from NVIDIA CORPORATION is strictly prohibited.
   license, and embedded third-party notices are the ones shipped inside that package
   (typically as `LICENSE`, `LICENSE.txt`, or `THIRD_PARTY_NOTICES`). The entries here are a
   product-level summary intended to satisfy the OSS attribution requirement at the level
-  of the Scene Optimizer Core distribution.
+  of the Usd Optimize Core distribution.

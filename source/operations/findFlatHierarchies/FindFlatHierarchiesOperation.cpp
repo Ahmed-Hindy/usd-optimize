@@ -4,19 +4,19 @@
 
 #include "FindFlatHierarchiesOperation.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::FindFlatHierarchiesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::FindFlatHierarchiesOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -51,11 +51,11 @@ FindFlatHierarchiesOperation::~FindFlatHierarchiesOperation() = default;
 
 std::string FindFlatHierarchiesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion FindFlatHierarchiesOperation::getVersion() const
+UsdOptimizePluginVersion FindFlatHierarchiesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -130,7 +130,9 @@ std::map<std::string, int> FindFlatHierarchiesOperation::findFlatHierarchies()
         // does this prim have over the threshold number of children?
         if (numChildren >= m_maxChildren)
         {
-            SO_LOG_INFO("Found flat hierarchy at %s with %d children", prim.GetPath().GetAsString().c_str(), numChildren);
+            USD_OPTIMIZE_LOG_INFO("Found flat hierarchy at %s with %d children",
+                                  prim.GetPath().GetAsString().c_str(),
+                                  numChildren);
             flatHierarchies[prim.GetPath().GetAsString()] = numChildren;
         }
 
@@ -148,4 +150,4 @@ std::map<std::string, int> FindFlatHierarchiesOperation::findFlatHierarchies()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

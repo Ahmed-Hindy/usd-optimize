@@ -3,17 +3,17 @@
 //
 #include "ComputeExtentsPlugin.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/ComputeExtents.h>
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/Log.h>
+// Usd Optimize Core
+#include <usd_optimize/core/ComputeExtents.h>
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/Log.h>
 
 
-SO_PLUGIN_INIT(omni::scene::optimizer::ComputeExtentsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::ComputeExtentsOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 constexpr const char* s_category = "COMPUTE_EXTENTS";
@@ -35,11 +35,11 @@ ComputeExtentsOperation::~ComputeExtentsOperation() = default;
 
 std::string ComputeExtentsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion ComputeExtentsOperation::getVersion() const
+UsdOptimizePluginVersion ComputeExtentsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -67,7 +67,7 @@ OperationResult ComputeExtentsOperation::executeImpl()
 {
     const size_t numComputed = _computeExtents(getUsdStage(), m_primPaths);
 
-    SO_LOG_INFO("Computed extents for %zu prim%s", numComputed, numComputed == 1 ? "" : "s");
+    USD_OPTIMIZE_LOG_INFO("Computed extents for %zu prim%s", numComputed, numComputed == 1 ? "" : "s");
 
     return { true };
 }
@@ -89,4 +89,4 @@ OperationResult ComputeExtentsOperation::executeAnalysisImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

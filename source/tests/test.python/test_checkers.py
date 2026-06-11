@@ -4,9 +4,7 @@
 
 from unittest import TestCase
 
-from omni.asset_validator import IssuePredicates
-from omni.asset_validator.tests import IsAnError, IsAnInfo, IsAWarning, ValidationTestCaseMixin
-from omni.scene.optimizer.validators import (
+from usd_optimize.validators import (
     CoincidingGeometryChecker,
     ColocatedVerticesChecker,
     DuplicateFaceChecker,
@@ -32,6 +30,8 @@ from omni.scene.optimizer.validators import (
     ZeroAreaFacesChecker,
     ZeroExtentChecker,
 )
+from usd_validation_nvidia import IssuePredicates
+from usd_validation_nvidia.tests import IsAnError, IsAnInfo, IsAWarning, ValidationTestCaseMixin
 
 from .test_utils import _get_test_data_file_path
 

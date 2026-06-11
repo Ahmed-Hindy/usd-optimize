@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/Core.h"
+#include "usd_optimize/core/Core.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Log.h"
-#include "omni/scene.optimizer/core/PythonOperation.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Log.h"
+#include "usd_optimize/core/PythonOperation.h"
 
-#include <omni/scene.optimizer/core/Utils.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carb
 #include <carb/extras/EnvironmentVariable.h>
@@ -27,23 +27,23 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
 using InitFunc = bool (*)();
-constexpr const char* kInitFuncName = "sceneOptimizerPluginInit";
+constexpr const char* kInitFuncName = "usdOptimizePluginInit";
 
 // Custom plugin path env var
-constexpr const char* kEnvPluginPath = "SCENE_OPTIMIZER_PLUGIN_PATH";
+constexpr const char* kEnvPluginPath = "USD_OPTIMIZE_PLUGIN_PATH";
 
 // Internal debug logging based on environment variable
-constexpr const char* kEnvVarDebug = "SO_DEBUG_CORE";
+constexpr const char* kEnvVarDebug = "USD_OPTIMIZE_DEBUG_CORE";
 
 // Operation/Argument remapping filename
 constexpr const char* kMappingFilename = "operation_mapping.json";
 
-#define SO_DEBUG_CORE(FMT, ...)                                                                                        \
+#define USD_OPTIMIZE_DEBUG_CORE(FMT, ...)                                                                              \
     if (m_debug)                                                                                                       \
     {                                                                                                                  \
         printf("[DEBUG] " FMT "\n", __VA_ARGS__);                                                                      \
@@ -56,13 +56,13 @@ static std::string _getLibraryDir()
 }
 
 
-class SceneOptimizerCore::Impl
+class UsdOptimizeCore::Impl
 {
 public:
     struct OperationData
     {
-        SceneOptimizerOperationCreate creator;
-        SceneOptimizerOperationDestroy destructor;
+        UsdOptimizeOperationCreate creator;
+        UsdOptimizeOperationDestroy destructor;
     };
 
     bool m_initialized = false;
@@ -99,7 +99,7 @@ public:
         m_pythonOperations.clear();
     }
 
-    void registerOperation(SceneOptimizerOperationCreate creation, SceneOptimizerOperationDestroy deletion)
+    void registerOperation(UsdOptimizeOperationCreate creation, UsdOptimizeOperationDestroy deletion)
     {
         // Create an operation.
         OperationUPtr temporary(creation(), deletion);
@@ -107,14 +107,13 @@ public:
         auto findIt = m_operations.find(temporary->getName());
         if (findIt != m_operations.end())
         {
-            std::cerr << "[SceneOptimizer] Skip registering " << temporary->getName() << ", already registered"
-                      << std::endl;
+            std::cerr << "[UsdOptimize] Skip registering " << temporary->getName() << ", already registered" << std::endl;
             return;
         }
 
         OperationData _operation{ creation, deletion };
 
-        SO_DEBUG_CORE("Registering operation %s", temporary->getName().c_str());
+        USD_OPTIMIZE_DEBUG_CORE("Registering operation %s", temporary->getName().c_str());
 
         // Insert, but don't replace if it already exists
         m_operations.insert(std::make_pair(temporary->getName(), _operation));
@@ -129,7 +128,7 @@ public:
             return;
         }
 
-        SO_DEBUG_CORE("Deregistering %s", name.c_str());
+        USD_OPTIMIZE_DEBUG_CORE("Deregistering %s", name.c_str());
 
         auto findPyIt = m_pythonOperations.find(name);
         if (findPyIt != m_pythonOperations.end())
@@ -146,7 +145,7 @@ public:
 
     void loadPlugin(const std::string& libraryPath)
     {
-        SO_DEBUG_CORE("Trying to load plugin from %s", libraryPath.c_str());
+        USD_OPTIMIZE_DEBUG_CORE("Trying to load plugin from %s", libraryPath.c_str());
 
         auto handle = carb::extras::loadLibrary(libraryPath.c_str());
         if (!handle)
@@ -160,8 +159,8 @@ public:
         auto initFunc = carb::extras::getLibrarySymbol<InitFunc>(handle, kInitFuncName);
         if (!initFunc)
         {
-            // Maybe not a SO plugin
-            SO_DEBUG_CORE("library does not contain expected init function %s", kInitFuncName); // LCOV_EXCL_LINE
+            // Maybe not a Usd Optimize plugin
+            USD_OPTIMIZE_DEBUG_CORE("library does not contain expected init function %s", kInitFuncName); // LCOV_EXCL_LINE
             return;
         }
 
@@ -195,7 +194,7 @@ public:
 
                 if (TfIsFile(initPath))
                 {
-                    SO_DEBUG_CORE("Appending possible python plugin path: %s", filename.c_str());
+                    USD_OPTIMIZE_DEBUG_CORE("Appending possible python plugin path: %s", filename.c_str());
                     pythonDirs.push_back(filename);
                 }
             }
@@ -219,7 +218,7 @@ public:
 
     void loadPythonPluginFromDirectory(const std::string& path)
     {
-        SO_DEBUG_CORE("Trying to load python plugin from %s", path.c_str());
+        USD_OPTIMIZE_DEBUG_CORE("Trying to load python plugin from %s", path.c_str());
         // resolve the module name
         const std::string moduleName = TfGetBaseName(path);
         ScopedPyObject pyModuleName = PyUnicode_FromString(moduleName.c_str());
@@ -241,7 +240,7 @@ public:
             // LCOV_EXCL_STOP
         }
 
-        static const std::string kPythonInitFuncName = "sceneOptimizerPluginInit";
+        static const std::string kPythonInitFuncName = "usdOptimizePluginInit";
         ScopedPyObject pyRegisterFunc = PyObject_GetAttrString(pyModule.obj, kPythonInitFuncName.c_str());
         if (_pyCheckAndGetExceptionMessage(pyErrorMessage))
         {
@@ -293,7 +292,7 @@ public:
         if (m_operations.find(opName) != m_operations.end())
         {
             // LCOV_EXCL_START
-            std::cerr << "[SceneOptimizer] Skip registering " << opName << ", already registered" << std::endl;
+            std::cerr << "[UsdOptimize] Skip registering " << opName << ", already registered" << std::endl;
             return;
             // LCOV_EXCL_STOP
         }
@@ -373,7 +372,10 @@ public:
         if (!error.reason.empty())
         {
             // LCOV_EXCL_START
-            SO_LOG_WARN("Error parsing JSON: %s at line %d, col %d", error.reason.c_str(), error.line, error.column);
+            USD_OPTIMIZE_LOG_WARN("Error parsing JSON: %s at line %d, col %d",
+                                  error.reason.c_str(),
+                                  error.line,
+                                  error.column);
             return;
             // LCOV_EXCL_STOP
         }
@@ -382,7 +384,7 @@ public:
         // Dev error - we expect this file is shipped and correct
         if (!document.IsObject())
         {
-            SO_LOG_WARN("Invalid mapping file - expected Object");
+            USD_OPTIMIZE_LOG_WARN("Invalid mapping file - expected Object");
             return;
         }
         // LCOV_EXCL_STOP
@@ -399,9 +401,9 @@ public:
             {
                 if (operationIt.second.IsString())
                 {
-                    SO_DEBUG_CORE("Mapping operation %s to %s",
-                                  operationIt.first.c_str(),
-                                  operationIt.second.GetString().c_str());
+                    USD_OPTIMIZE_DEBUG_CORE("Mapping operation %s to %s",
+                                            operationIt.first.c_str(),
+                                            operationIt.second.GetString().c_str());
                     auto& [name, attributes] = m_operationMappings[operationIt.first];
                     name = operationIt.second.GetString();
                 }
@@ -422,10 +424,10 @@ public:
                     {
                         if (newAttrJs.IsString())
                         {
-                            SO_DEBUG_CORE("Mapping argument %s.%s to %s",
-                                          operation.c_str(),
-                                          oldAttr.c_str(),
-                                          newAttrJs.GetString().c_str());
+                            USD_OPTIMIZE_DEBUG_CORE("Mapping argument %s.%s to %s",
+                                                    operation.c_str(),
+                                                    oldAttr.c_str(),
+                                                    newAttrJs.GetString().c_str());
                             m_operationMappings[operation].attributes[oldAttr] = newAttrJs.GetString();
                         }
                     }
@@ -452,7 +454,7 @@ public:
         std::string pluginPath = libraryDir + "/" + "operations";
         pluginPath = TfNormPath(pluginPath);
 
-        SO_DEBUG_CORE("Internal operations path: %s", pluginPath.c_str());
+        USD_OPTIMIZE_DEBUG_CORE("Internal operations path: %s", pluginPath.c_str());
 
         if (TfIsDir(pluginPath, true))
         {
@@ -474,7 +476,8 @@ public:
             {
                 if (TfIsDir(path))
                 {
-                    SO_DEBUG_CORE("Loading plugins from environment environment variable path: %s", path.c_str());
+                    USD_OPTIMIZE_DEBUG_CORE("Loading plugins from environment environment variable path: %s",
+                                            path.c_str());
                     loadPluginsFromPath(path);
                 }
             }
@@ -548,11 +551,11 @@ public:
             }
             catch (const std::exception& e)
             {
-                SO_LOG_ERROR("Shutdown callback threw: %s", e.what());
+                USD_OPTIMIZE_LOG_ERROR("Shutdown callback threw: %s", e.what());
             }
             catch (...)
             {
-                SO_LOG_ERROR("Shutdown callback threw an unknown exception");
+                USD_OPTIMIZE_LOG_ERROR("Shutdown callback threw an unknown exception");
             }
         }
         m_shutdownCallbacks.clear();
@@ -620,7 +623,7 @@ public:
             auto findNameIt = opConfig.find("operation");
             if (findNameIt == opConfig.end())
             {
-                SO_LOG_WARN("Object is missing 'operation' key, ignoring");
+                USD_OPTIMIZE_LOG_WARN("Object is missing 'operation' key, ignoring");
                 continue;
             }
 
@@ -629,7 +632,7 @@ public:
             // getOperation handles mapping, but just in case it's totally bogus...
             if (!op)
             {
-                SO_LOG_WARN("Unknown operation: %s", findNameIt->second.GetString().c_str());
+                USD_OPTIMIZE_LOG_WARN("Unknown operation: %s", findNameIt->second.GetString().c_str());
                 continue;
             }
 
@@ -673,7 +676,7 @@ public:
         }
 
         ExecutionContext _context;
-        so_execution_context_copy(&_context, context);
+        usd_optimize_execution_context_copy(&_context, context);
 
         const JsArray& commands = document.GetJsArray();
 
@@ -752,26 +755,26 @@ public:
             _context.reportPath = nullptr;
         }
 
-        so_execution_context_free(&_context);
+        usd_optimize_execution_context_free(&_context);
 
         return results;
     }
 };
 
 
-JsObject SceneOptimizerCore::mapOperation(const std::string& name, const JsObject& config) const
+JsObject UsdOptimizeCore::mapOperation(const std::string& name, const JsObject& config) const
 {
     return pImpl->mapOperation(name, config);
 }
 
 
-JsArray SceneOptimizerCore::mapConfig(const JsArray& config) const
+JsArray UsdOptimizeCore::mapConfig(const JsArray& config) const
 {
     return pImpl->mapConfig(config);
 }
 
 
-SceneOptimizerCore::SceneOptimizerCore()
+UsdOptimizeCore::UsdOptimizeCore()
     : pImpl(new Impl())
 {
 
@@ -786,26 +789,26 @@ SceneOptimizerCore::SceneOptimizerCore()
 }
 
 
-SceneOptimizerCore::~SceneOptimizerCore()
+UsdOptimizeCore::~UsdOptimizeCore()
 {
     delete pImpl;
 }
 
 
-SceneOptimizerCore& SceneOptimizerCore::getInstance()
+UsdOptimizeCore& UsdOptimizeCore::getInstance()
 {
-    static SceneOptimizerCore instance;
+    static UsdOptimizeCore instance;
     return instance;
 }
 
 
-bool SceneOptimizerCore::isInitialized() const
+bool UsdOptimizeCore::isInitialized() const
 {
     return pImpl->m_initialized;
 }
 
 
-std::vector<std::string> SceneOptimizerCore::getOperations() const
+std::vector<std::string> UsdOptimizeCore::getOperations() const
 {
     std::vector<std::string> operationNames;
     operationNames.reserve(pImpl->m_operations.size());
@@ -816,70 +819,69 @@ std::vector<std::string> SceneOptimizerCore::getOperations() const
     return operationNames;
 }
 
-OperationUPtr SceneOptimizerCore::getOperation(const std::string& name) const
+OperationUPtr UsdOptimizeCore::getOperation(const std::string& name) const
 {
     return pImpl->getOperation(name);
 }
 
 
-void SceneOptimizerCore::registerOperation(SceneOptimizerOperationCreate creationFn,
-                                           SceneOptimizerOperationDestroy destructorFn)
+void UsdOptimizeCore::registerOperation(UsdOptimizeOperationCreate creationFn, UsdOptimizeOperationDestroy destructorFn)
 {
     pImpl->registerOperation(creationFn, destructorFn);
 }
 
 
-void SceneOptimizerCore::deregisterOperation(const std::string& name)
+void UsdOptimizeCore::deregisterOperation(const std::string& name)
 {
     pImpl->deregisterOperation(name);
 }
 
 
-void SceneOptimizerCore::loadPlugin(const std::string& libraryPath)
+void UsdOptimizeCore::loadPlugin(const std::string& libraryPath)
 {
     pImpl->loadPlugin(libraryPath);
 }
 
 
-void SceneOptimizerCore::loadPluginsFromPath(const std::string& path)
+void UsdOptimizeCore::loadPluginsFromPath(const std::string& path)
 {
     pImpl->loadPluginsFromPath(path);
 }
 
 
-void SceneOptimizerCore::loadPlugins()
+void UsdOptimizeCore::loadPlugins()
 {
     pImpl->loadPlugins();
 }
 
 
-void SceneOptimizerCore::registerShutdownCallback(std::function<void()> callback)
+void UsdOptimizeCore::registerShutdownCallback(std::function<void()> callback)
 {
     pImpl->registerShutdownCallback(std::move(callback));
 }
 
 
-void SceneOptimizerCore::runShutdownCallbacks()
+void UsdOptimizeCore::runShutdownCallbacks()
 {
     pImpl->runShutdownCallbacks();
 }
 
 
-OperationResult SceneOptimizerCore::executeOperation(const std::string& operationName,
-                                                     ExecutionContext* context,
-                                                     const std::string& args)
+OperationResult UsdOptimizeCore::executeOperation(const std::string& operationName,
+                                                  ExecutionContext* context,
+                                                  const std::string& args)
 {
     return pImpl->executeOperation(operationName, context, args);
 }
 
 
-std::vector<OperationResult> SceneOptimizerCore::executeConfig(ExecutionContext* context, const std::string& config)
+std::vector<OperationResult> UsdOptimizeCore::executeConfig(ExecutionContext* context, const std::string& config)
 {
     return pImpl->executeConfig(context, config);
 }
 
 
-carb::logging::ILogging* SceneOptimizerCore::getLoggingInterface() const
+carb::logging::ILogging* UsdOptimizeCore::getLoggingInterface() const
 {
     if (pImpl->m_ilogger == nullptr)
     {
@@ -890,10 +892,10 @@ carb::logging::ILogging* SceneOptimizerCore::getLoggingInterface() const
 }
 
 
-void SceneOptimizerCore::setLoggingInterface(carb::logging::ILogging* ilogging)
+void UsdOptimizeCore::setLoggingInterface(carb::logging::ILogging* ilogging)
 {
     pImpl->m_ilogger = ilogging;
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

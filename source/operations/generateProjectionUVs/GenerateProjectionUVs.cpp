@@ -4,10 +4,10 @@
 
 #include "GenerateProjectionUVs.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // USD
 #include <pxr/base/gf/transform.h>
@@ -27,10 +27,10 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 // Register plugin
-SO_PLUGIN_INIT(omni::scene::optimizer::GenerateProjectionUVsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::GenerateProjectionUVsOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // Constants
@@ -109,11 +109,11 @@ GenerateProjectionUVsOperation::GenerateProjectionUVsOperation()
 
 std::string GenerateProjectionUVsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion GenerateProjectionUVsOperation::getVersion() const
+UsdOptimizePluginVersion GenerateProjectionUVsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -850,7 +850,7 @@ OperationResult GenerateProjectionUVsOperation::executeImpl()
     // Early out if we have no valid prims to process
     if (validPrims.empty())
     {
-        SO_LOG_INFO("No prims to process");
+        USD_OPTIMIZE_LOG_INFO("No prims to process");
         return { true };
     }
 
@@ -863,7 +863,7 @@ OperationResult GenerateProjectionUVsOperation::executeImpl()
     // Verify the correct number of floats
     if (m_xformMatrixEntries.size() != 16)
     {
-        SO_LOG_ERROR("Invalid preprojection xform");
+        USD_OPTIMIZE_LOG_ERROR("Invalid preprojection xform");
         return { false };
     }
 
@@ -887,4 +887,4 @@ OperationResult GenerateProjectionUVsOperation::executeImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

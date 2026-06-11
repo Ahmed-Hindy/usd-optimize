@@ -9,12 +9,12 @@
 #include <OmniMeshOps/Primitive.h>
 #include <OmniMeshOps/usd/Mesh.h>
 
-// Scene Optimizer
-#include <omni/scene.optimizer/core/Defs.h>
-#include <omni/scene.optimizer/core/OmniOperation.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize
+#include <usd_optimize/core/Defs.h>
+#include <usd_optimize/core/OmniOperation.h>
+#include <usd_optimize/core/Utils.h>
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Override ProcessedData's writeToUsd function to create prototypes
@@ -209,7 +209,7 @@ private:
     const static inline PXR_NS::SdfPath s_prototypeRootPath = PXR_NS::SdfPath("/NV_SO_Mesh_Primitive_Prototypes");
 
     // Custom data key to store hash
-    const static inline PXR_NS::TfToken s_primHashToken = PXR_NS::TfToken("SO_Prim_Hash");
+    const static inline PXR_NS::TfToken s_primHashToken = PXR_NS::TfToken("USD_OPTIMIZE_Prim_Hash");
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

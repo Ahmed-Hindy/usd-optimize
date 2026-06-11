@@ -35,7 +35,7 @@ IndentFunctionDeclarationAfterType: false
 IndentWidth: 4
 SortIncludes: true
 IncludeCategories:
-  - Regex:           '"omni\/sceneoptimizer\/core\/(.*).h"'
+  - Regex:           '"usd_optimize\/core\/(.*).h"'
     Priority:        1
   - Regex:           '"(.*).h"'
     Priority:        2

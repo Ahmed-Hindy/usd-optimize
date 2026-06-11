@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/geometry/SpatialClustering.h"
+#include "usd_optimize/core/geometry/SpatialClustering.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Core.h"
-#include "omni/scene.optimizer/core/ResolveSdfPaths.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Core.h"
+#include "usd_optimize/core/ResolveSdfPaths.h"
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -23,7 +23,7 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -647,16 +647,27 @@ Argument& SpatialClustering::addAllowSingleMeshesArg(Operation* operation)
 }
 
 
-Argument& SpatialClustering::addSpatialModeArg(Operation* operation)
+Argument& SpatialClustering::addSpatialModeArg(Operation* operation, bool includeCoincidentBoundary)
 {
     Argument& arg = operation->addArgument("spatialMode",
                                            "Spatial Clustering Mode",
                                            kDisplayTypeEnum,
                                            "Enable spatial clustering of meshes by choosing a clustering method",
                                            m_spatialMode);
-    arg.setEnumValues<ClusterMode>({ { ClusterMode::eNone, "None" },
-                                     { ClusterMode::eBoundingBox, "Bounding Box" },
-                                     { ClusterMode::eVertexCount, "Vertex Count" } });
+
+    std::vector<std::pair<ClusterMode, std::string>> modes = {
+        { ClusterMode::eNone, "None" },
+        { ClusterMode::eBoundingBox, "Bounding Box" },
+        { ClusterMode::eVertexCount, "Vertex Count" },
+    };
+
+    // The coincident-boundary (shared-seam) mode is merge-only; only offer it where the caller opts in.
+    if (includeCoincidentBoundary)
+    {
+        modes.emplace_back(ClusterMode::eCoincidentBoundary, "Coincident Boundary Vertices");
+    }
+
+    arg.setEnumValues<ClusterMode>(modes);
     return arg;
 }
 
@@ -691,6 +702,32 @@ Argument& SpatialClustering::addSpatialVertexCountArg(Operation* operation, cons
                                            "Maximum number of vertices that to cluster together",
                                            m_spatialVertexCount);
     arg.setVisibleIf("spatialMode == 2").setEnableIf(enableIf);
+    return arg;
+}
+
+Argument& SpatialClustering::addBoundaryToleranceArg(Operation* operation, const std::string& enableIf)
+{
+    Argument& arg = operation->addArgument(
+        "boundaryTolerance",
+        "Boundary Tolerance",
+        kDisplayTypeFloat,
+        "Maximum distance, in world units, at which boundary-edge vertices are considered coincident when merging "
+        "meshes that share a seam",
+        m_boundaryTolerance);
+    arg.setMin(0.0).setVisibleIf("spatialMode == 3").setEnableIf(enableIf);
+    return arg;
+}
+
+Argument& SpatialClustering::addBoundaryMinSharedVerticesArg(Operation* operation, const std::string& enableIf)
+{
+    Argument& arg = operation->addArgument(
+        "boundaryMinSharedVertices",
+        "Minimum Shared Vertices",
+        kDisplayTypeInt,
+        "Minimum number of coincident boundary vertices two meshes must share to be merged as a shared seam. Higher "
+        "values require a longer shared boundary; the minimum of 2 avoids merging meshes that touch at a single point",
+        m_boundaryMinSharedVertices);
+    arg.setMin(1).setVisibleIf("spatialMode == 3").setEnableIf(enableIf);
     return arg;
 }
 
@@ -747,7 +784,7 @@ void SpatialClustering::clearBucketer()
 MergeBoundaryLookup SpatialClustering::discoverMergeBoundaries(const UsdStageWeakPtr& stage,
                                                                const std::vector<std::string>& primPaths)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|SpatialClustering|discoverMergeBoundaries");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|SpatialClustering|discoverMergeBoundaries");
 
     // the lookup table to build data into
     MergeBoundaryLookup lookup;
@@ -903,11 +940,25 @@ void SpatialClustering::bucket(const Operation* operation,
         // Use the spatial vertex count instead of the max size when clustering by vertex.
         // Note: this is primarily just to allow having separate arguments in the UI that are more descriptive,
         // without having to pass two all the way through since we can just re-use one depending on mode.
-        const double maxSize =
-            m_spatialMode == ClusterMode::eVertexCount ? (double)m_spatialVertexCount : m_spatialMaxSize;
+        // The max-size slot is overloaded per mode: vertex-count uses it as a vertex budget, and coincident-boundary
+        // uses it to carry the minimum number of shared boundary vertices required to connect two meshes.
+        double maxSize = m_spatialMaxSize;
+        if (m_spatialMode == ClusterMode::eVertexCount)
+        {
+            maxSize = (double)m_spatialVertexCount;
+        }
+        else if (m_spatialMode == ClusterMode::eCoincidentBoundary)
+        {
+            maxSize = (double)m_boundaryMinSharedVertices;
+        }
+
+        // For coincident-boundary mode the threshold slot carries the seam coincidence tolerance instead of a neighbor
+        // distance.
+        const double threshold =
+            m_spatialMode == ClusterMode::eCoincidentBoundary ? m_boundaryTolerance : m_spatialThreshold;
 
         // Spatial configuration
-        m_bucketer->SetSpatialArgs(m_spatialMode, m_spatialThreshold, maxSize);
+        m_bucketer->SetSpatialArgs(m_spatialMode, threshold, maxSize);
 
         // Configure the Bucketer to handle attributes in the way clustering expects.
         _populateMergeBucketerAttributes(m_bucketer, m_considerAllAttributes);
@@ -965,7 +1016,7 @@ void SpatialClustering::bucket(const Operation* operation,
             }
             else
             {
-                SO_LOG_WARN(
+                USD_OPTIMIZE_LOG_WARN(
                     "Cannot perform clustering on VirtualMesh at \"%s\" because the merge boundary was not discovered "
                     "during discoverMergeBoundaries ",
                     mesh.getSourcePath().GetAsString().c_str());
@@ -1227,4 +1278,4 @@ void SpatialClustering::clearCounters()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

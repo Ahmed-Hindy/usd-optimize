@@ -4,18 +4,18 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/UsdIncludes.h"
-#include "omni/scene.optimizer/core/geometry/VirtualMesh.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/UsdIncludes.h"
+#include "usd_optimize/core/geometry/VirtualMesh.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
 /// Helper object that can be used to process geometry in a USD stage for various configurable metrics and analysis
-class OMNI_SO_EXPORT GeometryProcessor
+class USD_OPTIMIZE_EXPORT GeometryProcessor
 {
 public:
     /// Constructor
@@ -96,4 +96,4 @@ private:
     void recordRtxMesh(const PXR_NS::SdfPath& primPath, size_t hash);
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

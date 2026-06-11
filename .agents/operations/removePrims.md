@@ -59,7 +59,7 @@ The operation handles two categories independently:
 ## Prerequisites & Workflows
 
 - Works standalone on any USD stage.
-- Supports analysis mode for Asset Validator integration.
+- Supports analysis mode for usd-validation-nvidia integration.
 - Common pipeline: `removePrims` → `pruneLeaves`. Removing prims often orphans their parent Xform/Scope groups, leaving empty hierarchy nodes. `pruneLeaves` cleans these up.
 
 ## Known Limitations

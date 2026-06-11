@@ -12,7 +12,7 @@ For per-operation parameters and tuning guidance, see the matching
 `.agents/operations/INVOCATION.md`. To execute a named pipeline, pass
 `--pipeline <name>` to the `run-operations` skill (or copy the JSON below).
 
-> **Scope.** This doc covers Scene Optimizer ops that operate on USD content
+> **Scope.** This doc covers Usd Optimize ops that operate on USD content
 > — geometry, materials, hierarchy, primvars, animation. It does **not**
 > cover render-side / runtime knobs (RTX flags, FSD renderer instancing,
 > viewport pacing). For authoring-side fixes that live outside Scene
@@ -35,8 +35,8 @@ The interpret report includes a per-rule fix tier (T1 = run the op, T2 =
 run + tune, T3 = analysis-only / manual) and the operation key for each
 firing rule. Those op keys are the inputs to the pipelines below.
 
-If the validator report shows mostly **base** rules and 0 Scene Optimizer
-issues, the asset likely has no `UsdGeomMesh` prims (mesh-only SO rules
+If the validator report shows mostly **base** rules and 0 Usd Optimize
+issues, the asset likely has no `UsdGeomMesh` prims (mesh-only Usd Optimize rules
 short-circuit via `REQUIRES_MESH`). The fix is upstream — see the
 *Upstream authoring* sidebar below.
 
@@ -203,7 +203,7 @@ Why this order:
 
 Load time is often dominated by **upstream authoring decisions** (text
 `.usda` vs binary `.usdc`, monolithic vs payloaded layout, instancing
-strategy). Scene Optimizer can't fix those; see the sidebar.
+strategy). Usd Optimize can't fix those; see the sidebar.
 
 ### Triangle / mesh count
 
@@ -352,11 +352,11 @@ produce visible quality regressions. Always run `meshCleanup` first.
 
 ---
 
-## Upstream authoring (when Scene Optimizer can't fix it)
+## Upstream authoring (when Usd Optimize can't fix it)
 
 Some performance issues are baked into the asset's authoring choices and
-can't be undone by Scene Optimizer ops. If validation finds nothing
-actionable on the SO side, look upstream:
+can't be undone by Usd Optimize ops. If validation finds nothing
+actionable on the Usd Optimize side, look upstream:
 
 | Symptom | Authoring fix |
 |---|---|
@@ -390,7 +390,7 @@ needle.
 
 The mapping from validator rules to fix operations is canonical in
 `.agents/skills/interpret-validators/SKILL.md` §Rule reference (search for
-`SceneOptimizer*Checker`). The pipelines above pull from that mapping; if
+`UsdOptimize*Checker`). The pipelines above pull from that mapping; if
 the two ever disagree, the interpret-validators reference wins.
 
 A condensed view of which ops resolve which families of validator

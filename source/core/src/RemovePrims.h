@@ -4,12 +4,12 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/UsdIncludes.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/UsdIncludes.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -24,7 +24,7 @@ enum class RemoveMethod
 };
 
 
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _deletePrims(const PXR_NS::UsdStageWeakPtr& usdStage,
                   const std::vector<PXR_NS::UsdPrim>& prims,
                   bool deactivate = true,
@@ -32,21 +32,21 @@ void _deletePrims(const PXR_NS::UsdStageWeakPtr& usdStage,
 
 
 /// Delete the specified prims.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _deletePrims(const PXR_NS::UsdStageWeakPtr& usdStage, const std::vector<std::string>& primPaths);
 
 
 /// Deactivate the specified prims.
 ///
 /// \param prims List of prims to set inactive.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _deactivatePrims(const std::vector<PXR_NS::UsdPrim>& prims);
 
 
 /// Hide the specified prims.
 ///
 /// \param prims List of prims to set not visible.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _hidePrims(const std::vector<PXR_NS::UsdPrim>& prims);
 
 
@@ -54,7 +54,7 @@ void _hidePrims(const std::vector<PXR_NS::UsdPrim>& prims);
 ///
 /// \param prims List of prims to set the attribute on
 /// \param hidden Whether the hidden attribute will be set to true or false
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _setAttributeOnPrims(const std::vector<PXR_NS::UsdPrim>& prims, bool hidden = true);
 
 
@@ -65,11 +65,11 @@ void _setAttributeOnPrims(const std::vector<PXR_NS::UsdPrim>& prims, bool hidden
 /// \param removePrims The prims to remove
 /// \param visiblePrims special argument that is only needed if RemoveMethod::eSetAttribute is used which specifies the
 ///                     prims that are visible so they can have their hidden attribute set to true.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _removePrims(RemoveMethod method,
                   const PXR_NS::UsdStageWeakPtr& usdStage,
                   const std::vector<PXR_NS::UsdPrim>& removePrims,
                   const std::vector<PXR_NS::UsdPrim>& visiblePrims = {});
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

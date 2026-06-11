@@ -16,6 +16,7 @@ MERGE_POINT_DEFAULT = 0  # Use pseudo root prim
 # Spatial Mode values
 SPATIAL_MODE_BOUNDING = 1
 SPATIAL_MODE_VERTEX = 2
+SPATIAL_MODE_COINCIDENT_BOUNDARY = 3
 
 # Default arguments for the command
 DEFAULT_ARGS = {
@@ -353,3 +354,103 @@ class Test_Operation_Merge_Spatial(Test_Operation):
 
         # asserts success of execution
         self.assertTrue(success)
+
+    async def test_coincident_boundary_shared_seam_merges_detached_stays(self):
+        """Meshes sharing coincident boundary vertices merge (transitively); a
+        detached mesh and a single-corner-touch mesh are left untouched."""
+
+        stage = self._open_stage("mergeCoincidentBoundary.usda")
+
+        merge_args = DEFAULT_ARGS.copy()
+        merge_args["spatialMode"] = SPATIAL_MODE_COINCIDENT_BOUNDARY
+        merge_args["boundaryTolerance"] = 1e-5
+
+        context = _get_context(stage, report=True)
+
+        # Quad_A, Quad_B, Quad_C, Quad_D, Quad_E
+        self.assertEqual(len(_get_meshes(stage)), 5)
+
+        self._execute_command(merge_args, context)
+        self.assertIsNotNone(context.reportPath)
+
+        # A, B, C collapse into one merged mesh; D (detached) and E (single shared vertex) remain -> 3 meshes total.
+        self.assertEqual(len(_get_meshes(stage)), 3)
+
+        # The transitive component A-B-C forms a single merged prim.
+        merged = _parse_report(context.reportPath)
+        self.assertEqual(len(merged.keys()), 1)
+        self.assertTrue(stage.GetPrimAtPath("/merged"))
+        self.assertListEqual(
+            sorted(merged["/merged"]),
+            ["/World/Quad_A", "/World/Quad_B", "/World/Quad_C"],
+        )
+
+        # Merged source meshes are gone; the detached and single-corner-touch meshes survive.
+        for source in merged["/merged"]:
+            self.assertFalse(stage.GetPrimAtPath(source).IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/World/Quad_D").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/World/Quad_E").IsValid())
+
+    async def test_coincident_boundary_min_shared_vertices_of_one_merges_corner_touch(self):
+        """Lowering the minimum shared vertex count to 1 pulls a mesh that only
+        touches at a single corner vertex into the seam component."""
+
+        stage = self._open_stage("mergeCoincidentBoundary.usda")
+
+        merge_args = DEFAULT_ARGS.copy()
+        merge_args["spatialMode"] = SPATIAL_MODE_COINCIDENT_BOUNDARY
+        merge_args["boundaryTolerance"] = 1e-5
+        merge_args["boundaryMinSharedVertices"] = 1
+
+        context = _get_context(stage, report=True)
+        self.assertEqual(len(_get_meshes(stage)), 5)
+
+        self._execute_command(merge_args, context)
+
+        # A-B-C-E now form one component (E shares the single corner vertex with A); only D remains -> 2 meshes.
+        self.assertEqual(len(_get_meshes(stage)), 2)
+        merged = _parse_report(context.reportPath)
+        self.assertEqual(len(merged.keys()), 1)
+        self.assertListEqual(
+            sorted(merged["/merged"]),
+            ["/World/Quad_A", "/World/Quad_B", "/World/Quad_C", "/World/Quad_E"],
+        )
+        self.assertTrue(stage.GetPrimAtPath("/World/Quad_D").IsValid())
+
+    async def test_coincident_boundary_tolerance_too_small_prevents_merge(self):
+        """A non-positive coincidence tolerance finds no shared seams, so
+        nothing merges."""
+
+        stage = self._open_stage("mergeCoincidentBoundary.usda")
+
+        merge_args = DEFAULT_ARGS.copy()
+        merge_args["spatialMode"] = SPATIAL_MODE_COINCIDENT_BOUNDARY
+        # Non-positive tolerance is meaningless for coincidence and must merge nothing.
+        merge_args["boundaryTolerance"] = 0.0
+
+        context = _get_context(stage, report=True)
+        self.assertEqual(len(_get_meshes(stage)), 5)
+
+        self._execute_command(merge_args, context)
+
+        # No seams detected -> all five meshes remain, none merged.
+        self.assertEqual(len(_get_meshes(stage)), 5)
+        self.assertFalse(stage.GetPrimAtPath("/merged").IsValid())
+
+    async def test_coincident_boundary_consider_materials_still_applies(self):
+        """The seam constraint composes with normal bucketing: only meshes that
+        share a seam are eligible, and that subset still merges by default."""
+
+        stage = self._open_stage("mergeCoincidentBoundary.usda")
+
+        merge_args = DEFAULT_ARGS.copy()
+        merge_args["spatialMode"] = SPATIAL_MODE_COINCIDENT_BOUNDARY
+        merge_args["boundaryTolerance"] = 1e-5
+        merge_args["considerMaterials"] = True
+
+        context = _get_context(stage, report=True)
+        self._execute_command(merge_args, context)
+
+        # No materials are authored, so A-B-C still merge into one prim; D and E stay -> 3 meshes.
+        self.assertEqual(len(_get_meshes(stage)), 3)
+        self.assertTrue(stage.GetPrimAtPath("/World/Quad_D").IsValid())

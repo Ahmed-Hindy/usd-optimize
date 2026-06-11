@@ -3,7 +3,7 @@
 #
 
 
-from omni.scene.optimizer.core.operation import Operation
+from usd_optimize.core.operation import Operation
 
 
 class NoVersionPythonOperation(Operation):
@@ -16,16 +16,16 @@ class NoVersionPythonOperation(Operation):
 
     @property
     def author(self):
-        return "Scene Optimizer Unit Test"
+        return "Usd Optimize Unit Test"
 
     def execute(self, args):
         return True
 
 
 #####################################
-# Register Scene Optimizer Plugin
+# Register Usd Optimize Plugin
 #####################################
 
 
-def sceneOptimizerPluginInit():
+def usdOptimizePluginInit():
     return NoVersionPythonOperation()

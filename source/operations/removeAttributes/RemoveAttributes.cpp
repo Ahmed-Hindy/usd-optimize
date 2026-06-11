@@ -3,10 +3,10 @@
 //
 #include "RemoveAttributes.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -23,10 +23,10 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 // Register plugin
-SO_PLUGIN_INIT(omni::scene::optimizer::RemoveAttributesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::RemoveAttributesOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -53,11 +53,11 @@ RemoveAttributesOperation::RemoveAttributesOperation()
 
 std::string RemoveAttributesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion RemoveAttributesOperation::getVersion() const
+UsdOptimizePluginVersion RemoveAttributesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -78,7 +78,7 @@ std::string RemoveAttributesOperation::getDisplayGroup() const
 
 OperationResult RemoveAttributesOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|RemoveAttributes|Execute");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|RemoveAttributes|Execute");
 
     // Create a set of the attribute names for faster lookup, and extract namespaces
     // to a separate vector. Use a hash set since TfToken has a free O(1) hash.
@@ -102,7 +102,7 @@ OperationResult RemoveAttributesOperation::executeImpl()
             }
             else
             {
-                SO_LOG_WARN("Invalid attribute name: %s", value.c_str());
+                USD_OPTIMIZE_LOG_WARN("Invalid attribute name: %s", value.c_str());
             }
         }
     }
@@ -110,7 +110,7 @@ OperationResult RemoveAttributesOperation::executeImpl()
     // Verify there is something to do
     if (attributeNames.empty() && namespaces.empty())
     {
-        SO_LOG_WARN("Operation called with no valid attributes or namespaces");
+        USD_OPTIMIZE_LOG_WARN("Operation called with no valid attributes or namespaces");
         return { false };
     }
 
@@ -168,7 +168,7 @@ OperationResult RemoveAttributesOperation::executeImpl()
                     return;
                 }
 
-                SO_LOG_VERBOSE("Matched primvar indices %s", indicesAttr.GetPath().GetAsString().c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("Matched primvar indices %s", indicesAttr.GetPath().GetAsString().c_str());
                 _toRemove.push_back(indicesAttr);
             };
 
@@ -182,7 +182,7 @@ OperationResult RemoveAttributesOperation::executeImpl()
                     // Check explicit attributes
                     if (attributeNames.find(attribute.GetName()) != attributeNames.end())
                     {
-                        SO_LOG_VERBOSE("Matched attribute %s", attribute.GetPath().GetAsString().c_str());
+                        USD_OPTIMIZE_LOG_VERBOSE("Matched attribute %s", attribute.GetPath().GetAsString().c_str());
                         _toRemove.push_back(attribute);
 
                         // If the attribute is a primvar then make sure we also remove indices
@@ -202,7 +202,7 @@ OperationResult RemoveAttributesOperation::executeImpl()
                                         [&](const std::string& _namespace)
                                         { return TfStringStartsWith(attribute.GetName(), _namespace); }))
                         {
-                            SO_LOG_VERBOSE("Matched namespace %s", attribute.GetPath().GetAsString().c_str());
+                            USD_OPTIMIZE_LOG_VERBOSE("Matched namespace %s", attribute.GetPath().GetAsString().c_str());
                             _toRemove.push_back(attribute);
                         }
                     }
@@ -222,7 +222,7 @@ OperationResult RemoveAttributesOperation::executeImpl()
         // Log output
         std::string operation = m_mode == Mode::eRemove ? "Removing" : "Blocking";
         std::string suffix = toRemove.size() == 1 ? "" : "s";
-        SO_LOG_INFO("%s %lu attribute%s", operation.c_str(), toRemove.size(), suffix.c_str());
+        USD_OPTIMIZE_LOG_INFO("%s %lu attribute%s", operation.c_str(), toRemove.size(), suffix.c_str());
 
         SdfChangeBlock _changeBlock;
 
@@ -241,11 +241,11 @@ OperationResult RemoveAttributesOperation::executeImpl()
     }
     else
     {
-        SO_LOG_INFO("Found no attributes to process");
+        USD_OPTIMIZE_LOG_INFO("Found no attributes to process");
     }
 
     return { true };
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

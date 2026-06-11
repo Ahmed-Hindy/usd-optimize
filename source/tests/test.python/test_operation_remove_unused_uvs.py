@@ -107,7 +107,6 @@ class Test_Operation_Remove_Unused_UVs(Test_Operation):
         """Test analysis mode"""
 
         self.context.analysisMode = 1
-        self.context.verbose = 1
         success, result = self._execute_command(self.args, context=self.context)
 
         self.assertTrue(success)
@@ -129,7 +128,6 @@ class Test_Operation_Remove_Unused_UVs(Test_Operation):
         self.args["paths"] = ["/World/NoPrim"]
 
         self.context.analysisMode = 1
-        self.context.verbose = 1
         success, result = self._execute_command(self.args, context=self.context)
 
         self.assertTrue(success)

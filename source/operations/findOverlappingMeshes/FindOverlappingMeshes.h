@@ -9,13 +9,13 @@
 // Mesh Tools
 #include <MeshTools/ClashDetector.h>
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/UsdIncludes.h>
+// Usd Optimize Core
+#include <usd_optimize/core/UsdIncludes.h>
 
 // C++
 #include <memory>
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 template <typename A, typename B>
@@ -52,7 +52,7 @@ public:
     void clear();
 
     /// Eagerly drop the underlying ClashDetector and any CUDA buffers it owns.
-    /// Intended to be invoked via SceneOptimizerCore's shutdown-callback
+    /// Intended to be invoked via UsdOptimizeCore's shutdown-callback
     /// queue (which the Python binding ties to \p Py_AtExit) so the CUDA
     /// driver is still alive when \p cudaFree runs. Avoids the
     /// static-destructor-order crash where the ClashDetector destructor
@@ -137,4 +137,4 @@ private:
     mutable std::mutex m_processMutex;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

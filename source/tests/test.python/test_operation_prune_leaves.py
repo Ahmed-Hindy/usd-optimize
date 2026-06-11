@@ -3,8 +3,8 @@
 #
 
 
-from omni.scene.optimizer.core import SceneOptimizerCore
 from pxr import Usd, UsdGeom
+from usd_optimize.core import UsdOptimizeCore
 
 from .test_utils import Test_Operation, _get_context
 
@@ -29,7 +29,7 @@ class Test_Operation_Prune_Leaves(Test_Operation):
         print("Stats Before:")
         context = _get_context(stage)
 
-        success, _, _ = SceneOptimizerCore.getInstance().executeOperation("printStats", context, {})
+        success, _, _ = UsdOptimizeCore.getInstance().executeOperation("printStats", context, {})
         self.assertTrue(success)
 
         # Test existing number of leaf grouping prims
@@ -162,7 +162,7 @@ class Test_Operation_Prune_Leaves_Command(Test_Operation):
 
         # Get args and execute command
         # Custom execution context
-        context = _get_context(stage, verbose=True)
+        context = _get_context(stage)
         context.debug = 1
 
         # Use "deactivate" to test that works
@@ -225,3 +225,155 @@ class Test_Operation_Prune_Leaves_Command(Test_Operation):
 
         # Assert the analysis (straight list of prims) matches the expected result.
         self.assertEqual(analysis, expected)
+
+    async def test_PruneLeaves_unloaded_payload(self):
+        """A leaf grouping prim with an unloaded payload must not be pruned.
+
+        When a payload is unloaded the prim has no composed children and would otherwise
+        look like an empty leaf, but it may bring in meaningful geometry once loaded.
+        """
+        stage = self._open_stage_unloaded("pruneLeavesUnloadedPayload.usda")
+
+        # Sanity check the fixture: the payload prims are present but unloaded, so they
+        # currently have no children (and would naively look like empty leaves).
+        payload_leaf = stage.GetPrimAtPath("/World/PayloadLeaf")
+        self.assertTrue(payload_leaf)
+        self.assertTrue(payload_leaf.HasAuthoredPayloads())
+        self.assertFalse(payload_leaf.IsLoaded())
+        self.assertEqual(len(payload_leaf.GetChildren()), 0)
+
+        # First confirm analysis only flags the genuinely empty leaf, not the payload prims.
+        context = _get_context(stage, analysis=True)
+        success, result = self._execute_command({}, context)
+        self.assertTrue(success)
+        self.assertTrue(result[0])
+        self.assertEqual(result[2]["analysis"], ["/World/EmptyLeaf"])
+
+        # Now actually prune (delete mode; eDelete == 1).
+        stage = self._open_stage_unloaded("pruneLeavesUnloadedPayload.usda")
+        context = _get_context(stage)
+        self._execute_command({"paths": [], "pruneMode": 1}, context)
+
+        # The genuinely empty leaf is gone.
+        self.assertFalse(stage.GetPrimAtPath("/World/EmptyLeaf"))
+
+        # The leaf carrying an unloaded payload is kept...
+        self.assertTrue(stage.GetPrimAtPath("/World/PayloadLeaf"))
+        # ...as is the grouping prim whose only child is such a payload leaf.
+        self.assertTrue(stage.GetPrimAtPath("/World/ParentOfPayloadLeaf"))
+        self.assertTrue(stage.GetPrimAtPath("/World/ParentOfPayloadLeaf/PayloadLeaf"))
+
+        # A prim with an unloaded payload AND a locally-authored empty child: neither the prim nor
+        # its local child may be pruned. We must not descend into an unloaded-payload subtree, even
+        # though the local child looks like an empty leaf in isolation.
+        self.assertTrue(stage.GetPrimAtPath("/World/PayloadWithLocalChild"))
+        self.assertTrue(stage.GetPrimAtPath("/World/PayloadWithLocalChild/LocalEmpty"))
+
+        # Once the payload is loaded its real geometry is visible, confirming the prim was
+        # never an empty container in the first place.
+        payload_leaf = stage.GetPrimAtPath("/World/PayloadLeaf")
+        payload_leaf.Load()
+        self.assertTrue(payload_leaf.IsLoaded())
+        self.assertTrue(stage.GetPrimAtPath("/World/PayloadLeaf/Cube_01"))
+
+    async def test_PruneLeaves_empty_references_metadata(self):
+        """Authored-but-empty references metadata must not trigger atomic reference handling.
+
+        A prim can have an authored ``references`` field that composes to no actual arc (e.g. a
+        deleted or empty list op). Such a prim must be treated as a normal prim, not atomically as
+        a reference, so empty leaves inside its subtree are still pruned.
+        """
+        stage = self._open_stage("pruneLeavesEmptyReferences.usda")
+
+        prim = stage.GetPrimAtPath("/World/EmptyRefMixed")
+        self.assertTrue(prim)
+        # Sanity: the references field IS authored (so the cheap HasAuthoredReferences() check would
+        # misclassify this as a reference), even though no reference arc actually composes in.
+        self.assertTrue(prim.HasAuthoredReferences())
+
+        context = _get_context(stage)
+        self._execute_command({"paths": [], "pruneMode": 1}, context)
+
+        # The inner empty leaf is pruned, proving the prim was treated as a normal (non-atomic) prim...
+        self.assertFalse(stage.GetPrimAtPath("/World/EmptyRefMixed/InnerEmpty"))
+        # ...while the prim itself and its real child are kept.
+        self.assertTrue(stage.GetPrimAtPath("/World/EmptyRefMixed"))
+        self.assertTrue(stage.GetPrimAtPath("/World/EmptyRefMixed/RealCube"))
+
+    async def test_PruneLeaves_ancestral_reference(self):
+        """A prim that only carries an ancestral reference arc must not be treated as a reference.
+
+        ``/World/Ref`` directly references content; its child ``Sub`` therefore has only an ancestral
+        reference arc. Searching from ``/World/Ref`` must descend into ``Sub`` as a normal prim and
+        find the locally-authored ``LocalEmpty`` leaf. If ancestral arcs were counted as references,
+        ``Sub`` would be handled atomically and the leaf would be missed.
+        """
+        stage = self._open_stage("pruneLeavesAncestralRef.usda")
+
+        sub = stage.GetPrimAtPath("/World/Ref/Sub")
+        self.assertTrue(sub)
+        # Sub composes a reference arc (ancestral, from /World/Ref) but does not author one itself.
+        self.assertFalse(sub.HasAuthoredReferences())
+
+        # Analysis from the reference root avoids the messy semantics of deleting inside a reference
+        # while still exercising the classification of Sub.
+        context = _get_context(stage, analysis=True)
+        success, result = self._execute_command({"paths": ["/World/Ref"]}, context)
+        self.assertTrue(success)
+        self.assertTrue(result[0])
+        self.assertEqual(result[2]["analysis"], ["/World/Ref/Sub/LocalEmpty"])
+
+    async def test_PruneLeaves_prune_unloaded_payload_when_disabled(self):
+        """With preserveUnloadedPayloads=False, a leaf with an unloaded payload is pruned anyway."""
+        stage = self._open_stage_unloaded("pruneLeavesUnloadedPayload.usda")
+
+        payload_leaf = stage.GetPrimAtPath("/World/PayloadLeaf")
+        self.assertTrue(payload_leaf)
+        self.assertFalse(payload_leaf.IsLoaded())
+
+        context = _get_context(stage)
+        self._execute_command({"paths": [], "pruneMode": 1, "preserveUnloadedPayloads": False}, context)
+
+        # Opting out of the protection: the unloaded-payload leaves are now pruned like any empty leaf.
+        self.assertFalse(stage.GetPrimAtPath("/World/EmptyLeaf"))
+        self.assertFalse(stage.GetPrimAtPath("/World/PayloadLeaf"))
+        self.assertFalse(stage.GetPrimAtPath("/World/ParentOfPayloadLeaf"))
+        self.assertFalse(stage.GetPrimAtPath("/World/PayloadWithLocalChild"))
+
+    async def test_PruneLeaves_filter_inactive_inside_reference(self):
+        """filterInactive must be honoured inside a referenced subtree, not just at the top level.
+
+        ``/World/Ref`` references content whose only child is an inactive Gprim. The reference-internal
+        recursion must use the same predicate as the outer traversal, so the inactive prim counts as
+        content (filterInactive=False) or is filtered out (filterInactive=True) consistently.
+        """
+        # filterInactive=False (default): the inactive cube is real content, so Ref is not an empty leaf.
+        stage = self._open_stage("pruneLeavesInactiveRef.usda")
+        context = _get_context(stage, analysis=True)
+        success, result = self._execute_command({"paths": [], "filterInactive": False}, context)
+        self.assertTrue(success)
+        self.assertTrue(result[0])
+        self.assertEqual(result[2]["analysis"], [])
+
+        # filterInactive=True: the inactive cube is filtered out, so Ref becomes an empty leaf.
+        stage = self._open_stage("pruneLeavesInactiveRef.usda")
+        context = _get_context(stage, analysis=True)
+        success, result = self._execute_command({"paths": [], "filterInactive": True}, context)
+        self.assertTrue(success)
+        self.assertTrue(result[0])
+        self.assertEqual(result[2]["analysis"], ["/World/Ref"])
+
+    async def test_PruneLeaves_ignore_mode_errors_outside_analysis(self):
+        """pruneMode=Ignore (0) removes nothing, so it errors outside analysis mode but is moot within it."""
+        # Outside analysis mode: doing nothing is pointless work, so the operation fails.
+        stage = self._open_stage("pruneLeaves.usda")
+        context = _get_context(stage)
+        _, result = self._execute_command({"pruneMode": 0}, context)
+        self.assertFalse(result[0])
+
+        # In analysis mode the removal method is irrelevant - leaves are reported regardless - so it succeeds.
+        stage = self._open_stage("pruneLeaves.usda")
+        context = _get_context(stage, analysis=True)
+        _, result = self._execute_command({"pruneMode": 0}, context)
+        self.assertTrue(result[0])
+        self.assertTrue("analysis" in result[2])

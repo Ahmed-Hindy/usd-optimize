@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/ParseJson.h"
+#include "usd_optimize/core/ParseJson.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Core.h"
-#include "omni/scene.optimizer/core/Log.h"
-#include "omni/scene.optimizer/core/Operation.h"
-#include "omni/scene.optimizer/core/Utils.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Core.h"
+#include "usd_optimize/core/Log.h"
+#include "usd_optimize/core/Operation.h"
+#include "usd_optimize/core/Utils.h"
 
 // USD
 #include <pxr/base/js/json.h>
@@ -21,7 +21,7 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -61,14 +61,14 @@ bool _parseJson(const UsdStageWeakPtr& usdStage, const std::string& str, Executi
     // Check for any useful parsing error that could be reported back
     if (!error.reason.empty())
     {
-        SO_LOG_WARN("Error parsing JSON: %s at line %d, col %d", error.reason.c_str(), error.line, error.column);
+        USD_OPTIMIZE_LOG_WARN("Error parsing JSON: %s at line %d, col %d", error.reason.c_str(), error.line, error.column);
         return false;
     }
 
     // Check at this point that we have a valid document
     if (!document)
     {
-        SO_LOG_WARN("Could not read JSON: %s", str.c_str());
+        USD_OPTIMIZE_LOG_WARN("Could not read JSON: %s", str.c_str());
         return false;
     }
 
@@ -82,12 +82,12 @@ bool _parseJson(const UsdStageWeakPtr& usdStage, const JsValue& document, Execut
     // Always make a new context. We might end up changing it as the commands are parsed from
     // a config, and we don't want to modify the incoming one.
     ExecutionContext _context;
-    so_execution_context_copy(&_context, context);
+    usd_optimize_execution_context_copy(&_context, context);
 
     // Exit if the document is not an array of commands.
     if (!document.IsArray())
     {
-        SO_LOG_WARN("JSON commands is not an array");
+        USD_OPTIMIZE_LOG_WARN("JSON commands is not an array");
         return false;
     }
 
@@ -118,7 +118,7 @@ bool _parseJson(const UsdStageWeakPtr& usdStage, const JsValue& document, Execut
 
         if (!command.IsObject())
         {
-            SO_LOG_WARN("Not an object: %s", JsWriteToString(command).c_str());
+            USD_OPTIMIZE_LOG_WARN("Not an object: %s", JsWriteToString(command).c_str());
             return false;
         }
 
@@ -128,7 +128,7 @@ bool _parseJson(const UsdStageWeakPtr& usdStage, const JsValue& document, Execut
         auto operationItr = JsFindValue(_command, "operation");
         if (!operationItr || !operationItr->IsString())
         {
-            SO_LOG_WARN("Invalid or missing operation name: %s", JsWriteToString(command).c_str());
+            USD_OPTIMIZE_LOG_WARN("Invalid or missing operation name: %s", JsWriteToString(command).c_str());
             return false;
         }
 
@@ -147,14 +147,14 @@ bool _parseJson(const UsdStageWeakPtr& usdStage, const JsValue& document, Execut
         }
 
         // Found an operation name. Look up the plugin
-        auto operation = SceneOptimizerCore::getInstance().getOperation(operationName);
+        auto operation = UsdOptimizeCore::getInstance().getOperation(operationName);
         if (operation == nullptr)
         {
-            SO_LOG_WARN("Could not find operation %s", operationName.c_str());
+            USD_OPTIMIZE_LOG_WARN("Could not find operation %s", operationName.c_str());
             continue;
         }
 
-        const JsObject mappedCommand = SceneOptimizerCore::getInstance().mapOperation(operation->getName(), _command);
+        const JsObject mappedCommand = UsdOptimizeCore::getInstance().mapOperation(operation->getName(), _command);
 
         // Create a scoped timer and run the operation.
         // At this point we only need to pass the arguments on and let the operation class handle processing
@@ -184,12 +184,12 @@ bool _parseJson(const UsdStageWeakPtr& usdStage, const JsValue& document, Execut
             }
 
             ossErr << " - aborting";
-            SO_LOG_WARN("%s", ossErr.str().c_str());
+            USD_OPTIMIZE_LOG_WARN("%s", ossErr.str().c_str());
 
             rc = false;
         }
 
-        so_operation_result_free(&result);
+        usd_optimize_operation_result_free(&result);
 
         // After cleaning up, break if we set rc to false, to not process any other operations.
         // Then the rest of the cleanup can happen as usual.
@@ -220,9 +220,9 @@ bool _parseJson(const UsdStageWeakPtr& usdStage, const JsValue& document, Execut
     }
 
     // Clean up the context
-    so_execution_context_free(&_context);
+    usd_optimize_execution_context_free(&_context);
 
     return rc;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

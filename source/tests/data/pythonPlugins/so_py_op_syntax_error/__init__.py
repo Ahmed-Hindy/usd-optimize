@@ -8,7 +8,7 @@
 # without an express license agreement from NVIDIA CORPORATION or
 # its affiliates is strictly prohibited.
 
-from omni.scene.optimizer.core.operation import Operation
+from usd_optimize.core.operation import Operation
 
 this is a syntax error
 
@@ -23,7 +23,7 @@ class SyntaxErrorPythonOperation(Operation):
 
     @property
     def author(self):
-        return "Scene Optimizer Unit Test"
+        return "Usd Optimize Unit Test"
 
     @property
     def version(self):
@@ -34,9 +34,9 @@ class SyntaxErrorPythonOperation(Operation):
 
 
 #####################################
-# Register Scene Optimizer Plugin
+# Register Usd Optimize Plugin
 #####################################
 
 
-def sceneOptimizerPluginInit():
+def usdOptimizePluginInit():
     return SyntaxErrorPythonOperation()

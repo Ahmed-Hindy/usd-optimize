@@ -6,7 +6,7 @@ description: "Cross-skill index: when to use each skill, composition, and cross-
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# Scene Optimizer skills index
+# Usd Optimize skills index
 
 Each `<name>/SKILL.md` is a self-contained workflow doc. **Always read past
 the first ~50 lines** — load-bearing details (REQUIRES_MESH, base-rule
@@ -22,7 +22,7 @@ directly.
 
 | Skill | Use when |
 |---|---|
-| [`build`](build/SKILL.md) | Building Scene Optimizer from source via `repo.sh`. Required before running validators / operations against a dev tree. |
+| [`build`](build/SKILL.md) | Building Usd Optimize from source via `repo.sh`. Required before running validators / operations against a dev tree. |
 | [`prebuilt-package`](prebuilt-package/SKILL.md) | Installing a published binary drop (no source, no `repo.sh`). |
 | [`testing`](testing/SKILL.md) | Running the `cpp` / `python` test suites. |
 | [`validators`](validators/SKILL.md) | **Reference doc** for validator infrastructure — programmatic API, REQUIRES_MESH cache, entry-point allow-list, CLI gotchas, `libusd` alignment. Read when the day-to-day skills (`run-validators` / `interpret-validators`) point you here. |
@@ -71,7 +71,7 @@ For per-operation parameter guides, see [`.agents/operations/`](../operations/).
 - **`interpret-validators` → `validators`** for CSV schema, family classification.
 - **`interpret-validators` → `tune-parameters`** when a T2 rule needs iteration.
 - **`interpret-validators` → `run-operations`** when the user asks "apply the recommended fixes".
-- **`interpret-validators` → `.agents/operations/INVOCATION.md`** for the canonical Python invocation snippet (replaces the older hallucinated `SceneOptimizer.run_operation` signature).
+- **`interpret-validators` → `.agents/operations/INVOCATION.md`** for the canonical Python invocation snippet (replaces the older hallucinated `UsdOptimize.run_operation` signature).
 - **`run-operations` → `.agents/operations/PIPELINES.md`** for named-pipeline definitions.
 - **`run-operations` → `.agents/operations/INVOCATION.md`** for the Python API surface.
 - **`tune-parameters` → `.agents/operations/<key>.md`** as the per-operation source of truth.

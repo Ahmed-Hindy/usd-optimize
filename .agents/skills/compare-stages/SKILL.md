@@ -194,8 +194,8 @@ Present the per-rule delta:
 ```text
 | Rule                              | Before | After | Delta |
 |-----------------------------------|--------|-------|-------|
-| SceneOptimizerDuplicateGeometry   |    120 |     0 |  -120 |
-| SceneOptimizerColocatedVertices   |     45 |     0 |   -45 |
+| UsdOptimizeDuplicateGeometry   |    120 |     0 |  -120 |
+| UsdOptimizeColocatedVertices   |     45 |     0 |   -45 |
 | ...                               |        |       |       |
 ```
 
@@ -275,6 +275,6 @@ to attribute a regression to a specific operation.
 | `Failed to open: <path>` in the JSON output | The path doesn't exist or isn't a valid USD layer. | Verify the path; check the file extension is `.usd*`. |
 | Validator diff says "no saved artifacts" | One or both stages haven't been validated yet. | Run `run-validators` on each stage first to produce `summary.json`. |
 | Counts identical despite an edit | Edit was authored on a sublayer the open call doesn't see. | Open the asset with the same layer-stack / session that produced the edit. |
-| `metersPerUnit` or `upAxis` flagged as changed | An operation rewrote stage metadata it shouldn't have. | Check the pipeline — most SO ops never touch stage metadata. Surface as a warning. |
+| `metersPerUnit` or `upAxis` flagged as changed | An operation rewrote stage metadata it shouldn't have. | Check the pipeline — most Usd Optimize ops never touch stage metadata. Surface as a warning. |
 | Prim-diff returns thousands of entries | Edit was a wholesale tree rebuild (e.g. flatten). | Switch to summary-level reporting; ask the user if they want a specific subtree compared. |
 

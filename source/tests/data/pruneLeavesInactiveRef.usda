@@ -1,0 +1,21 @@
+#usda 1.0
+
+def Xform "World"
+{
+    # "Ref" references content whose only child is an inactive Gprim. When this reference is
+    # encountered as a child during traversal, the reference-internal recursion must use the same
+    # predicate as the rest of the traversal so filterInactive is honoured inside it:
+    #   - filterInactive=False (default): the inactive cube counts as content, so Ref is NOT a leaf.
+    #   - filterInactive=True: the inactive cube is filtered out, so Ref becomes an empty leaf.
+    def Xform "Ref" (
+        prepend references = @./pruneLeavesInactiveRefContent.usda@</Root>
+    )
+    {
+    }
+
+    # Real geometry so that "World" itself is never an empty leaf, keeping the result focused on Ref.
+    def Cube "Keeper"
+    {
+        double size = 10
+    }
+}

@@ -3,8 +3,8 @@
 #
 
 
-from omni.scene.optimizer.core import SceneOptimizerCore
 from pxr import Usd
+from usd_optimize.core import UsdOptimizeCore
 
 from .scripts import standalone
 from .test_utils import Test_Operation, _get_context
@@ -369,7 +369,7 @@ class Test_Operation_OptimizeTimeSamples(Test_Operation):
         print("Stats Before:")
         context = _get_context(stage)
 
-        success, _, _ = SceneOptimizerCore.getInstance().executeOperation("printStats", context, {})
+        success, _, _ = UsdOptimizeCore.getInstance().executeOperation("printStats", context, {})
         self.assertTrue(success)
 
         prim = stage.GetPrimAtPath("/CubeHalf")

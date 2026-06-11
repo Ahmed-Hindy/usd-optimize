@@ -4,37 +4,37 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
 
 // Carbonite
 #include <carb/logging/Log.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
-/// Free function entry point for the SO_LOG_X macros.
+/// Free function entry point for the USD_OPTIMIZE_LOG_X macros.
 ///
 /// This is intentionally a free function (rather than a static member of Operation) so that
-/// lightweight headers such as CudaUtils.h can use the SO_LOG macros without pulling in the
+/// lightweight headers such as CudaUtils.h can use the USD_OPTIMIZE_LOG macros without pulling in the
 /// full Operation / USD dependency chain.
 ///
 /// @param level The level. See carb::logging::kLevelVerbose etc.
 /// @param fmt The format string
-OMNI_SO_EXPORT void soLog(int32_t level, const char* fmt, ...);
+USD_OPTIMIZE_EXPORT void usdOptimizeLog(int32_t level, const char* fmt, ...);
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize
 
-#define SO_LOG(level, fmt, ...) omni::scene::optimizer::soLog(level, fmt, ##__VA_ARGS__);
+#define USD_OPTIMIZE_LOG(level, fmt, ...) usd_optimize::usdOptimizeLog(level, fmt, ##__VA_ARGS__);
 
-#define SO_LOG_VERBOSE(fmt, ...) SO_LOG(carb::logging::kLevelVerbose, fmt, ##__VA_ARGS__)
-#define SO_LOG_INFO(fmt, ...) SO_LOG(carb::logging::kLevelInfo, fmt, ##__VA_ARGS__)
-#define SO_LOG_WARN(fmt, ...) SO_LOG(carb::logging::kLevelWarn, fmt, ##__VA_ARGS__)
-#define SO_LOG_ERROR(fmt, ...) SO_LOG(carb::logging::kLevelError, fmt, ##__VA_ARGS__)
-#define SO_LOG_FATAL(fmt, ...) SO_LOG(carb::logging::kLevelFatal, fmt, ##__VA_ARGS__)
+#define USD_OPTIMIZE_LOG_VERBOSE(fmt, ...) USD_OPTIMIZE_LOG(carb::logging::kLevelVerbose, fmt, ##__VA_ARGS__)
+#define USD_OPTIMIZE_LOG_INFO(fmt, ...) USD_OPTIMIZE_LOG(carb::logging::kLevelInfo, fmt, ##__VA_ARGS__)
+#define USD_OPTIMIZE_LOG_WARN(fmt, ...) USD_OPTIMIZE_LOG(carb::logging::kLevelWarn, fmt, ##__VA_ARGS__)
+#define USD_OPTIMIZE_LOG_ERROR(fmt, ...) USD_OPTIMIZE_LOG(carb::logging::kLevelError, fmt, ##__VA_ARGS__)
+#define USD_OPTIMIZE_LOG_FATAL(fmt, ...) USD_OPTIMIZE_LOG(carb::logging::kLevelFatal, fmt, ##__VA_ARGS__)
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Log Level
@@ -47,9 +47,9 @@ enum class LogLevel
 };
 
 
-/// Convert SO log level enum to a carb int.
+/// Convert Usd Optimize log level enum to a carb int.
 ///
-/// \param level The SO log level
+/// \param level The Usd Optimize log level
 /// \return The carb logging level
 inline int32_t carbLevelFromLogLevel(const LogLevel level)
 {
@@ -69,4 +69,4 @@ inline int32_t carbLevelFromLogLevel(const LogLevel level)
     return carb::logging::kLevelWarn;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

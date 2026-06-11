@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(scene-optimizer-core)
+project(usd-optimize)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,22 +19,22 @@ file(GLOB_RECURSE SOURCES
     source/*.cu
 )
 
-add_executable(scene-optimizer-core ${SOURCES})
+add_executable(usd-optimize ${SOURCES})
 
 # The real build only puts the generated _build/<platform>/<config>/include
 # tree on the project's own include path — every source file references its
-# siblings via the fully-qualified omni/scene.optimizer/core/<Header>.h path
+# siblings via the fully-qualified usd_optimize/core/<Header>.h path
 # that resolves through here. Do NOT add source/core/src directly: that
 # creates a parallel header tree that confuses clangd's symbol resolution
 # (CLion ends up indexing the source-side copy of Utils.h as a separate
-# file from the omni/scene.optimizer/core/Utils.h that everyone includes).
-target_include_directories(scene-optimizer-core PRIVATE
+# file from the usd_optimize/core/Utils.h that everyone includes).
+target_include_directories(usd-optimize PRIVATE
     ${CMAKE_SOURCE_DIR}/_build/linux-x86_64/release/include
 )
 
 # Third-party deps from packman. Marked SYSTEM so clangd suppresses
 # warnings from inside them — matches the -isystem treatment Premake uses.
-target_include_directories(scene-optimizer-core SYSTEM PRIVATE
+target_include_directories(usd-optimize SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/_build/target-deps
     ${CMAKE_SOURCE_DIR}/_build/target-deps/usd/release/include
     ${CMAKE_SOURCE_DIR}/_build/target-deps/carb_sdk_plugins/include
@@ -48,4 +48,4 @@ target_include_directories(scene-optimizer-core SYSTEM PRIVATE
 
 # Match the real release-build defines so PXR / TBB / etc. expand the same
 # way clangd sees them as during the actual compile.
-target_compile_definitions(scene-optimizer-core PRIVATE NDEBUG)
+target_compile_definitions(usd-optimize PRIVATE NDEBUG)

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/geometry/VirtualMesh.h"
+#include "usd_optimize/core/geometry/VirtualMesh.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Core.h"
-#include "omni/scene.optimizer/core/Utils.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Core.h"
+#include "usd_optimize/core/Utils.h"
 
 // USD
 #include <pxr/usd/usdGeom/primvarsAPI.h>
@@ -47,7 +47,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 // clang-format on
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -359,7 +359,7 @@ public:
             std::ostringstream oss;
             oss << "Skipping primvar attribute " << name
                 << " while merging mesh subsets with unsupported primvar type: " << defaultValue.GetTypeName();
-            SO_LOG_WARN(oss.str().c_str());
+            USD_OPTIMIZE_LOG_WARN(oss.str().c_str());
         }
 
         return PrimvarData();
@@ -428,7 +428,7 @@ public:
         // Log warning outside the loop if there were out of bounds indices
         if (hasOutOfBoundsIndex)
         {
-            SO_LOG_WARN("Index out of bounds in getFlattenedValues, using first available value");
+            USD_OPTIMIZE_LOG_WARN("Index out of bounds in getFlattenedValues, using first available value");
         }
 
         // cache
@@ -623,7 +623,7 @@ private:
         // Validate that the indices array is properly sized
         if (indices.empty())
         {
-            SO_LOG_WARN("Empty indices array in mergePrimvarsTyped.");
+            USD_OPTIMIZE_LOG_WARN("Empty indices array in mergePrimvarsTyped.");
             return PrimvarData();
         }
 
@@ -806,7 +806,7 @@ private:
         // Log warning outside the loop if there were buffer overflows
         if (hasBufferOverflow)
         {
-            SO_LOG_WARN("Buffer overflow prevented in mergePrimvarsTyped");
+            USD_OPTIMIZE_LOG_WARN("Buffer overflow prevented in mergePrimvarsTyped");
         }
 
         // resolve the data for the new primvar
@@ -990,7 +990,7 @@ public:
                         std::ostringstream oss;
                         oss << "Skipping unknown array attribute " << m_sourcePath.GetAsString() << "." << attrName
                             << " while splitting mesh into subsets (size=" << arraySize << ")";
-                        SO_LOG_WARN(oss.str().c_str());
+                        USD_OPTIMIZE_LOG_WARN(oss.str().c_str());
                     }
                 }
             }
@@ -1143,7 +1143,7 @@ static PrimvarData _slicePrimvar(const TfToken& name,
         oss << "Skipping primvar attribute " << primvar.m_attrData.m_name << " on " << sharedData->m_sourcePath
             << " while slicing mesh subset with unsupported primvar type: "
             << primvar.m_attrData.m_defaultValue.GetTypeName();
-        SO_LOG_WARN(oss.str().c_str());
+        USD_OPTIMIZE_LOG_WARN(oss.str().c_str());
     }
 
     // can't slice, just return a copy of the original primvar
@@ -2272,14 +2272,14 @@ public:
         // currently can't make a superset if geometry has already been computed - could support if its necessary later
         if (m_geometryComputed)
         {
-            SO_LOG_ERROR("Can't make a VirtualMesh superset after geometry has been computed");
+            USD_OPTIMIZE_LOG_ERROR("Can't make a VirtualMesh superset after geometry has been computed");
             return;
         }
 
         // currently can't make a superset from a subset - could support if its necessary later
         if (m_isSubset)
         {
-            SO_LOG_ERROR("Can't create a VirtualMesh superset from a subset");
+            USD_OPTIMIZE_LOG_ERROR("Can't create a VirtualMesh superset from a subset");
             return;
         }
 
@@ -2329,8 +2329,8 @@ public:
         // is there a valid destination path?
         if (m_destinationParentPath.IsEmpty() || !m_destinationParentPath.IsAbsolutePath() || m_destinationName.IsEmpty())
         {
-            SO_LOG_ERROR("Cannot create VirtualMesh in layer: invalid destination path: %s",
-                         m_destinationParentPath.GetAsString().c_str());
+            USD_OPTIMIZE_LOG_ERROR("Cannot create VirtualMesh in layer: invalid destination path: %s",
+                                   m_destinationParentPath.GetAsString().c_str());
             return;
         }
 
@@ -2360,7 +2360,8 @@ public:
             SdfPrimSpecHandle parentPrimSpec = SdfCreatePrimInLayer(layer, parentPath);
             if (!parentPrimSpec)
             {
-                SO_LOG_ERROR("Failed to create VirtualMesh parent prim in layer: %s", parentPath.GetAsString().c_str());
+                USD_OPTIMIZE_LOG_ERROR("Failed to create VirtualMesh parent prim in layer: %s",
+                                       parentPath.GetAsString().c_str());
                 return;
             }
             parentPrimSpec->SetTypeName(_tokens->xform);
@@ -2370,7 +2371,7 @@ public:
         SdfPrimSpecHandle primSpec = SdfCreatePrimInLayer(layer, destinationPath);
         if (!primSpec)
         {
-            SO_LOG_ERROR("Failed to create VirtualMesh in layer: %s", destinationPath.GetAsString().c_str());
+            USD_OPTIMIZE_LOG_ERROR("Failed to create VirtualMesh in layer: %s", destinationPath.GetAsString().c_str());
             return;
         }
 
@@ -2467,8 +2468,8 @@ public:
             }
             else
             {
-                SO_LOG_WARN("Failed to create extent attribute for VirtualMesh in layer: %s",
-                            destinationPath.GetAsString().c_str());
+                USD_OPTIMIZE_LOG_WARN("Failed to create extent attribute for VirtualMesh in layer: %s",
+                                      destinationPath.GetAsString().c_str());
             }
         }
 
@@ -2556,9 +2557,9 @@ public:
                 if (i >= uniqueSubsetPaths.size())
                 {
                     // LCOV_EXCL_START
-                    SO_LOG_ERROR("Developer error: failed to create unique subset path for %s at %s",
-                                 subset.first.GetAsString().c_str(),
-                                 destinationPath.GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_ERROR("Developer error: failed to create unique subset path for %s at %s",
+                                           subset.first.GetAsString().c_str(),
+                                           destinationPath.GetAsString().c_str());
                     continue;
                     // LCOV_EXCL_STOP
                 }
@@ -2567,7 +2568,8 @@ public:
                 SdfPrimSpecHandle subsetSpec = SdfCreatePrimInLayer(layer, subsetPath);
                 if (!subsetSpec)
                 {
-                    SO_LOG_WARN("Failed to create material GeomSubset in layer: %s", subsetPath.GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_WARN("Failed to create material GeomSubset in layer: %s",
+                                          subsetPath.GetAsString().c_str());
                     continue;
                 }
 
@@ -2614,8 +2616,9 @@ public:
                     SdfRelationshipSpec::New(subsetSpec, UsdShadeTokens->materialBinding, true);
                 if (!bindingSpec)
                 {
-                    SO_LOG_WARN("Failed to material binding relationship %s for material GeomSubset in layer: %s",
-                                subsetPath.GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_WARN(
+                        "Failed to material binding relationship %s for material GeomSubset in layer: %s",
+                        subsetPath.GetAsString().c_str());
                     continue;
                 }
                 bindingSpec->GetTargetPathList().Add(subset.first);
@@ -2644,9 +2647,9 @@ public:
                                                                        primvarData.m_attrData.m_custom);
             if (!primvarSpec)
             {
-                SO_LOG_WARN("Failed to create primvar %s for VirtualMesh in layer: %s",
-                            primvarName,
-                            destinationPath.GetAsString().c_str());
+                USD_OPTIMIZE_LOG_WARN("Failed to create primvar %s for VirtualMesh in layer: %s",
+                                      primvarName,
+                                      destinationPath.GetAsString().c_str());
                 continue;
             }
 
@@ -2681,9 +2684,9 @@ public:
                 }
                 else
                 {
-                    SO_LOG_WARN("Failed to create indices for primvar %s for VirtualMesh in layer: %s",
-                                indicesName,
-                                destinationPath.GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_WARN("Failed to create indices for primvar %s for VirtualMesh in layer: %s",
+                                          indicesName,
+                                          destinationPath.GetAsString().c_str());
                 }
             }
         }
@@ -2706,9 +2709,9 @@ public:
                 SdfAttributeSpec::New(primSpec, attrName, attrData.m_typeName, attrData.m_variability, attrData.m_custom);
             if (!attrSpec)
             {
-                SO_LOG_WARN("Failed to create attribute %s for VirtualMesh in layer: %s",
-                            attrName.GetString().c_str(),
-                            destinationPath.GetAsString().c_str());
+                USD_OPTIMIZE_LOG_WARN("Failed to create attribute %s for VirtualMesh in layer: %s",
+                                      attrName.GetString().c_str(),
+                                      destinationPath.GetAsString().c_str());
                 continue;
             }
 
@@ -2735,9 +2738,9 @@ public:
             SdfRelationshipSpecHandle relSpec = SdfRelationshipSpec::New(primSpec, relName);
             if (!relSpec)
             {
-                SO_LOG_WARN("Failed to create relationship %s for VirtualMesh in layer: %s",
-                            relName,
-                            destinationPath.GetAsString().c_str());
+                USD_OPTIMIZE_LOG_WARN("Failed to create relationship %s for VirtualMesh in layer: %s",
+                                      relName,
+                                      destinationPath.GetAsString().c_str());
                 continue;
             }
 
@@ -4015,4 +4018,4 @@ void VirtualMesh::createInLayer(const UsdStageWeakPtr& stage, SdfLayerHandle& la
     pImpl->createInLayer(stage, layer);
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

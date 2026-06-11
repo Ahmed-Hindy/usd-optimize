@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/Stats.h"
+#include "usd_optimize/core/Stats.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/TbbCompat.h"
-#include "omni/scene.optimizer/core/Utils.h"
-#include "omni/scene.optimizer/core/geometry/DisjointSet.h"
-#include "omni/scene.optimizer/core/geometry/MeshProcessor.h"
+// Usd Optimize Core
+#include "usd_optimize/core/TbbCompat.h"
+#include "usd_optimize/core/Utils.h"
+#include "usd_optimize/core/geometry/DisjointSet.h"
+#include "usd_optimize/core/geometry/MeshProcessor.h"
 
 // USD
 #include <pxr/usd/ar/resolverScopedCache.h>
@@ -21,7 +21,7 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -522,4 +522,4 @@ StatCountersUPtr _collectSceneStats(const UsdStageWeakPtr& usdStage, const StatA
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/CudaUtils.h"
+#include "usd_optimize/core/CudaUtils.h"
 
 #include <cstring>
 #include <mutex>
@@ -23,7 +23,7 @@
 // clang-format on
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Check if any NVIDIA GPU is present by querying hardware device information.
@@ -157,7 +157,7 @@ bool isCudaAvailable()
                        // installed but no GPU is present.
                        if (!hasNvidiaGpu())
                        {
-                           SO_LOG_WARN("No NVIDIA GPU found. GPU acceleration disabled.");
+                           USD_OPTIMIZE_LOG_WARN("No NVIDIA GPU found. GPU acceleration disabled.");
                            return;
                        }
 
@@ -165,7 +165,7 @@ bool isCudaAvailable()
                        HMODULE hCudaDriver = LoadLibraryA("nvcuda.dll");
                        if (hCudaDriver == NULL)
                        {
-                           SO_LOG_WARN("Could not load nvcuda.dll. GPU acceleration disabled.");
+                           USD_OPTIMIZE_LOG_WARN("Could not load nvcuda.dll. GPU acceleration disabled.");
                            return;
                        }
 
@@ -174,7 +174,7 @@ bool isCudaAvailable()
 
                        if (!pfn_cuInit || !pfn_cuDeviceGetCount)
                        {
-                           SO_LOG_WARN("Could not get CUDA driver functions. GPU acceleration disabled.");
+                           USD_OPTIMIZE_LOG_WARN("Could not get CUDA driver functions. GPU acceleration disabled.");
                            FreeLibrary(hCudaDriver);
                            return;
                        }
@@ -199,7 +199,7 @@ bool isCudaAvailable()
                 hCudaDriver = dlopen("libcuda.so.1", RTLD_NOW);
                 if (hCudaDriver == NULL)
                 {
-                    SO_LOG_WARN("Could not load CUDA driver. GPU acceleration disabled.");
+                    USD_OPTIMIZE_LOG_WARN("Could not load CUDA driver. GPU acceleration disabled.");
                     return;
                 }
             }
@@ -209,7 +209,7 @@ bool isCudaAvailable()
 
             if (!pfn_cuInit || !pfn_cuDeviceGetCount)
             {
-                SO_LOG_WARN("Could not get CUDA driver functions. GPU acceleration disabled.");
+                USD_OPTIMIZE_LOG_WARN("Could not get CUDA driver functions. GPU acceleration disabled.");
                 dlclose(hCudaDriver);
                 return;
             }
@@ -231,4 +231,4 @@ bool isCudaAvailable()
     return available;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

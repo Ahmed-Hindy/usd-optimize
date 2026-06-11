@@ -1,0 +1,68 @@
+#usda 1.0
+(
+    doc = """Test scene for the merge "Coincident Boundary Vertices" mode.
+
+    Five single-quad meshes laid out in the z=0 plane:
+      * Quad_A, Quad_B, Quad_C abut edge-to-edge in a row, so each shares two
+        coincident boundary vertices with its neighbor (A-B-C form one
+        transitive connected component / shared seam).
+      * Quad_D is detached and shares no boundary vertex with anything.
+      * Quad_E touches Quad_A at the single corner vertex (0, 1, 0) only.
+
+    With the default minimum of two shared vertices, coincident-boundary merge
+    combines A, B and C into a single mesh and leaves Quad_D and Quad_E
+    untouched (Quad_E shares only one vertex). Lowering the minimum to one
+    additionally pulls Quad_E into the A-B-C component.
+    """
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "World"
+{
+    def Mesh "Quad_A"
+    {
+        float3[] extent = [(0, 0, 0), (1, 1, 0)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        uniform token orientation = "rightHanded"
+        point3f[] points = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)]
+    }
+
+    def Mesh "Quad_B"
+    {
+        float3[] extent = [(1, 0, 0), (2, 1, 0)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        uniform token orientation = "rightHanded"
+        point3f[] points = [(1, 0, 0), (2, 0, 0), (2, 1, 0), (1, 1, 0)]
+    }
+
+    def Mesh "Quad_C"
+    {
+        float3[] extent = [(2, 0, 0), (3, 1, 0)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        uniform token orientation = "rightHanded"
+        point3f[] points = [(2, 0, 0), (3, 0, 0), (3, 1, 0), (2, 1, 0)]
+    }
+
+    def Mesh "Quad_D"
+    {
+        float3[] extent = [(10, 0, 0), (11, 1, 0)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        uniform token orientation = "rightHanded"
+        point3f[] points = [(10, 0, 0), (11, 0, 0), (11, 1, 0), (10, 1, 0)]
+    }
+
+    def Mesh "Quad_E"
+    {
+        float3[] extent = [(-1, 1, 0), (0, 2, 0)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        uniform token orientation = "rightHanded"
+        point3f[] points = [(-1, 1, 0), (0, 1, 0), (0, 2, 0), (-1, 2, 0)]
+    }
+}

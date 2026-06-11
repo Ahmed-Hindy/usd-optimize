@@ -69,4 +69,4 @@ Optimize Primvars reduces memory usage by optimizing how primvar (per-vertex/per
 
 - `Remove` mode with `removeIfBound=true` may break material evaluation.
 - Hidden `primvarPaths` is for programmatic use.
-- Supports analysis mode for Asset Validator integration.
+- Supports analysis mode for usd-validation-nvidia integration.

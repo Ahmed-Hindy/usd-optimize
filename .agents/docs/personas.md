@@ -44,7 +44,7 @@ Four personas that shaped the design of the `/tune-parameters` skill and its sup
 
 ## Persona D: New Team Member / Evaluator
 
-**Goal:** Understand what Scene Optimizer can do and which operations are well-supported.
+**Goal:** Understand what Usd Optimize can do and which operations are well-supported.
 
 **Needs:** An index to discover operations without already knowing their names.
 

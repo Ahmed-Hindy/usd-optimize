@@ -3,7 +3,7 @@
 #
 
 
-from omni.scene.optimizer.core.operation import Operation
+from usd_optimize.core.operation import Operation
 
 
 class NoAuthorPythonOperation(Operation):
@@ -23,9 +23,9 @@ class NoAuthorPythonOperation(Operation):
 
 
 #####################################
-# Register Scene Optimizer Plugin
+# Register Usd Optimize Plugin
 #####################################
 
 
-def sceneOptimizerPluginInit():
+def usdOptimizePluginInit():
     return NoAuthorPythonOperation()

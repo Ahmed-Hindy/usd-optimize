@@ -4,11 +4,11 @@
 
 #include "RemovePrimsPlugin.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/Log.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/Log.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
 
 // USD
 #include <pxr/usd/usd/primCompositionQuery.h>
@@ -17,10 +17,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::RemovePrimsOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::RemovePrimsOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -279,11 +279,11 @@ RemovePrimsOperation::~RemovePrimsOperation() = default;
 
 std::string RemovePrimsOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion RemovePrimsOperation::getVersion() const
+UsdOptimizePluginVersion RemovePrimsOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -334,11 +334,11 @@ OperationResult RemovePrimsOperation::executeImpl()
         // report the number of prims found
         if (m_removeInvisible)
         {
-            SO_LOG_INFO("Found %zu invisible prims", m_invisiblePrims.size());
+            USD_OPTIMIZE_LOG_INFO("Found %zu invisible prims", m_invisiblePrims.size());
         }
         if (m_removeOrphanedOvers)
         {
-            SO_LOG_INFO("Found %zu orphaned overs", m_orphanedOvers.size());
+            USD_OPTIMIZE_LOG_INFO("Found %zu orphaned overs", m_orphanedOvers.size());
         }
     }
 
@@ -403,7 +403,7 @@ OperationResult RemovePrimsOperation::executeImpl()
     // set attribute on prims
     if (!primsToSetAttribute.empty())
     {
-        SO_LOG_INFO("Setting attribute on %zu prims", primsToSetAttribute.size());
+        USD_OPTIMIZE_LOG_INFO("Setting attribute on %zu prims", primsToSetAttribute.size());
         SdfChangeBlock changeBlock;
         _setAttributeOnPrims(primsToSetAttribute, true);
     }
@@ -411,7 +411,7 @@ OperationResult RemovePrimsOperation::executeImpl()
     // hide prims
     if (!primsToHide.empty())
     {
-        SO_LOG_INFO("Hiding %zu prims", primsToHide.size());
+        USD_OPTIMIZE_LOG_INFO("Hiding %zu prims", primsToHide.size());
         SdfChangeBlock changeBlock;
         _hidePrims(primsToHide);
     }
@@ -419,7 +419,7 @@ OperationResult RemovePrimsOperation::executeImpl()
     // deactivate prims
     if (!primsToDeactivate.empty())
     {
-        SO_LOG_INFO("Deactivating %zu prims", primsToDeactivate.size());
+        USD_OPTIMIZE_LOG_INFO("Deactivating %zu prims", primsToDeactivate.size());
 
         // reverse the list to ensure children are deactivated before parents
         std::reverse(primsToDeactivate.begin(), primsToDeactivate.end());
@@ -431,7 +431,7 @@ OperationResult RemovePrimsOperation::executeImpl()
     // delete prims
     if (!primsToDelete.empty())
     {
-        SO_LOG_INFO("Deleting %zu prims", primsToDelete.size());
+        USD_OPTIMIZE_LOG_INFO("Deleting %zu prims", primsToDelete.size());
 
         // Directly deleting prims causes USD warnings from dangling reference arcs,
         // even inside a change block.  Removing the arcs first is more efficient than
@@ -727,4 +727,4 @@ void RemovePrimsOperation::clear()
     m_orphanedOvers.clear();
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

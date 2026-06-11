@@ -10,8 +10,8 @@ set -e
 SCRIPT_DIR=$(realpath "$(dirname "${BASH_SOURCE[0]}")")
 REPO_ROOT=$(realpath "$SCRIPT_DIR/../..")
 
-CONFIG="${SO_CONFIG:-release}"
-PLATFORM="${SO_PLATFORM:-linux-x86_64}"
+CONFIG="${USD_OPTIMIZE_CONFIG:-release}"
+PLATFORM="${USD_OPTIMIZE_PLATFORM:-linux-x86_64}"
 BUILD_DIR="$REPO_ROOT/_build/$PLATFORM/$CONFIG"
 USD_DIR="$REPO_ROOT/_build/target-deps/usd/$CONFIG"
 PYTHON="$REPO_ROOT/_build/target-deps/python/bin/python3.12"
@@ -24,7 +24,7 @@ fi
 export LD_LIBRARY_PATH=$BUILD_DIR/lib:$BUILD_DIR/extraLibs:$USD_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 export PYTHONPATH=$BUILD_DIR/python:$USD_DIR/lib/python${PYTHONPATH:+:$PYTHONPATH}
 
-"$PYTHON" -c "import omni.asset_validator" >/dev/null 2>&1 || \
-    "$PYTHON" -m pip install --quiet --disable-pip-version-check "omniverse-asset-validator>=1.15.1"
+"$PYTHON" -c "import usd_validation_nvidia" >/dev/null 2>&1 || \
+    "$PYTHON" -m pip install --quiet --disable-pip-version-check "usd-validation-nvidia>=1.19.3"
 
 exec "$PYTHON" "$SCRIPT_DIR/perf_validators.py" "$@"

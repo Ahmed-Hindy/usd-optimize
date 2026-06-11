@@ -13,7 +13,7 @@ def setup_repo_tool(parser: argparse.ArgumentParser, config: Dict) -> Callable:
     if not toolConfig.get("enabled", True):
         return None
 
-    parser.description = "Tool to build a wheel for the precompiled Scene Optimizer modules and all of its runtime dependencies."
+    parser.description = "Tool to build a wheel for the precompiled Usd Optimize modules and all of its runtime dependencies."
     omni.repo.man.add_config_arg(parser)
 
     def run_repo_tool(_: Dict, config: Dict):
@@ -30,14 +30,14 @@ def setup_repo_tool(parser: argparse.ArgumentParser, config: Dict) -> Callable:
         source = omni.repo.man.resolve_tokens("_build/$platform/$config")
         if os.path.exists(stagingDir):
             shutil.rmtree(stagingDir)
-        shutil.copytree(f"{source}/python/omni/scene/optimizer", f"{stagingDir}/omni/scene/optimizer", ignore=ignore_callable)
+        shutil.copytree(f"{source}/python/usd_optimize", f"{stagingDir}/usd_optimize", ignore=ignore_callable)
         # copy the libs on windows since they are needed for the wheel to work, but for Linux auditwheel will handle this
         if omni.repo.man.is_windows():
-            shutil.copytree(f"{source}/lib", f"{stagingDir}/omniverse_scene_optimizer.libs", ignore=ignore_callable)
+            shutil.copytree(f"{source}/lib", f"{stagingDir}/usd_optimize.libs", ignore=ignore_callable)
         # TODO: testing
         else:
-            shutil.copytree(f"{source}/lib/operations", f"{stagingDir}/omniverse_scene_optimizer.libs/operations", ignore=ignore_callable)
-            shutil.copyfile(f"{source}/lib/operation_mapping.json", f"{stagingDir}/omniverse_scene_optimizer.libs/operation_mapping.json")
+            shutil.copytree(f"{source}/lib/operations", f"{stagingDir}/usd_optimize.libs/operations", ignore=ignore_callable)
+            shutil.copyfile(f"{source}/lib/operation_mapping.json", f"{stagingDir}/usd_optimize.libs/operation_mapping.json")
 
         # generate pyproject file
         pyproject_source = omni.repo.man.resolve_tokens("$root/tools/pyproject/pyproject.toml")

@@ -3,13 +3,13 @@
 //
 #include "Pivot.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/ComputeExtents.h>
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/Defs.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/TransformUtils.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/ComputeExtents.h>
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/Defs.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/TransformUtils.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -27,7 +27,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::PivotOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::PivotOperation);
 
 // clang-format off
 // LCOV_EXCL_START
@@ -40,7 +40,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 // clang-format on
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 template <class ValueType>
@@ -135,8 +135,8 @@ void PivotOperation::pivot(const std::vector<UsdPrim>& prims) const
             {
                 if (getContext()->verbose)
                 {
-                    SO_LOG_VERBOSE("%s: Skipping due to existing authored pivot",
-                                   prim.GetPrimPath().GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_VERBOSE("%s: Skipping due to existing authored pivot",
+                                             prim.GetPrimPath().GetAsString().c_str());
                 }
 
                 continue;
@@ -147,7 +147,8 @@ void PivotOperation::pivot(const std::vector<UsdPrim>& prims) const
             {
                 if (getContext()->verbose)
                 {
-                    SO_LOG_VERBOSE("%s: Skipping due to time samples", prim.GetPrimPath().GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_VERBOSE("%s: Skipping due to time samples",
+                                             prim.GetPrimPath().GetAsString().c_str());
                 }
 
                 continue;
@@ -177,7 +178,8 @@ void PivotOperation::pivot(const std::vector<UsdPrim>& prims) const
                     {
                         if (getContext()->verbose)
                         {
-                            SO_LOG_WARN("%s contains no points, skipping", prim.GetPrimPath().GetAsString().c_str());
+                            USD_OPTIMIZE_LOG_WARN("%s contains no points, skipping",
+                                                  prim.GetPrimPath().GetAsString().c_str());
                         }
                         continue;
                     }
@@ -211,7 +213,7 @@ void PivotOperation::pivot(const std::vector<UsdPrim>& prims) const
 
                 if (meshPrims.empty())
                 {
-                    SO_LOG_WARN("%s contains no meshes, skipping", prim.GetPrimPath().GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_WARN("%s contains no meshes, skipping", prim.GetPrimPath().GetAsString().c_str());
                     continue;
                 }
 
@@ -232,8 +234,8 @@ void PivotOperation::pivot(const std::vector<UsdPrim>& prims) const
                         {
                             if (getContext()->verbose)
                             {
-                                SO_LOG_WARN("%s contains no points, skipping",
-                                            meshPrim.GetPrimPath().GetAsString().c_str());
+                                USD_OPTIMIZE_LOG_WARN("%s contains no points, skipping",
+                                                      meshPrim.GetPrimPath().GetAsString().c_str());
                             }
                             continue;
                         }
@@ -255,7 +257,8 @@ void PivotOperation::pivot(const std::vector<UsdPrim>& prims) const
                     // An xform with meshes underneath it, none of which have points
                     if (centroids.empty())
                     {
-                        SO_LOG_WARN("%s contains no geometry, skipping", prim.GetPrimPath().GetAsString().c_str());
+                        USD_OPTIMIZE_LOG_WARN("%s contains no geometry, skipping",
+                                              prim.GetPrimPath().GetAsString().c_str());
                         continue;
                     }
 
@@ -340,7 +343,7 @@ void PivotOperation::pivot(const std::vector<UsdPrim>& prims) const
             // Create primSpec in the edit target, if it doesn't already exist.
             if (!SdfJustCreatePrimInLayer(layer, prims[idx].GetPrimPath()))
             {
-                SO_LOG_WARN("Failed to create PrimSpec at %s", prims[idx].GetPrimPath().GetAsString().c_str());
+                USD_OPTIMIZE_LOG_WARN("Failed to create PrimSpec at %s", prims[idx].GetPrimPath().GetAsString().c_str());
                 pivots[idx].valid = false;
             }
         }
@@ -393,7 +396,7 @@ void PivotOperation::pivot(const std::vector<UsdPrim>& prims) const
 
             if (getContext()->verbose)
             {
-                SO_LOG_VERBOSE("Applied pivot to %s", prim.GetPrimPath().GetAsString().c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("Applied pivot to %s", prim.GetPrimPath().GetAsString().c_str());
             }
 
             ++processed;
@@ -401,7 +404,7 @@ void PivotOperation::pivot(const std::vector<UsdPrim>& prims) const
     }
 
     std::string suffix = processed == 1 ? "" : "s";
-    SO_LOG_INFO("Applied pivot to %d prim%s", static_cast<size_t>(processed), suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Applied pivot to %d prim%s", static_cast<size_t>(processed), suffix.c_str());
 }
 
 
@@ -438,11 +441,11 @@ PivotOperation::PivotOperation()
 
 std::string PivotOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion PivotOperation::getVersion() const
+UsdOptimizePluginVersion PivotOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -462,7 +465,7 @@ std::string PivotOperation::getDisplayGroup() const
 
 OperationResult PivotOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|PivotOperation");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|PivotOperation");
 
     // Adjust meshesOnly based on whether xforms should be included
     bool meshesOnly = true;
@@ -482,4 +485,4 @@ OperationResult PivotOperation::executeImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -3,11 +3,11 @@
 //
 #include "OrganizePrototypes.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/Log.h>
-#include <omni/scene.optimizer/core/RemovePrims.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/Log.h>
+#include <usd_optimize/core/RemovePrims.h>
+#include <usd_optimize/core/Utils.h>
 
 // USD
 #include <pxr/usd/sdf/copyUtils.h>
@@ -23,10 +23,10 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 // Register plugin
-SO_PLUGIN_INIT(omni::scene::optimizer::OrganizePrototypesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::OrganizePrototypesOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // clang-format off
@@ -89,25 +89,25 @@ static UsdPrim _getOrCreateProtosRoot(const UsdStageRefPtr& stage, const SdfPath
 {
     if (!stage)
     {
-        SO_LOG_ERROR("Unable to create prototypes prim due to an invalid Stage.");
+        USD_OPTIMIZE_LOG_ERROR("Unable to create prototypes prim due to an invalid Stage.");
         return UsdPrim();
     }
 
     if (protosRootPath.IsEmpty())
     {
-        SO_LOG_ERROR("Unable to create prototypes prim because namespace path is empty.");
+        USD_OPTIMIZE_LOG_ERROR("Unable to create prototypes prim because namespace path is empty.");
         return UsdPrim();
     }
 
     if (!protosRootPath.IsPrimPath())
     {
-        SO_LOG_ERROR("Unable to create prototypes prim because namespace path is not a prim path.");
+        USD_OPTIMIZE_LOG_ERROR("Unable to create prototypes prim because namespace path is not a prim path.");
         return UsdPrim();
     }
 
     if (!protosRootPath.IsAbsolutePath())
     {
-        SO_LOG_ERROR("Unable to create prototypes prim because namespace path is not absolute.");
+        USD_OPTIMIZE_LOG_ERROR("Unable to create prototypes prim because namespace path is not absolute.");
         return UsdPrim();
     }
 
@@ -120,8 +120,8 @@ static UsdPrim _getOrCreateProtosRoot(const UsdStageRefPtr& stage, const SdfPath
         {
             return prim;
         }
-        SO_LOG_ERROR("Prim %s cannot be used for the prototypes root because it is a concrete prim.",
-                     prim.GetPath().GetAsString().c_str());
+        USD_OPTIMIZE_LOG_ERROR("Prim %s cannot be used for the prototypes root because it is a concrete prim.",
+                               prim.GetPath().GetAsString().c_str());
         return UsdPrim();
     }
 
@@ -129,7 +129,7 @@ static UsdPrim _getOrCreateProtosRoot(const UsdStageRefPtr& stage, const SdfPath
     prim = stage->CreateClassPrim(protosRootPath);
     if (!prim)
     {
-        SO_LOG_ERROR("Couldn't create class prim %s.", protosRootPath.GetAsString().c_str());
+        USD_OPTIMIZE_LOG_ERROR("Couldn't create class prim %s.", protosRootPath.GetAsString().c_str());
         return UsdPrim();
     }
 
@@ -146,7 +146,7 @@ static UsdPrim _getProtoDestinationPrim(const UsdStageRefPtr& stage,
 {
     if (protosRootPath.IsEmpty())
     {
-        SO_LOG_WARN("Empty prototype path.");
+        USD_OPTIMIZE_LOG_WARN("Empty prototype path.");
         return UsdPrim();
     }
 
@@ -178,7 +178,7 @@ static UsdPrim _getProtoDestinationPrim(const UsdStageRefPtr& stage,
             UsdPrim parentPrim = stage->CreateClassPrim(copyPath);
             if (!parentPrim)
             {
-                SO_LOG_ERROR("Couldn't create class prim %s.", copyPath.GetAsString().c_str());
+                USD_OPTIMIZE_LOG_ERROR("Couldn't create class prim %s.", copyPath.GetAsString().c_str());
                 return UsdPrim();
             }
 
@@ -206,9 +206,9 @@ static UsdPrim _getProtoDestinationPrim(const UsdStageRefPtr& stage,
     UsdPrim destPrim = stage->DefinePrim(copyPath, _tokens->Xform);
     if (!destPrim)
     {
-        SO_LOG_ERROR("Couldn't create destination prim %s for copying protoype %s.",
-                     copyPath.GetAsString().c_str(),
-                     protoPath.GetAsString().c_str());
+        USD_OPTIMIZE_LOG_ERROR("Couldn't create destination prim %s for copying protoype %s.",
+                               copyPath.GetAsString().c_str(),
+                               protoPath.GetAsString().c_str());
     }
 
     return destPrim;
@@ -254,7 +254,7 @@ static bool _copyFlattenedPrimToLayer(const UsdStageRefPtr& stage,
 
         if (!SdfCopySpec(specLayer, srcPath, anonLayer, srcPath))
         {
-            SO_LOG_WARN("Couldn't copy prim % to anonymous layer.", srcPath.GetAsString().c_str());
+            USD_OPTIMIZE_LOG_WARN("Couldn't copy prim % to anonymous layer.", srcPath.GetAsString().c_str());
             continue;
         }
         UsdUtilsStitchLayers(flattenedLayer, anonLayer);
@@ -294,13 +294,13 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
 {
     if (!stage)
     {
-        SO_LOG_ERROR("No usd stage.");
+        USD_OPTIMIZE_LOG_ERROR("No usd stage.");
         return false;
     }
 
     if (protosNamespace.empty())
     {
-        SO_LOG_ERROR("No namespace provided.");
+        USD_OPTIMIZE_LOG_ERROR("No namespace provided.");
         return false;
     }
 
@@ -342,7 +342,7 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
 
     if (protos.empty())
     {
-        SO_LOG_INFO("No prototypes to process.");
+        USD_OPTIMIZE_LOG_INFO("No prototypes to process.");
         return true;
     }
 
@@ -359,7 +359,7 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
     UsdPrim protosRoot = _getOrCreateProtosRoot(stage, protosRootPath);
     if (!protosRoot)
     {
-        SO_LOG_ERROR("Couldn't get or create prototypes root prim.");
+        USD_OPTIMIZE_LOG_ERROR("Couldn't get or create prototypes root prim.");
         return false;
     }
 
@@ -373,7 +373,7 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
 
         if (!dstPrim)
         {
-            SO_LOG_ERROR("Couldn't create destination prim for prototype %s.", path.GetAsString().c_str());
+            USD_OPTIMIZE_LOG_ERROR("Couldn't create destination prim for prototype %s.", path.GetAsString().c_str());
             continue;
         }
 
@@ -388,7 +388,7 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
         UsdPrim prim = stage->GetPrimAtPath(path);
         if (!prim)
         {
-            SO_LOG_WARN("Couldn't get prim for instance %s.", path.GetText());
+            USD_OPTIMIZE_LOG_WARN("Couldn't get prim for instance %s.", path.GetText());
             continue;
         }
         SdfReferenceVector refsToRemove;
@@ -420,14 +420,18 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
             {
                 if (!refs.RemoveReference(ref))
                 {
-                    SO_LOG_WARN("Couldn't remove ref %s from prim %s.", ref.GetPrimPath(), path.GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_WARN("Couldn't remove ref %s from prim %s.",
+                                          ref.GetPrimPath(),
+                                          path.GetAsString().c_str());
                 }
             }
             for (const SdfReference& ref : refsToAdd)
             {
                 if (!refs.AddReference(ref))
                 {
-                    SO_LOG_WARN("Couldn't add ref %s to prim %s.", ref.GetPrimPath(), path.GetAsString().c_str());
+                    USD_OPTIMIZE_LOG_WARN("Couldn't add ref %s to prim %s.",
+                                          ref.GetPrimPath(),
+                                          path.GetAsString().c_str());
                 }
             }
         }
@@ -472,7 +476,7 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
             {
                 if (!rel.SetTargets(targets))
                 {
-                    SO_LOG_WARN("Couldn't update relationships on prim %s.", prim.GetPath());
+                    USD_OPTIMIZE_LOG_WARN("Couldn't update relationships on prim %s.", prim.GetPath());
                 }
             }
         }
@@ -491,7 +495,7 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
         UsdPrim protoPrim = stage->GetPrimAtPath(riter->first);
         if (!protoPrim)
         {
-            SO_LOG_WARN("Couldn't get prim for prototype %s.", riter->first);
+            USD_OPTIMIZE_LOG_WARN("Couldn't get prim for prototype %s.", riter->first);
             continue;
         }
 
@@ -499,9 +503,9 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
 
         if (!_copyFlattenedPrimToLayer(stage, editLayer, protoPrim, dstPath))
         {
-            SO_LOG_WARN("Couldn't copy prototype prim %s to %s.",
-                        riter->first.GetAsString().c_str(),
-                        dstPath.GetAsString().c_str());
+            USD_OPTIMIZE_LOG_WARN("Couldn't copy prototype prim %s to %s.",
+                                  riter->first.GetAsString().c_str(),
+                                  dstPath.GetAsString().c_str());
             continue;
         }
 
@@ -509,7 +513,7 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
         UsdPrim copiedPrim = stage->GetPrimAtPath(dstPath);
         if (!copiedPrim)
         {
-            SO_LOG_WARN("Couldn't access copied prim %s to %s.", dstPath.GetAsString().c_str());
+            USD_OPTIMIZE_LOG_WARN("Couldn't access copied prim %s to %s.", dstPath.GetAsString().c_str());
             continue;
         }
 
@@ -517,7 +521,7 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
         _convertProtoToInstance(stage, protoPrim, dstPath);
     }
 
-    SO_LOG_INFO("Copied %zu prototypes to namespace %s.", numProtosCopied, protosRootPath.GetAsString().c_str());
+    USD_OPTIMIZE_LOG_INFO("Copied %zu prototypes to namespace %s.", numProtosCopied, protosRootPath.GetAsString().c_str());
 
     return true;
 }
@@ -550,11 +554,11 @@ OrganizePrototypesOperation::~OrganizePrototypesOperation() = default;
 
 std::string OrganizePrototypesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion OrganizePrototypesOperation::getVersion() const
+UsdOptimizePluginVersion OrganizePrototypesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -576,13 +580,13 @@ OperationResult OrganizePrototypesOperation::executeImpl()
 {
     if (m_protosNamespace.empty())
     {
-        SO_LOG_ERROR("No namespace provided.");
+        USD_OPTIMIZE_LOG_ERROR("No namespace provided.");
         return { false };
     }
 
     if (m_hierarchyLevels < 0)
     {
-        SO_LOG_ERROR("Hierarchy levels value may not be negative.");
+        USD_OPTIMIZE_LOG_ERROR("Hierarchy levels value may not be negative.");
         return { false };
     }
 
@@ -591,4 +595,4 @@ OperationResult OrganizePrototypesOperation::executeImpl()
     return { success };
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

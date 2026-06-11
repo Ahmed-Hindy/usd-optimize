@@ -3,10 +3,10 @@
 //
 #include "CountVertices.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/TbbCompat.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/TbbCompat.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -19,10 +19,10 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 // Register plugin
-SO_PLUGIN_INIT(omni::scene::optimizer::CountVerticesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::CountVerticesOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -51,11 +51,11 @@ CountVerticesOperation::CountVerticesOperation()
 
 std::string CountVerticesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion CountVerticesOperation::getVersion() const
+UsdOptimizePluginVersion CountVerticesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -101,11 +101,14 @@ struct Counters
 
 OperationResult CountVerticesOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|CountVerts|Execute");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|CountVerts|Execute");
 
     if (m_levelVeryHigh <= m_levelHigh || m_levelExtreme <= m_levelVeryHigh)
     {
-        SO_LOG_WARN("Unexpected thresholds specified: %lu < %lu < %lu", m_levelHigh, m_levelVeryHigh, m_levelExtreme);
+        USD_OPTIMIZE_LOG_WARN("Unexpected thresholds specified: %lu < %lu < %lu",
+                              m_levelHigh,
+                              m_levelVeryHigh,
+                              m_levelExtreme);
         return { false };
     }
 
@@ -176,7 +179,7 @@ OperationResult CountVerticesOperation::executeImpl()
 
     OperationResult result{ true, nullptr, getCStr(JsWriteToString(resultJson)) };
 
-    SO_LOG_VERBOSE("Analysis result: %s", result.output);
+    USD_OPTIMIZE_LOG_VERBOSE("Analysis result: %s", result.output);
 
     return result;
 }
@@ -189,4 +192,4 @@ OperationResult CountVerticesOperation::executeAnalysisImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -6,10 +6,10 @@
 
 #include "FindOverlappingMeshes.h"
 
-// Scene Optimizer
-#include <omni/scene.optimizer/core/OmniOperation.h>
+// Usd Optimize
+#include <usd_optimize/core/OmniOperation.h>
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Find overlapping meshes omni operation
@@ -21,7 +21,7 @@ public:
 
     // Public overrides
     std::string getAuthor() const override;
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
     std::string getCategory() const override;
     std::string getDisplayGroup() const override;
     bool getSupportsAnalysis() const override;
@@ -52,4 +52,4 @@ private:
                                      ///< reporting in executePost()).
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

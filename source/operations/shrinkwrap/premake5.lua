@@ -18,7 +18,7 @@ project_with_location("shrinkwrap")
         target_deps.."/shrinkwrap_openvdb/%{config}/lib",
     }
 
-    so_build.operation_plugin({ "*.cpp" })
+    usd_optimize_build.operation_plugin({ "*.cpp" })
 
     -- Exclude from gcov: coverage instrumentation causes ~1000x slowdown on
     -- OpenVDB's heavily-templated TBB-parallel code, making tests time out.

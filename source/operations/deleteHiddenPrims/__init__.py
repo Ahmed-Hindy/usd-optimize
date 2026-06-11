@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
-from omni.scene.optimizer.core.operation import Operation
 from pxr import Usd, UsdGeom, UsdUtils
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
+from usd_optimize.core.operation import Operation
 
 
 class DeleteHiddenPrimsOperation(Operation):
@@ -13,7 +13,7 @@ class DeleteHiddenPrimsOperation(Operation):
 
     @property
     def author(self):
-        return "Scene Optimizer (Internal)"
+        return "Usd Optimize (Internal)"
 
     @property
     def version(self):
@@ -43,15 +43,15 @@ class DeleteHiddenPrimsOperation(Operation):
         # execute the deletePrims operation
         context = ExecutionContext()
         context.usdStageId = UsdUtils.StageCache.Get().GetId(stage).ToLongInt()
-        SceneOptimizerCore.getInstance().executeOperation("deletePrims", context, args)
+        UsdOptimizeCore.getInstance().executeOperation("deletePrims", context, args)
 
         return True
 
 
 #####################################
-# Register Scene Optimizer Plugin
+# Register Usd Optimize Plugin
 #####################################
 
 
-def sceneOptimizerPluginInit():
+def usdOptimizePluginInit():
     return DeleteHiddenPrimsOperation()

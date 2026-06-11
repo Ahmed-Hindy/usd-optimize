@@ -37,7 +37,7 @@ import unittest
 _PKG_NAME = "test_python"
 
 # Tests that require infrastructure not available in this build
-# (e.g. ISceneOptimizer carb interface, command framework).
+# (e.g. IUsdOptimize carb interface, command framework).
 _STANDALONE_SKIP_TESTS = {
     "test_operation_misc.Test.test_pathResolver",
     "test_operation_misc.Test.test_base_command",

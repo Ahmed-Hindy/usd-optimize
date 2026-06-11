@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/Argument.h"
+#include "usd_optimize/core/Argument.h"
 
 // C
 #include <cmath>
@@ -37,7 +37,7 @@ static constexpr const char* KEY_ENABLEIF = "enableIf";
 static constexpr const char* KEY_VISIBLEIF = "visibleIf";
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 FloatPresetsVector _getDefaultLinearUnitsPresets()
@@ -516,7 +516,7 @@ bool Argument::getIsGroup() const
 }
 
 
-void Argument::setArrayType(omni::scene::optimizer::ArgumentArrayType type)
+void Argument::setArrayType(usd_optimize::ArgumentArrayType type)
 {
     pImpl->m_arrayType = type;
 }
@@ -619,4 +619,4 @@ JsValue Group::toJson() const
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/RemovePrims.h"
+#include "usd_optimize/core/RemovePrims.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/ResolveSdfPaths.h"
+// Usd Optimize Core
+#include "usd_optimize/core/ResolveSdfPaths.h"
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // clang-format off
@@ -219,4 +219,4 @@ void _removePrims(RemoveMethod method,
     }
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

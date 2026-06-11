@@ -1,4 +1,4 @@
-r"""Summarize an asset-validator issues CSV into compact JSON.
+r"""Summarize a usd-validation-nvidia issues CSV into compact JSON.
 
 Pure-stdlib helper used by the interpret-validators skill so the agent doesn't
 have to load and parse a multi-thousand-row CSV directly into context. Runs
@@ -15,13 +15,13 @@ report. Output structure:
         "rows": <int>,                  # total issues in the (filtered) view
         "rules": <int>,                 # number of rules with at least one issue
         "by_severity": {"failure": N, "warning": N, ...},
-        "by_family":   {"SO": N, "base": N},
+        "by_family":   {"Usd Optimize": N, "base": N},
         "failures_by_rule": {"<RuleName>": N, ...}
       },
       "rules": [                        # one entry per rule, sorted by
         {                               #   (max severity weight desc, count desc)
           "rule": "<RuleName>",
-          "family": "SO" | "base",
+          "family": "Usd Optimize" | "base",
           "by_severity": {...},
           "affected_prims": <int>       # distinct Location values, 0 if stage-only
         },
@@ -131,7 +131,7 @@ def _read_rows(csv_path: Path):
             msg = row["Message"]
             sug = row["Suggestion"] if row["Suggestion"] != "None" else ""
             loc = _normalize_location(row["Location"])
-            family = "SO" if rule.startswith("SceneOptimizer") else "base"
+            family = "Usd Optimize" if rule.startswith("UsdOptimize") else "base"
             yield rule, sev, msg, sug, loc, family
 
 
@@ -243,7 +243,7 @@ def _locations_mode(rows, args) -> dict:
 
 def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(
-        description="Summarize an asset-validator issues CSV.",
+        description="Summarize a usd-validation-nvidia issues CSV.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )

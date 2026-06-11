@@ -4,10 +4,10 @@
 
 #include "Remesh.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/CudaUtils.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/Utils.h>
 
 // OmniMesh
 #include <OmniMeshOps/Remesh.h>
@@ -16,11 +16,11 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-// Register plugin with SO
-SO_PLUGIN_INIT(omni::scene::optimizer::RemeshOperation);
+// Register plugin with Usd Optimize
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::RemeshOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -65,11 +65,11 @@ RemeshOperation::~RemeshOperation(){};
 
 std::string RemeshOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion RemeshOperation::getVersion() const
+UsdOptimizePluginVersion RemeshOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -136,13 +136,13 @@ ProcessedData* RemeshOperation::processMesh(const UsdPrim& prim, tbb::task_group
             oss << prim.GetName().GetString() << ": "
                 << "\nBefore:  Faces: " << inputMesh.faceCount() << "  Vertices: " << inputMesh.vertexCount()
                 << "\nAfter:  Faces: " << result->faceCount() << "  Vertices: " << result->vertexCount();
-            SO_LOG_VERBOSE(oss.str().c_str());
+            USD_OPTIMIZE_LOG_VERBOSE(oss.str().c_str());
         }
     }
     catch (const std::exception& e)
     {
         std::string errorMsg = std::string(e.what()) + " (Prim: " + prim.GetPath().GetText() + ")";
-        SO_LOG_ERROR(errorMsg.c_str());
+        USD_OPTIMIZE_LOG_ERROR(errorMsg.c_str());
         if (result)
         {
             delete result;
@@ -152,7 +152,7 @@ ProcessedData* RemeshOperation::processMesh(const UsdPrim& prim, tbb::task_group
         // Cancel further task execution
         if (taskGroupContext.cancel_group_execution())
         {
-            SO_LOG_ERROR("Cancelling execution due to exception...");
+            USD_OPTIMIZE_LOG_ERROR("Cancelling execution due to exception...");
         }
     }
 
@@ -166,4 +166,4 @@ ProcessedData* RemeshOperation::processMesh(const UsdPrim& prim, tbb::task_group
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

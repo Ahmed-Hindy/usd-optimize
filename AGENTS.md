@@ -7,7 +7,7 @@ Entry point for any coding agent (Claude Code, Codex/GPT, etc.) working in this 
 
 ## Project Overview
 
-Scene Optimizer is a standalone C++ library providing 45+ USD scene optimization operations (geometry, materials, hierarchy, analysis) with a plugin system and Python bindings.
+Usd Optimize is a standalone C++ library providing 45+ USD scene optimization operations (geometry, materials, hierarchy, analysis) with a plugin system and Python bindings.
 
 ## Build & Test Commands
 
@@ -37,11 +37,11 @@ repo.bat ci format
 
 ### Plugin System
 
-The core is a C++ plugin architecture. Each optimization operation is a shared library that subclasses `omni::scene::optimizer::Operation` (in `source/core/src/Operation.h`) and registers itself with `SO_PLUGIN_INIT`. Plugins in `source/operations/` are auto-discovered at build time via premake.
+The core is a C++ plugin architecture. Each optimization operation is a shared library that subclasses `usd_optimize::Operation` (in `source/core/src/Operation.h`) and registers itself with `USD_OPTIMIZE_PLUGIN_INIT`. Plugins in `source/operations/` are auto-discovered at build time via premake.
 
 ### Key Layers
 
-1. **Public API** — `include/omni/sceneoptimizer/ISceneOptimizer.h` — C++ interface consumed by external callers
+1. **Public API** — `include/usd_optimize/core/UsdOptimize.h` — C++ interface consumed by external callers
 2. **Core Library** (`source/core/`) — Operation manager, Python bindings via pybind11 (`source/core/bindings/BindingsPython.cpp`)
 3. **Operations** (`source/operations/`) — 45+ plugins; each is a standalone `.cpp` file (and optional headers) that registers one operation
 
@@ -53,7 +53,7 @@ Arguments are declared in the constructor via `addArgument()`; their bound membe
 
 ```text
 source/tests/
-├── test.cpp/omni.scene.optimizer.core/   # C++ unit tests (Doctest)
+├── test.cpp/usd_optimize.core/   # C++ unit tests (Doctest)
 ├── test.python/                          # Python binding tests
 └── test.cuda.utils/                      # Helper shared lib for the cpp suite (not its own runnable suite)
 ```
@@ -61,10 +61,10 @@ source/tests/
 ## Writing a New Operation
 
 1. Create a `.cpp` (and optional `.h`) under `source/operations/`
-2. Subclass `omni::scene::optimizer::Operation`; call base constructor with `(key, displayName, description)`
+2. Subclass `usd_optimize::Operation`; call base constructor with `(key, displayName, description)`
 3. Declare arguments in the constructor with `addArgument()`
 4. Implement `executeImpl()` returning `OperationResult::eSuccess`
-5. Register at the bottom: `SO_PLUGIN_INIT(omni::scene::optimizer::MyPlugin);`
+5. Register at the bottom: `USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::MyPlugin);`
 6. To support analysis mode, override `getSupportsAnalysis()` → `true` and implement `executeAnalysisImpl()`
 7. Add docs entry in `operations.rst`
 
@@ -86,11 +86,11 @@ Coverage tooling is Linux-only (gcov), so use `./repo.sh` only:
 
 ## Performance Validators
 
-Scene Optimizer ships an `omniverse-asset-validator` integration: a set of rules under the `Performance` category that wrap analysis-mode operations. Most register by default; a few are opt-in because they're slow on large stages — see `_default_rule_classes()` and `_expensive_rule_classes()` in `source/core/python/omni/scene/optimizer/validators/_plugin.py` for the authoritative lists. Tests at `source/tests/test.python/test_validators_*.py`.
+Usd Optimize ships a `usd-validation-nvidia` integration: a set of rules under the `Performance` category that wrap analysis-mode operations. All rules register together via `register_all()` — see `_RULE_CATEGORIES` in `source/validators/python/usd_optimize/validators/__init__.py` for the authoritative list. Tests at `source/tests/test.python/test_validators_*.py`.
 
 Two perf-relevant features in `_base.py`: an analysis-result cache keyed by root-layer identifier (so e.g. the mesh-cleanup-family rules share one `meshCleanup` analysis), and a `REQUIRES_MESH` short-circuit that skips mesh-only rules on stages without `UsdGeomMesh` prims.
 
-Use the `validators` skill (`.agents/skills/validators/SKILL.md`) for invocation, file logging, and adding new validators. The asset-validator discovers plugins via `importlib.metadata` entry points, so **`omni_asset_validate` only sees Scene Optimizer after the `omniverse-scene-optimizer` wheel is pip-installed** (source-tree `PYTHONPATH` alone registers no entry point metadata). Third-party callers must either invoke `register_all()` programmatically (use `include_expensive=True` to include `FindOverlappingMeshes`) or pip-install the wheel and set `OMNI_ASSET_VALIDATOR_ISOLATE_ENTRYPOINTS` for CLI allow-listing.
+Use the `validators` skill (`.agents/skills/validators/SKILL.md`) for invocation, file logging, and adding new validators. The validator discovers plugins via `importlib.metadata` entry points, so **`nvidia_usd_validate` only sees Usd Optimize after the `usd-optimize` wheel is pip-installed** (source-tree `PYTHONPATH` alone registers no entry point metadata). Third-party callers must either invoke `register_all()` programmatically or pip-install the wheel; plugins auto-load once the providing package is importable.
 
 To validate a USD asset and present a structured report, use the `run-validators` and `interpret-validators` skills (Claude aliases `/run-validators` and `/interpret-validators`). The skill files live at `.agents/skills/run-validators/SKILL.md` and `.agents/skills/interpret-validators/SKILL.md` — agents that don't auto-discover `.agents/skills/` (e.g. Codex) can be pointed at those paths directly. They drive `tools/perf_validators/run.sh` (POSIX) or `run.bat` (Windows) and reuse the cross-platform Python helpers in `tools/perf_validators/`.
 
@@ -112,15 +112,15 @@ The end-to-end optimization loop (`run-validators` → `interpret-validators` �
 
 ## Operation Guides and Tuning
 
-For tuning or understanding any Scene Optimizer operation, the per-operation guides under `.agents/operations/` are the primary reference:
+For tuning or understanding any Usd Optimize operation, the per-operation guides under `.agents/operations/` are the primary reference:
 
 - `.agents/operations/INDEX.md` — operation list and guide status.
-- `.agents/operations/INVOCATION.md` — canonical Python / shell invocation reference (`SceneOptimizerCore.executeOperation`, `executeConfig`, `standalone.execute_commands_from_json`, the `run-operations` driver).
+- `.agents/operations/INVOCATION.md` — canonical Python / shell invocation reference (`UsdOptimizeCore.executeOperation`, `executeConfig`, `standalone.execute_commands_from_json`, the `run-operations` driver).
 - `.agents/operations/PIPELINES.md` — curated multi-op chains organized by bottleneck (memory, load time, mesh count, data quality), with critical caveats (don't merge if instanced; deduplicator is mesh-level only) and an upstream-authoring sidebar.
 - `.agents/operations/<key>.md` — the guide for a specific operation. Each guide's `Source:` line is the authoritative pointer to the C++ implementation.
 - `.agents/operations/_template.md` — template for adding a new operation guide.
 
-If a guide is missing for an operation, fall back to reading the C++ source. The operation key is the first string argument passed to the `Operation(...)` constructor inside the relevant `*Operation.cpp` file (not `SO_PLUGIN_INIT`, which takes the class type).
+If a guide is missing for an operation, fall back to reading the C++ source. The operation key is the first string argument passed to the `Operation(...)` constructor inside the relevant `*Operation.cpp` file (not `USD_OPTIMIZE_PLUGIN_INIT`, which takes the class type).
 
 Claude Code starts an interactive parameter tuning session with `/tune-parameters`. Other agents can run the same workflow by reading the operation's guide (or the underlying skill at `.agents/skills/tune-parameters/SKILL.md`) and iterating with the user.
 
@@ -140,4 +140,4 @@ Skill bodies and frontmatter use Claude Code's tool vocabulary. Map to your equi
 | `Write` (new file) | `apply_patch` for tracked paths; otherwise the agent's file-write equivalent |
 | `Skill(<name>)` | open `.agents/skills/<name>/SKILL.md` and follow its steps |
 
-Translate shell syntax (env vars, command chaining, path separators) to match your shell — that's standard cross-shell handling, not Scene Optimizer-specific.
+Translate shell syntax (env vars, command chaining, path separators) to match your shell — that's standard cross-shell handling, not Usd Optimize-specific.

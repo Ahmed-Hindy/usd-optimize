@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/PythonOperation.h"
+#include "usd_optimize/core/PythonOperation.h"
 
 // Carbonite
 #include <carb/profiler/Profile.h>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 constexpr const char* s_category = "PYTHON";
@@ -122,7 +122,7 @@ std::string PythonOperation::getAuthor() const
 }
 
 
-SOPluginVersion PythonOperation::getVersion() const
+UsdOptimizePluginVersion PythonOperation::getVersion() const
 {
     return m_version;
 }
@@ -159,7 +159,7 @@ OperationResult PythonOperation::execute(ExecutionContext* context, const PXR_NS
     std::string const argJsonStr = JsWriteToString(mergedArgs);
 
     // don't start the profile zone until we actually call the python operation
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|PythonOperation|Execute");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|PythonOperation|Execute");
 
     // call execute on the python object
     ScopedPyObject pyExecuteRet = PyObject_CallMethod(m_pyObject.obj, "_execute", "(is)", stageId, argJsonStr.c_str());
@@ -192,4 +192,4 @@ OperationResult PythonOperation::executeImpl()
 // LCOV_EXCL_STOP
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

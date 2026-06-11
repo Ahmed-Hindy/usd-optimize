@@ -1,11 +1,11 @@
-"""Run a chain of Scene Optimizer operations against a USD asset.
+"""Run a chain of Usd Optimize operations against a USD asset.
 
 Two subcommands:
 
   run <asset> [--config <inline-json>] [--config-file <path>] [--pipeline <name>]
               [--output <path>] [--summary <path>]
       Open the stage, run the requested operation chain, save the optimized
-      stage to <output> (defaults to <tmp>/scene-optimizer-operations/<sha1>/
+      stage to <output> (defaults to <tmp>/usd-optimize-operations/<sha1>/
       <asset_stem>.optimized.usdc), and print a per-operation summary. Pass
       --no-save to skip the save entirely.
 
@@ -127,7 +127,7 @@ def _run(args: argparse.Namespace) -> int:
     # Lazy imports — only load the runtime once we know we're actually going
     # to execute. Keeps list-pipelines, --pipeline-typo, and --config-bad-json
     # paths usable outside the wrapper.
-    from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
+    from usd_optimize.core import ExecutionContext, UsdOptimizeCore
     from pxr import Usd
 
     print(f"Opening: {asset}", flush=True)
@@ -150,7 +150,7 @@ def _run(args: argparse.Namespace) -> int:
     if args.capture_stats:
         context.captureStats = 1
 
-    so_core = SceneOptimizerCore.getInstance()
+    so_core = UsdOptimizeCore.getInstance()
     results = []
     total_t0 = time.time()
     for i, op_dict in enumerate(config):
@@ -239,7 +239,7 @@ def _list_pipelines(_args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run a chain of Scene Optimizer operations against a USD asset.",
+        description="Run a chain of Usd Optimize operations against a USD asset.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -264,7 +264,7 @@ def main() -> int:
         "--output",
         help=(
             "output USD path. If omitted, defaults to "
-            "<tmp>/scene-optimizer-operations/<sha1>/<asset_stem>.optimized.usdc. "
+            "<tmp>/usd-optimize-operations/<sha1>/<asset_stem>.optimized.usdc. "
             "Pass --no-save to skip the save instead."
         ),
     )

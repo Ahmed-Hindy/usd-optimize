@@ -14,6 +14,11 @@ DUPLICATE_METHOD_COPYVALUES = 0  # Copy the points and normals values
 DUPLICATE_METHOD_REFERENCE = 1  # Reference composition arc
 DUPLICATE_METHOD_INSTANCEABLEREFERENCE = 2  # Reference composition arc with instanceable true
 DUPLICATE_METHOD_SET_ATTRIBUTE = 3  # Set duplication set attribute
+DUPLICATE_METHOD_POINT_INSTANCER = 4  # Replace duplicates with a PointInstancer per duplicate set
+
+# PointInstancer parent mode values
+POINT_INSTANCER_LOCATION_COMMON_ROOT = 0
+POINT_INSTANCER_LOCATION_CUSTOM_PATH = 1
 
 
 # Default arguments for the command
@@ -1823,3 +1828,427 @@ class Test_Operation_Deduplicate_Geometry(Test_Operation):
             msg="World-space points of /World/MeshFlipped changed across dedup -- "
             "the reference transform was likely applied in the wrong order",
         )
+
+    async def test_create_point_instancer_common_root(self):
+        """Duplicates are replaced by a PointInstancer authored at the common root of the duplicate meshes."""
+        file_name = "deduplicatePeerMeshes.usda"
+        file_path = _get_test_data_file_path(file_name)
+
+        # mesh_1, mesh_2, mesh_3 are duplicates in this scene; mesh_0 is unique.
+        duplicate_paths_before = [
+            "/World/Asset/Part/Geom/mesh_1",
+            "/World/Asset/Part/Geom/mesh_2",
+            "/World/Asset/Part/Geom/mesh_3",
+        ]
+
+        # Compute the expected world-space points of each duplicate before the operation runs.
+        layer = Sdf.Layer.OpenAsAnonymous(file_path)
+        stage_before = Usd.Stage.Open(layer)
+        xform_cache_before = UsdGeom.XformCache()
+        expected_world_points = [
+            _get_worldspace_points(stage_before.GetPrimAtPath(p), xform_cache_before) for p in duplicate_paths_before
+        ]
+
+        # Run the operation in Create PointInstancer mode with the default Common Root parent.
+        args = DEFAULT_ARGS.copy()
+        args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+        args["pointInstancerLocation"] = POINT_INSTANCER_LOCATION_COMMON_ROOT
+        stage_after = self._open_stage(file_name)
+        self._execute_command(args)
+
+        # All three original duplicate prims should be removed.
+        for path in duplicate_paths_before:
+            self.assertFalse(
+                stage_after.GetPrimAtPath(path).IsValid(),
+                f"Expected {path} to be removed after PointInstancer deduplication",
+            )
+
+        # The unique mesh_0 should remain untouched.
+        self.assertTrue(stage_after.GetPrimAtPath("/World/Asset/Part/Geom/mesh_0").IsValid())
+
+        # Exactly one PointInstancer should exist, authored under the common root of the duplicates.
+        instancers = [p for p in stage_after.Traverse() if p.IsA(UsdGeom.PointInstancer)]
+        self.assertEqual(len(instancers), 1)
+        instancer_prim = instancers[0]
+        self.assertEqual(instancer_prim.GetPath().GetParentPath(), Sdf.Path("/World/Asset/Part/Geom"))
+
+        # The prototype mesh must live as a direct child of the PointInstancer.
+        instancer = UsdGeom.PointInstancer(instancer_prim)
+        proto_targets = instancer.GetPrototypesRel().GetTargets()
+        self.assertEqual(len(proto_targets), 1)
+        prototype_prim = stage_after.GetPrimAtPath(proto_targets[0])
+        self.assertTrue(prototype_prim.IsValid())
+        self.assertTrue(prototype_prim.IsA(UsdGeom.Mesh))
+        self.assertEqual(prototype_prim.GetPath().GetParentPath(), instancer_prim.GetPath())
+
+        # protoIndices should reference index 0 for every instance and positions/scales/orientations must each have
+        # one entry per original duplicate.
+        proto_indices = instancer.GetProtoIndicesAttr().Get()
+        self.assertEqual(len(proto_indices), len(duplicate_paths_before))
+        self.assertTrue(all(i == 0 for i in proto_indices))
+        self.assertEqual(len(instancer.GetPositionsAttr().Get()), len(duplicate_paths_before))
+        self.assertEqual(len(instancer.GetOrientationsAttr().Get()), len(duplicate_paths_before))
+        self.assertEqual(len(instancer.GetScalesAttr().Get()), len(duplicate_paths_before))
+
+        # World-space transforms must be preserved. Compare each instance's computed local-to-world
+        # against the original mesh's by transforming the prototype's points.
+        instance_xforms = list(
+            instancer.ComputeInstanceTransformsAtTime(Usd.TimeCode.Default(), Usd.TimeCode.Default())
+        )
+        self.assertEqual(len(instance_xforms), len(duplicate_paths_before))
+
+        proto_points = UsdGeom.Mesh(prototype_prim).GetPointsAttr().Get()
+
+        # Each instance's transformed prototype points must match exactly one of the original duplicates'
+        # world-space points (in some order, since the duplicate set is not order-preserving).
+        # The PointInstancer is at /World/Asset/Part/Geom which has identity worldspace transform here,
+        # so ComputeInstanceTransformsAtTime returns world-space transforms directly. Tolerance is loose
+        # because positions are stored as float32 in the PointInstancer; at ~1e5 magnitude the spacing
+        # between representable floats is ~1e-2.
+        for xform in instance_xforms:
+            instance_world_points = [xform.Transform(Gf.Vec3d(p)) for p in proto_points]
+            matched = any(
+                len(original_world_points) == len(instance_world_points)
+                and all(
+                    (Gf.Vec3d(a) - Gf.Vec3d(b)).GetLength() < 0.05
+                    for a, b in zip(original_world_points, instance_world_points)
+                )
+                for original_world_points in expected_world_points
+            )
+            self.assertTrue(matched, "Instance world-space points do not match any original duplicate mesh")
+
+    async def test_create_point_instancer_minimum_duplicates(self):
+        """minimumDuplicates gates PointInstancer creation on the size of the duplicate set."""
+        # deduplicatePeerMeshes.usda holds one unique mesh (mesh_0) and a set of three duplicates
+        # (mesh_1/2/3). A minimum larger than the set leaves everything untouched; a minimum equal to
+        # the set size still produces the instancer.
+        file_name = "deduplicatePeerMeshes.usda"
+        duplicate_names = ("mesh_1", "mesh_2", "mesh_3")
+        all_names = ("mesh_0",) + duplicate_names
+
+        # Minimum of 4 is greater than the 3 duplicates in the set, so no PointInstancer is authored
+        # and every original mesh remains in place.
+        args = DEFAULT_ARGS.copy()
+        args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+        args["pointInstancerLocation"] = POINT_INSTANCER_LOCATION_COMMON_ROOT
+        args["minimumDuplicates"] = 4
+        stage = self._open_stage(file_name)
+        self._execute_command(args)
+
+        self.assertEqual(
+            [p for p in stage.Traverse() if p.IsA(UsdGeom.PointInstancer)],
+            [],
+            "No PointInstancer should be created when the set is smaller than minimumDuplicates",
+        )
+        for name in all_names:
+            self.assertTrue(
+                stage.GetPrimAtPath(f"/World/Asset/Part/Geom/{name}").IsValid(),
+                f"Expected {name} to be left untouched when below minimumDuplicates",
+            )
+
+        # Minimum of 3 exactly matches the set size, so the PointInstancer is created and the duplicates
+        # are removed (mesh_0 stays, being unique).
+        args["minimumDuplicates"] = 3
+        stage = self._open_stage(file_name)
+        self._execute_command(args)
+
+        instancers = [p for p in stage.Traverse() if p.IsA(UsdGeom.PointInstancer)]
+        self.assertEqual(len(instancers), 1, "A PointInstancer should be created when the set meets minimumDuplicates")
+        for name in duplicate_names:
+            self.assertFalse(
+                stage.GetPrimAtPath(f"/World/Asset/Part/Geom/{name}").IsValid(),
+                f"Expected {name} to be removed once the set meets minimumDuplicates",
+            )
+        self.assertTrue(stage.GetPrimAtPath("/World/Asset/Part/Geom/mesh_0").IsValid())
+
+    async def test_create_point_instancer_custom_path(self):
+        """A user-supplied parent path is honored and auto-created if missing."""
+        file_name = "deduplicatePeerMeshes.usda"
+
+        args = DEFAULT_ARGS.copy()
+        args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+        args["pointInstancerLocation"] = POINT_INSTANCER_LOCATION_CUSTOM_PATH
+        args["pointInstancerParentPath"] = "/World/Instancers"
+
+        stage = self._open_stage(file_name)
+        self.assertFalse(stage.GetPrimAtPath("/World/Instancers").IsValid())
+
+        self._execute_command(args)
+
+        # The custom parent should have been auto-created as an Xform.
+        parent_prim = stage.GetPrimAtPath("/World/Instancers")
+        self.assertTrue(parent_prim.IsValid())
+        self.assertEqual(parent_prim.GetTypeName(), "Xform")
+
+        # The PointInstancer should live directly under the requested parent.
+        instancers = [p for p in stage.Traverse() if p.IsA(UsdGeom.PointInstancer)]
+        self.assertEqual(len(instancers), 1)
+        self.assertEqual(instancers[0].GetPath().GetParentPath(), Sdf.Path("/World/Instancers"))
+
+    async def test_create_point_instancer_empty_custom_path_fails(self):
+        """Custom-path mode with an empty parent path should fail fast before touching the stage."""
+        file_name = "deduplicatePeerMeshes.usda"
+
+        args = DEFAULT_ARGS.copy()
+        args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+        args["pointInstancerLocation"] = POINT_INSTANCER_LOCATION_CUSTOM_PATH
+        args["pointInstancerParentPath"] = ""
+
+        stage = self._open_stage(file_name)
+        success, result = self._execute_command(args)
+
+        # The harness wrapper still returns True; the operation itself should report failure.
+        self.assertTrue(success)
+        self.assertFalse(result[0])
+
+        # The stage must be untouched -- no PointInstancer authored and no original meshes removed.
+        self.assertEqual([p for p in stage.Traverse() if p.IsA(UsdGeom.PointInstancer)], [])
+        for name in ("mesh_0", "mesh_1", "mesh_2", "mesh_3"):
+            self.assertTrue(stage.GetPrimAtPath(f"/World/Asset/Part/Geom/{name}").IsValid())
+
+    async def test_create_point_instancer_invalid_custom_path_fails(self):
+        """Custom-path mode with a non-absolute or syntactically-invalid path should fail fast."""
+        file_name = "deduplicatePeerMeshes.usda"
+
+        # Relative paths are syntactically valid SdfPath strings but not absolute prim paths, so the
+        # IsAbsolutePath check rejects them. A path string with illegal characters fails the
+        # IsValidPathString check. Both should produce a failed operation without modifying the stage.
+        for bad_path in ("relative/path", "/bad name with spaces"):
+            with self.subTest(parent_path=bad_path):
+                args = DEFAULT_ARGS.copy()
+                args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+                args["pointInstancerLocation"] = POINT_INSTANCER_LOCATION_CUSTOM_PATH
+                args["pointInstancerParentPath"] = bad_path
+
+                stage = self._open_stage(file_name)
+                success, result = self._execute_command(args)
+
+                self.assertTrue(success)
+                self.assertFalse(result[0], f"Expected failure for parent path '{bad_path}'")
+
+                self.assertEqual([p for p in stage.Traverse() if p.IsA(UsdGeom.PointInstancer)], [])
+                for name in ("mesh_0", "mesh_1", "mesh_2", "mesh_3"):
+                    self.assertTrue(stage.GetPrimAtPath(f"/World/Asset/Part/Geom/{name}").IsValid())
+
+    async def test_create_point_instancer_pivot_and_deep_transform(self):
+        """Worldspace points are preserved for duplicates that differ by pivots and by a deep transform."""
+        # deduplicateGeometryPivot.usda contains 5 cubes that are all duplicates up to deep transforms / pivots.
+        # The cubes differ in: (a) the actual point values written in `points` (3 cubes at -250..-200, 2 at -200..-150),
+        # (b) translate offsets, and (c) per-mesh and per-parent pivot xform pairs. The PointInstancer mode must
+        # account for all three when authoring per-instance positions/orientations/scales -- otherwise the prototype
+        # ends up planted in the wrong worldspace location.
+        file_name = "deduplicateGeometryPivot.usda"
+        file_path = _get_test_data_file_path(file_name)
+
+        cube_paths = [
+            "/World/Cube",
+            "/World/CubeDuplicate",
+            "/World/CubeDuplicateCustomPivot",
+            "/World/CubeDuplicateAlternateTopology",
+            "/World/CubeDuplicateAlternateTopologyCustomPivot",
+        ]
+
+        layer_before = Sdf.Layer.OpenAsAnonymous(file_path)
+        stage_before = Usd.Stage.Open(layer_before)
+        xform_cache_before = UsdGeom.XformCache()
+        expected_world_points = [
+            _get_worldspace_points(stage_before.GetPrimAtPath(p), xform_cache_before) for p in cube_paths
+        ]
+
+        args = DEFAULT_ARGS.copy()
+        args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+        args["pointInstancerLocation"] = POINT_INSTANCER_LOCATION_COMMON_ROOT
+        args["tolerance"] = 0.05
+        stage_after = self._open_stage(file_name)
+        self._execute_command(args)
+
+        for path in cube_paths:
+            self.assertFalse(
+                stage_after.GetPrimAtPath(path).IsValid(),
+                f"Expected {path} to be removed after PointInstancer deduplication",
+            )
+
+        instancers = [p for p in stage_after.Traverse() if p.IsA(UsdGeom.PointInstancer)]
+        self.assertEqual(len(instancers), 1)
+        instancer = UsdGeom.PointInstancer(instancers[0])
+
+        proto_targets = instancer.GetPrototypesRel().GetTargets()
+        self.assertEqual(len(proto_targets), 1)
+        prototype_prim = stage_after.GetPrimAtPath(proto_targets[0])
+        proto_points = UsdGeom.Mesh(prototype_prim).GetPointsAttr().Get()
+
+        instance_xforms = list(
+            instancer.ComputeInstanceTransformsAtTime(Usd.TimeCode.Default(), Usd.TimeCode.Default())
+        )
+        self.assertEqual(len(instance_xforms), len(cube_paths))
+
+        # Each instance, when applied to the prototype's points, must match one of the original cubes' worldspace
+        # points. Tolerance is loose enough to absorb float32 storage in the PointInstancer attributes.
+        unmatched_expected = list(expected_world_points)
+        for xform in instance_xforms:
+            instance_world_points = [xform.Transform(Gf.Vec3d(p)) for p in proto_points]
+            match_index = None
+            for i, original_world_points in enumerate(unmatched_expected):
+                if len(original_world_points) != len(instance_world_points):
+                    continue
+                if all(
+                    (Gf.Vec3d(a) - Gf.Vec3d(b)).GetLength() < 0.05
+                    for a, b in zip(original_world_points, instance_world_points)
+                ):
+                    match_index = i
+                    break
+            self.assertIsNotNone(
+                match_index,
+                f"Instance worldspace points do not match any remaining original cube; first inst point="
+                f"{instance_world_points[0]}",
+            )
+            # Remove the matched entry so that one cube can't satisfy two instances.
+            unmatched_expected.pop(match_index)
+
+    async def test_create_point_instancer_splits_by_material(self):
+        """Duplicates with different bound materials become separate PointInstancers so no material is lost."""
+        # The fixture holds four identical cubes: cube_red_a/b bound to /World/Looks/Red and cube_blue_a/b bound to
+        # /World/Looks/Blue. Splitting the duplicate set by bound material must yield one PointInstancer per material.
+        stage = self._open_stage("deduplicatePointInstancerMaterials.usda")
+
+        args = DEFAULT_ARGS.copy()
+        args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+        args["pointInstancerLocation"] = POINT_INSTANCER_LOCATION_COMMON_ROOT
+        self._execute_command(args)
+
+        # Two PointInstancers, one per distinct bound material; each has a single prototype with two instances.
+        instancers = [UsdGeom.PointInstancer(p) for p in stage.Traverse() if p.IsA(UsdGeom.PointInstancer)]
+        self.assertEqual(len(instancers), 2)
+
+        instances_per_material = {}
+        for instancer in instancers:
+            proto_targets = instancer.GetPrototypesRel().GetTargets()
+            self.assertEqual(len(proto_targets), 1, "Each material-homogeneous set should yield a single prototype")
+
+            proto_prim = stage.GetPrimAtPath(proto_targets[0])
+            material, _ = UsdShade.MaterialBindingAPI(proto_prim).ComputeBoundMaterial()
+            self.assertTrue(material, f"Prototype {proto_targets[0]} lost its material binding")
+
+            proto_indices = list(instancer.GetProtoIndicesAttr().Get())
+            self.assertTrue(all(i == 0 for i in proto_indices))
+            instances_per_material[material.GetPath()] = len(proto_indices)
+
+        self.assertEqual(
+            instances_per_material,
+            {Sdf.Path("/World/Looks/Red"): 2, Sdf.Path("/World/Looks/Blue"): 2},
+        )
+
+    async def test_create_point_instancer_rebinds_inherited_material(self):
+        """A material inherited from an ancestor is re-authored on the prototype when it is relocated."""
+        # The cubes inherit /World/Looks/Wood from /World/Group rather than binding it directly.
+        stage = self._open_stage("deduplicatePointInstancerInheritedMaterial.usda")
+
+        cube_a = stage.GetPrimAtPath("/World/Group/cube_a")
+        self.assertFalse(cube_a.HasRelationship("material:binding"), "Fixture cube should not bind a material directly")
+        material_before, _ = UsdShade.MaterialBindingAPI(cube_a).ComputeBoundMaterial()
+        self.assertEqual(material_before.GetPath(), Sdf.Path("/World/Looks/Wood"), "Fixture cube should inherit Wood")
+
+        # Author the PointInstancer under a separate branch so the prototype no longer sits beneath /World/Group and
+        # therefore cannot keep inheriting Wood through namespace -- the binding has to be re-authored on it.
+        args = DEFAULT_ARGS.copy()
+        args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+        args["pointInstancerLocation"] = POINT_INSTANCER_LOCATION_CUSTOM_PATH
+        args["pointInstancerParentPath"] = "/World/Instancers"
+        self._execute_command(args)
+
+        instancers = [p for p in stage.Traverse() if p.IsA(UsdGeom.PointInstancer)]
+        self.assertEqual(len(instancers), 1)
+        instancer = UsdGeom.PointInstancer(instancers[0])
+        self.assertEqual(instancer.GetPath().GetParentPath(), Sdf.Path("/World/Instancers"))
+
+        proto_targets = instancer.GetPrototypesRel().GetTargets()
+        self.assertEqual(len(proto_targets), 1)
+        proto_prim = stage.GetPrimAtPath(proto_targets[0])
+
+        # The prototype lives under /World/Instancers (not /World/Group), so it must carry the binding directly.
+        self.assertTrue(
+            proto_prim.HasRelationship("material:binding"),
+            "Inherited binding was not re-authored on the relocated prototype",
+        )
+        material, _ = UsdShade.MaterialBindingAPI(proto_prim).ComputeBoundMaterial()
+        self.assertEqual(material.GetPath(), Sdf.Path("/World/Looks/Wood"))
+
+    async def test_create_point_instancer_keeps_non_representable_instance(self):
+        """A duplicate needing shear / rotated non-uniform scale is left as a mesh; the rest are instanced."""
+        # cube_a / cube_b are translation-only (representable); cube_c is rotate-then-scale (not representable).
+        stage = self._open_stage("deduplicatePointInstancerShear.usda")
+
+        args = DEFAULT_ARGS.copy()
+        args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+        args["pointInstancerLocation"] = POINT_INSTANCER_LOCATION_COMMON_ROOT
+        self._execute_command(args)
+
+        # One PointInstancer with exactly the two representable instances.
+        instancers = [p for p in stage.Traverse() if p.IsA(UsdGeom.PointInstancer)]
+        self.assertEqual(len(instancers), 1)
+        instancer = UsdGeom.PointInstancer(instancers[0])
+        self.assertEqual(len(instancer.GetProtoIndicesAttr().Get()), 2)
+
+        # cube_a and cube_b were instanced and removed; cube_c is left untouched as a mesh.
+        self.assertFalse(stage.GetPrimAtPath("/World/Geom/cube_a").IsValid())
+        self.assertFalse(stage.GetPrimAtPath("/World/Geom/cube_b").IsValid())
+        cube_c = stage.GetPrimAtPath("/World/Geom/cube_c")
+        self.assertTrue(cube_c.IsValid())
+        self.assertTrue(cube_c.IsA(UsdGeom.Mesh))
+
+    async def test_create_point_instancer_skips_set_with_too_few_representable(self):
+        """If fewer than two duplicates are representable, the whole set is left untouched."""
+        # Restrict the set to one representable (cube_a) and one non-representable (cube_c) duplicate.
+        stage = self._open_stage("deduplicatePointInstancerShear.usda")
+
+        args = DEFAULT_ARGS.copy()
+        args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+        args["meshPrimPaths"] = ["/World/Geom/cube_a", "/World/Geom/cube_c"]
+        self._execute_command(args)
+
+        # No PointInstancer is authored and both meshes remain.
+        self.assertEqual([p for p in stage.Traverse() if p.IsA(UsdGeom.PointInstancer)], [])
+        self.assertTrue(stage.GetPrimAtPath("/World/Geom/cube_a").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/World/Geom/cube_c").IsValid())
+
+    async def test_create_point_instancer_prototype_source_is_deleted(self):
+        """Regression: the prototype must be a representable duplicate that is itself deleted, never a leftover.
+
+        The prototype source was previously always the last prim in the set. When that prim's own placement was not
+        representable (cube_c's shear), it was still copied under the PointInstancer but excluded from the instanced
+        (deleted) prims -- leaving its mesh data twice, once as the standalone original and once as the prototype
+        copy. The prototype must instead come from a representable duplicate whose original is removed.
+        """
+        stage = self._open_stage("deduplicatePointInstancerShear.usda")
+
+        args = DEFAULT_ARGS.copy()
+        args["duplicateMethod"] = DUPLICATE_METHOD_POINT_INSTANCER
+        args["pointInstancerLocation"] = POINT_INSTANCER_LOCATION_COMMON_ROOT
+        self._execute_command(args)
+
+        instancers = [p for p in stage.Traverse() if p.IsA(UsdGeom.PointInstancer)]
+        self.assertEqual(len(instancers), 1)
+        instancer = UsdGeom.PointInstancer(instancers[0])
+
+        # The prototype copied under the PointInstancer must come from a representable cube (cube_a/cube_b), not the
+        # sheared cube_c, and its original must have been deleted so its mesh data is not duplicated.
+        proto_targets = instancer.GetPrototypesRel().GetTargets()
+        self.assertEqual(len(proto_targets), 1)
+        prototype_prim = stage.GetPrimAtPath(proto_targets[0])
+        self.assertTrue(prototype_prim.IsValid())
+        prototype_name = prototype_prim.GetName()
+        self.assertIn(prototype_name, ("cube_a", "cube_b"))
+        self.assertFalse(
+            stage.GetPrimAtPath(f"/World/Geom/{prototype_name}").IsValid(),
+            "The prototype's source prim must be deleted, not left beside its copy",
+        )
+
+        # cube_c could not be represented, so it stays exactly once as a standalone mesh, and it is the only original
+        # mesh remaining directly under Geom (the representable cubes were instanced and removed).
+        cube_c = stage.GetPrimAtPath("/World/Geom/cube_c")
+        self.assertTrue(cube_c.IsValid())
+        self.assertTrue(cube_c.IsA(UsdGeom.Mesh))
+        remaining_meshes = [
+            p.GetName() for p in stage.GetPrimAtPath("/World/Geom").GetChildren() if p.IsA(UsdGeom.Mesh)
+        ]
+        self.assertEqual(remaining_meshes, ["cube_c"])

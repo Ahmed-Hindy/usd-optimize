@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: Copyright (c) 2020-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "omni/scene.optimizer/core/ComputeExtents.h"
+#include "usd_optimize/core/ComputeExtents.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/ResolveSdfPaths.h"
+// Usd Optimize Core
+#include "usd_optimize/core/ResolveSdfPaths.h"
 
 // USD
 #include <pxr/usd/usdGeom/mesh.h>
@@ -16,7 +16,7 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -50,7 +50,7 @@ static void _getTimeSamplesForAttributes(const UsdPrim& prim,
 
 size_t _computeExtents(const std::vector<UsdPrim>& prims)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|_computeExtents");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|_computeExtents");
 
     // Wrap in a ChangeBlock.
     SdfChangeBlock changeBlock;
@@ -127,7 +127,7 @@ size_t _computeExtents(const UsdStageWeakPtr& usdStage, const std::vector<std::s
 
 std::vector<std::string> _findPrimsMissingExtents(const std::vector<UsdPrim>& prims)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|_findPrimsMissingExtents");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|_findPrimsMissingExtents");
 
     std::vector<std::string> missing;
 
@@ -164,4 +164,4 @@ std::vector<std::string> _findPrimsMissingExtents(const UsdStageWeakPtr& usdStag
     return _findPrimsMissingExtents(prims);
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

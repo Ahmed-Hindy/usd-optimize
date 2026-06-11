@@ -54,14 +54,14 @@ tools/perf_operations/run.sh run path/to/asset.usd \
 
 ```python
 # Or call directly via the Python bindings
-from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
 from pxr import Usd
 
 stage = Usd.Stage.Open("path/to/asset.usd")
 context = ExecutionContext()
 context.set_stage(stage)
 
-success, error, output = SceneOptimizerCore.getInstance().executeOperation(
+success, error, output = UsdOptimizeCore.getInstance().executeOperation(
     "<key>", context, {"<arg1>": <value>}
 )
 stage.GetRootLayer().Save()

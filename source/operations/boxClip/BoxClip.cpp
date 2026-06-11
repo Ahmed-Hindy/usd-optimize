@@ -7,9 +7,9 @@
 #include <OmniMeshOps/Slice.h>
 #include <OmniMeshOps/usd/MeshData.h>
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/Utils.h>
 
 // USD
 #include <pxr/usd/usd/primCompositionQuery.h>
@@ -34,10 +34,10 @@ TF_DEFINE_PRIVATE_TOKENS(
 // LCOV_EXCL_STOP
 // clang-format on
 
-SO_PLUGIN_INIT(omni::scene::optimizer::BoxClipOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::BoxClipOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -133,11 +133,11 @@ BoxClipOperation::BoxClipOperation()
 
 std::string BoxClipOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion BoxClipOperation::getVersion() const
+UsdOptimizePluginVersion BoxClipOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -254,14 +254,14 @@ OperationResult BoxClipOperation::executePre()
     if (m_keepGeometry == KeepGeometry::eOutside &&
         m_partiallyIntersectedPrims == PartiallyIntersectedPrims::eKeepIntersection)
     {
-        SO_LOG_VERBOSE("Keep Geometry Outside does not support Cut Mesh; falling back to Keep.");
+        USD_OPTIMIZE_LOG_VERBOSE("Keep Geometry Outside does not support Cut Mesh; falling back to Keep.");
         m_partiallyIntersectedPrims = PartiallyIntersectedPrims::eKeep;
     }
 
     std::ostringstream oss;
     oss << "Resolved clip box: [" << m_resolvedMin[0] << ", " << m_resolvedMin[1] << ", " << m_resolvedMin[2]
         << "] -> [" << m_resolvedMax[0] << ", " << m_resolvedMax[1] << ", " << m_resolvedMax[2] << "]\n";
-    SO_LOG_VERBOSE(oss.str().c_str());
+    USD_OPTIMIZE_LOG_VERBOSE(oss.str().c_str());
 
     return { true };
 }
@@ -488,7 +488,7 @@ ProcessedData* BoxClipOperation::processMesh(const UsdPrim& prim, tbb::task_grou
             {
                 std::string errorMsg =
                     std::string("Failed to clip mesh on prim ") + prim.GetPath().GetText() + ": " + e.what();
-                SO_LOG_ERROR(errorMsg.c_str());
+                USD_OPTIMIZE_LOG_ERROR(errorMsg.c_str());
                 return new ProcessedHostMeshData{ {}, prim, false /* keep original mesh on clip failure */ };
             }
         }
@@ -496,9 +496,9 @@ ProcessedData* BoxClipOperation::processMesh(const UsdPrim& prim, tbb::task_grou
     catch (const std::exception& e)
     {
         std::string errorMsg = prim.GetPath().GetAsString() + ": " + std::string(e.what());
-        SO_LOG_ERROR(errorMsg.c_str());
+        USD_OPTIMIZE_LOG_ERROR(errorMsg.c_str());
         return nullptr;
     }
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

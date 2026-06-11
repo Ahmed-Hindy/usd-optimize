@@ -11,20 +11,20 @@
 #include <OmniMeshOps/usd/Mesh.h>
 #include <OmniMeshOps/usd/MeshData.h>
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::MeshCleanupOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::MeshCleanupOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -112,11 +112,11 @@ MeshCleanupOperation::MeshCleanupOperation()
 
 std::string MeshCleanupOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion MeshCleanupOperation::getVersion() const
+UsdOptimizePluginVersion MeshCleanupOperation::getVersion() const
 {
     return { 2, 0, 0 };
 }
@@ -152,7 +152,7 @@ ProcessedData* MeshCleanupOperation::processMesh(const UsdPrim& prim, tbb::task_
             HostMeshData mesh_data(usd_mesh);
             if (auto [res, message] = omo::checkManifold(mesh_data); !res)
             {
-                SO_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
                 m_report.meshesThatAreNonManifolds++;
             }
             if (auto [res, message] =
@@ -162,27 +162,27 @@ ProcessedData* MeshCleanupOperation::processMesh(const UsdPrim& prim, tbb::task_
                                                             omo::meshdata::MergeBoundaries{ m_mergeBoundaries });
                 !res)
             {
-                SO_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
                 m_report.meshesWithMergeableVertices++;
             }
             if (auto [res, message] = omo::checkNoDegenerateEdges(mesh_data); !res)
             {
-                SO_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
                 m_report.meshesWithDegenerateEdges++;
             }
             if (auto [res, message] = omo::checkNoDegenerateFaces(mesh_data); !res)
             {
-                SO_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
                 m_report.meshesWithDegenerateFaces++;
             }
             if (auto [res, message] = omo::checkNoIsolatedVertices(mesh_data); !res)
             {
-                SO_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
                 m_report.meshesWithIsolatedVertices++;
             }
             if (auto [res, message] = omo::checkNoDuplicateFaces(mesh_data); !res)
             {
-                SO_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
                 m_report.meshesWithDuplicateFaces++;
             }
 
@@ -197,7 +197,7 @@ ProcessedData* MeshCleanupOperation::processMesh(const UsdPrim& prim, tbb::task_
                                                                             omo::Orientation::LeftHanded);
                 !res)
             {
-                SO_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
                 m_report.meshesWithInconsistentWindings.push_back(prim);
             }
 
@@ -265,15 +265,31 @@ ProcessedData* MeshCleanupOperation::processMesh(const UsdPrim& prim, tbb::task_
     catch (const std::exception& e)
     {
         std::string errorMsg = prim.GetPath().GetAsString() + ": " + std::string(e.what());
-        SO_LOG_ERROR(errorMsg.c_str());
+        USD_OPTIMIZE_LOG_ERROR(errorMsg.c_str());
         return new ProcessedHostMesh{ {}, prim, false /* don't write, leave mesh unchanged */ };
     }
 }
 
 
+void MeshCleanupOperation::executePost(const TotalStats& totalStats)
+{
+    // Keep the base "Total vertex/face count" lines.
+    OmniOperation::executePost(totalStats);
+
+    const size_t vertsRemoved = totalStats.before.vertexCount > totalStats.after.vertexCount ?
+                                    totalStats.before.vertexCount - totalStats.after.vertexCount :
+                                    0;
+    const size_t facesRemoved = totalStats.before.faceCount > totalStats.after.faceCount ?
+                                    totalStats.before.faceCount - totalStats.after.faceCount :
+                                    0;
+
+    USD_OPTIMIZE_LOG_INFO("Mesh cleanup removed %zu vertices and %zu faces", vertsRemoved, facesRemoved);
+}
+
+
 OperationResult MeshCleanupOperation::executeAnalysisImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|MeshCleanup|Analysis");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|MeshCleanup|Analysis");
 
     m_report.clear();
 
@@ -303,4 +319,4 @@ OperationResult MeshCleanupOperation::recordAnalysis()
     return result;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

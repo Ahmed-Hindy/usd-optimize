@@ -4,19 +4,19 @@
 
 #include "Merge.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::MergeOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::MergeOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 // clang-format off
@@ -37,7 +37,16 @@ MergeOperation::MergeOperation()
     : Operation("merge",
                 "Merge Static Meshes",
                 "The merge static meshes operation replaces multiple meshes that share common properties with a "
-                "single merged mesh. This reduces scene prim count and can improve overall stage performance.")
+                "single merged mesh. This reduces scene prim count and can improve overall stage performance. "
+                "Spatial clustering can further subdivide merges to keep merged meshes a reasonable size. The "
+                "supported spatial modes are: None (no spatial grouping), BoundingBox (group meshes within a "
+                "distance threshold, capping cluster size), VertexCount (cap the vertex count per merged mesh), and "
+                "CoincidentBoundary (only merge meshes that share a seam). In CoincidentBoundary mode two meshes are "
+                "merged only when they share at least boundaryMinSharedVertices boundary vertices that coincide in "
+                "world space within boundaryTolerance, where a boundary vertex is one lying on a boundary edge (an "
+                "edge used by exactly one face). Connectivity is transitive, so a chain of abutting meshes collapses "
+                "into one, while meshes that share no seam are left untouched. This targets bad CAD output where a "
+                "single part is exported as several abutting pieces, such as a washer split into two half-rings.")
 {
     addArgument("meshPrimPaths",
                 "Static Meshes to Merge",
@@ -53,10 +62,12 @@ MergeOperation::MergeOperation()
     m_clustering.addRootPathArg(this).setPlaceholder("Merged_0");
     m_clustering.addConsiderAllAttributesArg(this);
     m_clustering.addAllowSingleMeshesArg(this);
-    m_clustering.addSpatialModeArg(this);
+    m_clustering.addSpatialModeArg(this, /*includeCoincidentBoundary*/ true);
     m_clustering.addSpatialThresholdArg(this, "spatialMode == 1");
     m_clustering.addSpatialMaxSizeArg(this, "spatialMode == 1");
     m_clustering.addSpatialVertexCountArg(this, "spatialMode == 2");
+    m_clustering.addBoundaryToleranceArg(this, "spatialMode == 3");
+    m_clustering.addBoundaryMinSharedVerticesArg(this, "spatialMode == 3");
     m_clustering.addTreatAsPrimvarsArg(this);
     m_clustering.addSpatialDebugArg(this);
 }
@@ -67,11 +78,11 @@ MergeOperation::~MergeOperation(){};
 
 std::string MergeOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion MergeOperation::getVersion() const
+UsdOptimizePluginVersion MergeOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -103,7 +114,7 @@ void MergeOperation::setUserData(void* userData)
 
 OperationResult MergeOperation::executeImpl()
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|MergeOperation|Execute");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|MergeOperation|Execute");
 
     // build the lookup table for mesh merge boundaries which also contains the mesh prims to be merged
     MergeBoundaryLookup meshLookup = m_clustering.discoverMergeBoundaries(getUsdStage(), m_meshPrimPaths);
@@ -139,19 +150,23 @@ OperationResult MergeOperation::executeImpl()
         {
             const std::vector<VirtualMesh>& children = mesh.getSupersetChildren();
 
-            SO_LOG_INFO("Output Mesh: %s contains %s",
-                        mesh.getDestinationPath().GetAsString().c_str(),
-                        std::to_string(children.size()).c_str());
+            USD_OPTIMIZE_LOG_INFO("Output Mesh: %s contains %s",
+                                  mesh.getDestinationPath().GetAsString().c_str(),
+                                  std::to_string(children.size()).c_str());
 
             for (const VirtualMesh& child : children)
             {
-                SO_LOG_INFO(child.getSourcePath().GetAsString().c_str());
+                USD_OPTIMIZE_LOG_INFO(child.getSourcePath().GetAsString().c_str());
             }
         }
     }
 
-    const std::string suffix = mergedPrims.size() == 1 ? "" : "es";
-    SO_LOG_INFO("Created %s Merged Mesh%s", +std::to_string(mergedPrims.size()).c_str(), suffix.c_str());
+    const auto plural = [](size_t count) { return count == 1 ? "" : "es"; };
+    USD_OPTIMIZE_LOG_INFO("Merged %s mesh%s into %s mesh%s",
+                          std::to_string(virtualMeshes.size()).c_str(),
+                          plural(virtualMeshes.size()),
+                          std::to_string(mergedPrims.size()).c_str(),
+                          plural(mergedPrims.size()));
 
     // Create result
     OperationResult result{ true, nullptr, nullptr };
@@ -166,4 +181,4 @@ OperationResult MergeOperation::executeImpl()
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

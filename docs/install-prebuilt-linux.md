@@ -1,22 +1,22 @@
-# Installing the Prebuilt Scene Optimizer Package on Linux
+# Installing the Prebuilt Usd Optimize Package on Linux
 
-This guide is for **consumers of a published `scene_optimizer_core` package** on Linux — for example, a drop named like:
+This guide is for **consumers of a published `usd_optimize` package** on Linux — for example, a drop named like:
 
 ```
-scene_optimizer_core_usd_<usd_ver>_py_<py_ver>@<version>.<platform>.release
+usd_optimize_usd_<usd_ver>_py_<py_ver>@<version>.<platform>.release
 ```
 
 where `<platform>` is `linux-x86_64` or `linux-aarch64`. The two arches share the same layout and the same prerequisites; only the contents of the `.so` files differ.
 
-If you are building Scene Optimizer from source, see the top-level [README](../README.md) and use `repo.sh build` / `repo.sh test` instead. The published package does **not** include `repo.sh`, source code, or test fixtures — only headers, prebuilt libraries, and Python bindings.
+If you are building Usd Optimize from source, see the top-level [README](../README.md) and use `repo.sh build` / `repo.sh test` instead. The published package does **not** include `repo.sh`, source code, or test fixtures — only headers, prebuilt libraries, and Python bindings.
 
 ## Package Layout
 
 | Directory | Purpose |
 | --- | --- |
-| `include/` | C++ public headers (`omni/scene.optimizer/core/`) |
-| `lib/` | Prebuilt shared libraries (`libomni.scene.optimizer.core.so`, plugin `.so` files, `operation_mapping.json` — deprecated-name aliases for `map_config()`, not the list of operations) |
-| `python/` | Python bindings (`omni.scene.optimizer.core`) and bundled tests under `python/tests/test.python/` |
+| `include/` | C++ public headers (`usd_optimize/core/`) |
+| `lib/` | Prebuilt shared libraries (`libusd_optimize.core.so`, plugin `.so` files, `operation_mapping.json` — deprecated-name aliases for `map_config()`, not the list of operations) |
+| `python/` | Python bindings (`usd_optimize.core`) and bundled tests under `python/tests/test.python/` |
 | `usdpy/` | OpenUSD Python runtime modules (`pxr.*`) — the package brings its own USD |
 | `extraLibs/` | Third-party runtime libraries (Alembic, MaterialX, OpenSubdiv, TBB) |
 
@@ -50,7 +50,7 @@ sudo apt-get install python3.12 python3.12-venv libpython3.12
 > | pyenv | none — must rebuild with `PYTHON_CONFIGURE_OPTS="--enable-shared"` |
 > | conda / miniconda | included in the `python` package; usually under `$CONDA_PREFIX/lib` |
 >
-> Regardless of source, verify the shared library actually landed before troubleshooting Scene Optimizer:
+> Regardless of source, verify the shared library actually landed before troubleshooting Usd Optimize:
 >
 > ```bash
 > # Index of what ldconfig remembers — can be stale; see interpretation below.
@@ -69,7 +69,7 @@ If you prefer a distro-neutral install, [pyenv](https://github.com/pyenv/pyenv) 
 
 ### C++ runtime (only if you link against the C++ libraries)
 
-You only need a host C++ toolchain on the target machine if you are linking your own C++ application against `libomni.scene.optimizer.core.so`. Pure-Python consumers can skip this.
+You only need a host C++ toolchain on the target machine if you are linking your own C++ application against `libusd_optimize.core.so`. Pure-Python consumers can skip this.
 
 The Linux x86_64 build uses the C++11 ABI (`premake.linux_x86_64_cxx_abi` in `repo.toml`), so applications linking against the package must be built with the same ABI. A reasonably recent `libstdc++.so.6` is also required at runtime — symptoms of an old one surface as `version 'GLIBCXX_X.X.XX' not found` from the dynamic linker.
 
@@ -80,12 +80,12 @@ The Linux x86_64 build uses the C++11 ABI (`premake.linux_x86_64_cxx_abi` in `re
 Place the unpacked directory anywhere — for the rest of this guide we assume it lives at:
 
 ```bash
-PACKAGE_ROOT=/path/to/scene_optimizer_core_usd_25.11_py_3.12@<version>.linux-x86_64.release
+PACKAGE_ROOT=/path/to/usd_optimize_usd_25.11_py_3.12@<version>.linux-x86_64.release
 ```
 
 ### 2. (Recommended) Create a Python virtual environment
 
-A venv keeps Scene Optimizer's `PYTHONPATH` tweaks isolated from any other Python project on the machine:
+A venv keeps Usd Optimize's `PYTHONPATH` tweaks isolated from any other Python project on the machine:
 
 ```bash
 python3.12 -m venv "$PACKAGE_ROOT/.venv"
@@ -100,20 +100,20 @@ Two paths must be exported every session:
 
 | Variable | Why |
 | --- | --- |
-| `PYTHONPATH` += `python:usdpy` | Lets the interpreter find both `omni.scene.optimizer.*` and `pxr.*` |
+| `PYTHONPATH` += `python:usdpy` | Lets the interpreter find both `usd_optimize.*` and `pxr.*` |
 | `LD_LIBRARY_PATH` += `lib:extraLibs` | Lets the dynamic linker resolve transitive shared-object dependencies (USD, TBB, Alembic, plugin `.so`s) |
 
 bash/zsh:
 
 ```bash
-export PACKAGE_ROOT=/path/to/scene_optimizer_core_usd_25.11_py_3.12@<version>.linux-x86_64.release
+export PACKAGE_ROOT=/path/to/usd_optimize_usd_25.11_py_3.12@<version>.linux-x86_64.release
 export PYTHONPATH="$PACKAGE_ROOT/python:$PACKAGE_ROOT/usdpy${PYTHONPATH:+:$PYTHONPATH}"
 export LD_LIBRARY_PATH="$PACKAGE_ROOT/lib:$PACKAGE_ROOT/extraLibs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ```
 
 The `${VAR:+:$VAR}` form avoids appending a trailing colon when the variable is unset, which the dynamic linker would otherwise interpret as the current working directory.
 
-To make the settings durable, append the exports to the venv's `bin/activate` script, or to your `~/.bashrc` / `~/.zshrc` if Scene Optimizer is the only Python package you use in that shell.
+To make the settings durable, append the exports to the venv's `bin/activate` script, or to your `~/.bashrc` / `~/.zshrc` if Usd Optimize is the only Python package you use in that shell.
 
 ## Verifying the Install
 
@@ -122,8 +122,8 @@ A two-step smoke test confirms the bindings load and a real operation executes a
 ```python
 # smoke_check.py
 import json
-from omni.scene.optimizer.core import ExecutionContext, SceneOptimizerCore
-from omni.scene.optimizer.core.scripts import standalone
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
+from usd_optimize.core.scripts import standalone
 from pxr import Usd, UsdGeom
 
 # 1. Bindings + USD load
@@ -135,7 +135,7 @@ ctx.remove_stage()
 print("[1/3] bindings + USD: OK")
 
 # 2. Op registry populated
-core = SceneOptimizerCore.getInstance()
+core = UsdOptimizeCore.getInstance()
 ops = core.getOperations()
 assert len(ops) > 0
 print(f"[2/3] op registry: {len(ops)} operations registered")
@@ -174,12 +174,12 @@ ALL SMOKE CHECKS PASSED
 
 The exact value of `<N>` varies by build — any positive number confirms the plugins loaded.
 
-## Using Scene Optimizer in Your Code
+## Using Usd Optimize in Your Code
 
-The public Python entry point is `omni.scene.optimizer.core.scripts.standalone`. It accepts a `Usd.Stage` and a list of operation descriptors as JSON:
+The public Python entry point is `usd_optimize.core.scripts.standalone`. It accepts a `Usd.Stage` and a list of operation descriptors as JSON:
 
 ```python
-from omni.scene.optimizer.core.scripts import standalone
+from usd_optimize.core.scripts import standalone
 from pxr import Usd
 
 stage = Usd.Stage.Open("scene.usd")
@@ -192,17 +192,17 @@ ok = standalone.execute_commands_from_json(stage, ops)
 stage.Save()
 ```
 
-Valid **`operation`** strings are whatever the loaded plugins register — enumerate them at runtime with `SceneOptimizerCore.getInstance().getOperations()` (the exact count varies by build). The bundled tests under `python/tests/test.python/` show descriptor JSON for many operations. **`lib/operation_mapping.json` is not that catalog:** it only lists deprecated operation keys and a few legacy argument renames for `standalone.map_config()`, so keys such as `merge`, `deletePrims`, or `decimateMeshes` will not appear there. The full per-operation argument reference is in the [Scene Optimizer user manual](https://docs.omniverse.nvidia.com/extensions/latest/ext_scene-optimizer/user-manual.html).
+Valid **`operation`** strings are whatever the loaded plugins register — enumerate them at runtime with `UsdOptimizeCore.getInstance().getOperations()` (the exact count varies by build). The bundled tests under `python/tests/test.python/` show descriptor JSON for many operations. **`lib/operation_mapping.json` is not that catalog:** it only lists deprecated operation keys and a few legacy argument renames for `standalone.map_config()`, so keys such as `merge`, `deletePrims`, or `decimateMeshes` will not appear there. The full per-operation argument reference is in the [Usd Optimize user manual](https://docs.omniverse.nvidia.com/extensions/latest/ext_scene-optimizer/user-manual.html).
 
 ## Notes on the Bundled Tests
 
 `python/tests/test.python/` ships the full Python suite from the repository plus `run_discover.py`. **Do not expect `run_discover.py` to pass on a minimal binary-release install.**
 
-- **`test_validators_*.py`** depend on NVIDIA **`omniverse-asset-validator`** from [PyPI](https://pypi.org/project/omniverse-asset-validator/) (`pip install omniverse-asset-validator`). They import `omni.asset_validator`; without that package you get **`ModuleNotFoundError: No module named 'omni.asset_validator'`** (one failure line per module at import time).
+- **`test_validators_*.py`** depend on NVIDIA **`usd-validation-nvidia`** from [PyPI](https://pypi.org/project/usd-validation-nvidia/) (`pip install usd-validation-nvidia`). They import `usd_validation_nvidia`; without that package you get **`ModuleNotFoundError: No module named 'usd_validation_nvidia'`** (one failure line per module at import time).
 
 - **`run_discover.py` imports every `test_*.py` before unittest runs.** If **any** import fails, it prints all import failures to stderr and **`sys.exit(1)` without running tests** — so a typical release sees validator import errors only and **executes zero tests**, not a long report of fixture misses. Only after every module imports successfully does the runner execute tests; **many** of those tests expect USD fixtures under `../data`, which exists in the source tree but not in the published package.
 
-The self-contained tests in `test_core_python_bindings.py` (`test_executionContext`, `test_executionContext_reportPath_roundtrip`, `test_executionContext_reportPath_survives_executeOperation`, `test_sceneOptimizerCore`, `test_operation`) are equivalent to the smoke-check above.
+The self-contained tests in `test_core_python_bindings.py` (`test_executionContext`, `test_executionContext_reportPath_roundtrip`, `test_executionContext_reportPath_survives_executeOperation`, `test_usdOptimizeCore`, `test_operation`) are equivalent to the smoke-check above.
 
 ## Troubleshooting
 
@@ -225,11 +225,11 @@ Your interpreter does not match the package's `py_<version>` token. Install the 
 **`ImportError: /usr/lib/x86_64-linux-gnu/libstdc++.so.6: version 'GLIBCXX_X.X.XX' not found`**
 The `libstdc++.so.6` on the target is older than what the package was built against. Update `libstdc++` (e.g. via `gcc-13`/`libstdc++6` on Ubuntu), or run on a newer base image.
 
-**`ModuleNotFoundError: No module named 'omni.scene.optimizer'` or `'pxr'`**
+**`ModuleNotFoundError: No module named 'usd_optimize'` or `'pxr'`**
 `PYTHONPATH` is missing `python` or `usdpy`. Both directories must be on `PYTHONPATH`.
 
-**`ModuleNotFoundError: No module named 'omni.asset_validator'`** (common when running bundled `run_discover.py`)
-The `test_validators_*.py` modules require PyPI **`omniverse-asset-validator`** (`pip install omniverse-asset-validator`). Without it, `run_discover.py` fails during its import phase and runs no tests. Prefer `test_core_python_bindings.py` or the [smoke check](#verifying-the-install) for package verification alone.
+**`ModuleNotFoundError: No module named 'usd_validation_nvidia'`** (common when running bundled `run_discover.py`)
+The `test_validators_*.py` modules require PyPI **`usd-validation-nvidia`** (`pip install usd-validation-nvidia`). Without it, `run_discover.py` fails during its import phase and runs no tests. Prefer `test_core_python_bindings.py` or the [smoke check](#verifying-the-install) for package verification alone.
 
-**`SceneOptimizerCore.getInstance().getOperations()` returns an empty list**
+**`UsdOptimizeCore.getInstance().getOperations()` returns an empty list**
 The plugin `.so` files in `lib/` did not load. Confirm the directory is on `LD_LIBRARY_PATH` and that the package matches your platform (`linux-x86_64` vs `linux-aarch64`). Setting `LD_DEBUG=libs` before the Python process will print the linker's search trace and usually pinpoints the missing dependency.

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "omni/scene.optimizer/core/ResolveSdfPaths.h"
+#include "usd_optimize/core/ResolveSdfPaths.h"
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Core.h"
-#include "omni/scene.optimizer/core/Utils.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Core.h"
+#include "usd_optimize/core/Utils.h"
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -24,7 +24,7 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -136,7 +136,7 @@ std::vector<UsdPrim> _resolveExpressionsToPrims(const UsdPrim& rootPrim,
                                                 const Usd_PrimFlagsPredicate& predicate,
                                                 const ResolveFilter& filter)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|_resolveExpressionsToPrims");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|_resolveExpressionsToPrims");
 
     std::vector<UsdPrim> resolvedPrims; // use vector to preserve order of insertion
 
@@ -151,7 +151,7 @@ std::vector<UsdPrim> _resolveExpressionsToPrims(const UsdPrim& rootPrim,
 
         if (expression.IsEmpty())
         {
-            SO_LOG_ERROR("Invalid Expression: %s", joined.c_str());
+            USD_OPTIMIZE_LOG_ERROR("Invalid Expression: %s", joined.c_str());
             return {};
         }
 
@@ -260,7 +260,7 @@ std::vector<UsdPrim> _resolveExpressionsToPrims(const UsdStageWeakPtr& usdStage,
 /// Maintained for SdfPathVector compatibility
 SdfPathVector _resolveSdfPaths(const UsdStageWeakPtr& usdStage, const std::vector<std::string>& paths)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|_resolveSdfPaths");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|_resolveSdfPaths");
 
     const std::vector<UsdPrim>& prims = _resolveExpressionsToPrims(usdStage, paths);
     return _convertToSdfPaths(prims);
@@ -285,11 +285,11 @@ SdfPathVector _resolveSdfPaths(const UsdStageWeakPtr& usdStage,
                                const std::vector<std::string>& paths,
                                bool considerHierarchy)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|_resolveSdfPaths");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|_resolveSdfPaths");
 
     const std::vector<UsdPrim>& prims = _resolveExpressionsToPrims(usdStage, paths);
     return _convertToSdfPaths(prims);
 }
 // LCOV_EXCL_STOP
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

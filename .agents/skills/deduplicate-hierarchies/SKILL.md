@@ -30,19 +30,21 @@ metadata:
 > **Safety note.** Duplicates are identified by subtree shape, prim
 > types, and authored property names, then refined by verifying all
 > property **values** match (excluding xformOps on the root prim, which
-> represent placement). Descendant transforms must match exactly
-> (tolerance only applies to float arrays like points/normals/UVs and
-> scalar float/double values, not to matrices, scalar vectors, or
-> quaternions). It will only merge prims that are truly identical. This
-> is safe on any asset. The `paths` argument can scope the run to a
-> known-safe subtree.
+> represent placement). Floating-point values — scalars, vectors,
+> matrices (including descendant `xformOp:transform`), quaternions, and
+> arrays of them — are compared within `tolerance`; integer/topology,
+> string, token and bool values always require an exact match. Descendant
+> transforms that differ by more than `tolerance` still block the merge.
+> Set `tolerance=0` for a bitwise-exact compare. It will only merge prims
+> that are truly identical (within tolerance). This is safe on any asset.
+> The `paths` argument can scope the run to a known-safe subtree.
 
 Find duplicate prim hierarchies (level by level under the default prim)
 and replace duplicate subtrees with **internal instanceable references** —
 duplicates become refs to the first instance (the prototype). All geometry
 stays in the main stage file.
 
-This is **not** the same as Scene Optimizer's `deduplicateGeometry`
+This is **not** the same as Usd Optimize's `deduplicateGeometry`
 operation, which only handles individual meshes. This skill works on
 entire prim hierarchies matched by structure.
 
@@ -89,15 +91,15 @@ before any work.
 
 ## Step 2 — Verify the operation is available
 
-The operation is invoked via Scene Optimizer's standalone runner:
-`omni.scene.optimizer.core.scripts.standalone.execute_commands_from_json`.
+The operation is invoked via Usd Optimize's standalone runner:
+`usd_optimize.core.scripts.standalone.execute_commands_from_json`.
 No Kit dependency.
 
 Confirm the operation is registered in the build:
 
 ```python
-from omni.scene.optimizer.core import SceneOptimizerCore
-print("deduplicateHierarchies" in SceneOptimizerCore.getInstance().getOperations())
+from usd_optimize.core import UsdOptimizeCore
+print("deduplicateHierarchies" in UsdOptimizeCore.getInstance().getOperations())
 ```
 
 (POSIX) `python3 -c "..."`, (Windows PowerShell) `py -3 -c "..."` or
@@ -118,7 +120,7 @@ strings unless the user has supplied them explicitly.
 ```python
 import json
 from pxr import Usd
-from omni.scene.optimizer.core.scripts.standalone import execute_commands_from_json
+from usd_optimize.core.scripts.standalone import execute_commands_from_json
 
 INPUT_USD  = "path/to/asset.usd"
 OUTPUT_USD = "path/to/asset_deduped.usd"
@@ -150,7 +152,7 @@ config = [
 stage = Usd.Stage.Open(INPUT_USD)
 ok = execute_commands_from_json(stage, json.dumps(config))
 if not ok:
-    raise RuntimeError("deduplicateHierarchies pipeline failed — check SO log")
+    raise RuntimeError("deduplicateHierarchies pipeline failed — check Usd Optimize log")
 
 # IMPORTANT: save via the root layer, NOT stage.Export().
 # stage.Export() flattens the composed stage and rewrites Usd-instance
@@ -164,8 +166,8 @@ For a hierarchy-only run (skip per-mesh dedup, faster, less aggressive),
 drop the second config entry. Use this when the user has already run
 `deduplicateGeometry` upstream, or only wants the assembly-level rollup.
 
-Environment setup (SO on `PYTHONPATH`, native libs on `PATH`/`LD_LIBRARY_PATH`)
-is the same as for any other Scene Optimizer pipeline — defer to
+Environment setup (Usd Optimize on `PYTHONPATH`, native libs on `PATH`/`LD_LIBRARY_PATH`)
+is the same as for any other Usd Optimize pipeline — defer to
 `.agents/skills/build/SKILL.md` for a source-tree build or to the
 `prebuilt-package` skill for a packaged runtime. Don't duplicate environment
 setup here.
@@ -187,8 +189,8 @@ operation in analysis mode to retrieve the `{prototype: [duplicates]}` map.
 
 ## Common pitfalls
 
-- **Material-related prims are skipped.** `Material`, `Shader`, `NodeGraph`
-  prims, the `Looks` / `Materials` / `Mesh` scopes, and prims with
+- **Material-related prims are skipped.** `Material`, `Shader`, `NodeGraph`,
+  `GeomSubset` prims, the `Looks` / `Materials` scopes, and prims with
   texture-name prefixes (`Diffuse`, `Specular`, etc.) are intentionally
   excluded from the duplicate scan. If a hierarchy you expected to be
   deduped is being skipped, check it doesn't fall under one of those
@@ -239,9 +241,9 @@ property-value comparison — safe on any asset.
 
 ## Limitations
 
-- Material-related prims (`Material`, `Shader`, `NodeGraph`, `Looks`,
-  `Materials` scopes, and `Diffuse*` / `Specular*`-prefixed prims) are
-  intentionally skipped from the duplicate scan.
+- Material-related prims (`Material`, `Shader`, `NodeGraph`, `GeomSubset`,
+  the `Looks` / `Materials` scopes, and `Diffuse*` / `Specular*`-prefixed
+  prims) are intentionally skipped from the duplicate scan.
 - Prims with already-authored references or payloads are excluded
   from grouping — they count as "matched" so they don't reappear at
   deeper levels but are not themselves replaced.
@@ -255,6 +257,6 @@ property-value comparison — safe on any asset.
 | Operation runs but reports 0 prototype groups | Stage has no default prim, or all subtrees are unique. | Set a default prim (`stage.SetDefaultPrim(...)`) and re-run. Confirm with `analysisMode: 1` to see the candidate map. |
 | Output uses synthetic `/Flattened_Prototype_N` paths | Saved via `stage.Export()` instead of `stage.GetRootLayer().Export()`. | Use root-layer export — see Step 3. |
 | Fewer duplicates found than expected | Floating-point drift from re-export or tessellation may push otherwise-identical subtrees out of bitwise match. | Increase `tolerance` (only affects float arrays and scalar float/double; integer topology always requires exact match). |
-| `RuntimeError: deduplicateHierarchies pipeline failed` | Operation rejected the config (bad arg key) or hit a USD I/O error. | Check the SO log; verify argument keys against `.agents/operations/deduplicateHierarchies.md`. |
+| `RuntimeError: deduplicateHierarchies pipeline failed` | Operation rejected the config (bad arg key) or hit a USD I/O error. | Check the Usd Optimize log; verify argument keys against `.agents/operations/deduplicateHierarchies.md`. |
 | Per-mesh duplicates remain after the run | This op only handles whole hierarchies. | Pair with `deduplicateGeometry` (already in the canonical pipeline shown in Step 3). |
 

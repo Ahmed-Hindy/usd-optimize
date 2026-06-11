@@ -7,9 +7,9 @@
 #include <OmniMeshOps/Slice.h>
 #include <OmniMeshOps/usd/MeshData.h>
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/Utils.h>
 
 // Split Meshes Operation
 #include "splitMeshes/SplitMeshes.h"
@@ -19,10 +19,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::DiceMeshesOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::DiceMeshesOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -99,11 +99,11 @@ DiceMeshesOperation::DiceMeshesOperation()
 
 std::string DiceMeshesOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion DiceMeshesOperation::getVersion() const
+UsdOptimizePluginVersion DiceMeshesOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -165,7 +165,7 @@ void DiceMeshesOperation::executePost(const TotalStats& totalStats)
     }
 
     // get the split operation
-    auto& core = SceneOptimizerCore::getInstance();
+    auto& core = UsdOptimizeCore::getInstance();
     auto splitOp = core.getOperation("splitMeshes");
     if (splitOp == nullptr)
     {
@@ -180,9 +180,9 @@ void DiceMeshesOperation::executePost(const TotalStats& totalStats)
 
     // execute split. No args required, using the defaults other than the user data.
     ExecutionContext childContext;
-    so_execution_context_copy(&childContext, getContext());
+    usd_optimize_execution_context_copy(&childContext, getContext());
     splitOp->execute(&childContext, JsObject());
-    so_execution_context_free(&childContext);
+    usd_optimize_execution_context_free(&childContext);
 }
 
 
@@ -202,17 +202,18 @@ ProcessedData* DiceMeshesOperation::processMesh(const UsdPrim& prim, tbb::task_g
         }
         else
         {
+            diced_mesh = mesh;
             if (!m_parsedCutHeightsX.empty())
             {
-                diced_mesh = omo::slice(mesh, m_upX, m_parsedCutHeightsX);
+                diced_mesh = omo::slice(diced_mesh, m_upX, m_parsedCutHeightsX);
             }
             if (!m_parsedCutHeightsY.empty())
             {
-                diced_mesh = omo::slice(mesh, m_upY, m_parsedCutHeightsY);
+                diced_mesh = omo::slice(diced_mesh, m_upY, m_parsedCutHeightsY);
             }
             if (!m_parsedCutHeightsZ.empty())
             {
-                diced_mesh = omo::slice(mesh, m_upZ, m_parsedCutHeightsZ);
+                diced_mesh = omo::slice(diced_mesh, m_upZ, m_parsedCutHeightsZ);
             }
         }
 
@@ -221,9 +222,9 @@ ProcessedData* DiceMeshesOperation::processMesh(const UsdPrim& prim, tbb::task_g
     catch (const std::exception& e)
     {
         std::string errorMsg = prim.GetPath().GetAsString() + ": " + std::string(e.what());
-        SO_LOG_ERROR(errorMsg.c_str());
+        USD_OPTIMIZE_LOG_ERROR(errorMsg.c_str());
     }
     return nullptr;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

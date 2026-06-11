@@ -4,8 +4,8 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
 
 // carb
 #include <carb/logging/ILogging.h>
@@ -21,25 +21,25 @@
 
 // Convenience macro to register/deregister a plugin
 // Place inside your plugin .cpp!
-#define SO_PLUGIN_INIT(OperationT)                                                                                      \
-    extern "C" OMNI_SO_EXPORT bool sceneOptimizerPluginInit()                                                           \
-    {                                                                                                                   \
-        using namespace omni::scene::optimizer;                                                                         \
-        auto& core = SceneOptimizerCore::getInstance();                                                                 \
-        core.registerOperation(&sceneOptimizerOperationCreate<OperationT>, &sceneOptimizerOperationDelete<OperationT>); \
-        return true;                                                                                                    \
+#define USD_OPTIMIZE_PLUGIN_INIT(OperationT)                                                                           \
+    extern "C" USD_OPTIMIZE_EXPORT bool usdOptimizePluginInit()                                                        \
+    {                                                                                                                  \
+        using namespace usd_optimize;                                                                                  \
+        auto& core = UsdOptimizeCore::getInstance();                                                                   \
+        core.registerOperation(&usdOptimizeOperationCreate<OperationT>, &usdOptimizeOperationDelete<OperationT>);      \
+        return true;                                                                                                   \
     }
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 class Operation;
 
-/// The sceneOptimizerOperationDelete template functions will be instantiated via
-/// invocations of the SO_PLUGIN_INIT macro but can also be used for manual Operation registration
+/// The usdOptimizeOperationDelete template functions will be instantiated via
+/// invocations of the USD_OPTIMIZE_PLUGIN_INIT macro but can also be used for manual Operation registration
 template <typename OperationT>
-static void sceneOptimizerOperationDelete(Operation* operation)
+static void usdOptimizeOperationDelete(Operation* operation)
 {
     static_assert(std::is_base_of<Operation, OperationT>::value, "Must be used for operation construction");
 
@@ -47,10 +47,10 @@ static void sceneOptimizerOperationDelete(Operation* operation)
     delete op;
 }
 
-/// The sceneOptimizerOperationCreate template functions will be instantiated via
-/// invocations of the SO_PLUGIN_INIT macro but can also be used for manual Operation registration
+/// The usdOptimizeOperationCreate template functions will be instantiated via
+/// invocations of the USD_OPTIMIZE_PLUGIN_INIT macro but can also be used for manual Operation registration
 template <typename OperationT>
-static Operation* sceneOptimizerOperationCreate()
+static Operation* usdOptimizeOperationCreate()
 {
     static_assert(std::is_base_of<Operation, OperationT>::value, "Must be used for operation construction");
 
@@ -58,22 +58,22 @@ static Operation* sceneOptimizerOperationCreate()
 }
 
 /// Function objects for creating and destroying Operations inside the correct DLL.
-using SceneOptimizerOperationCreate = std::function<Operation*()>;
-using SceneOptimizerOperationDestroy = std::function<void(Operation*)>;
+using UsdOptimizeOperationCreate = std::function<Operation*()>;
+using UsdOptimizeOperationDestroy = std::function<void(Operation*)>;
 
 /// The OperationUPtr is a "managed" pointer, holding an Operation instance and a callback
 /// for deleting it correctly
-using OperationUPtr = std::unique_ptr<Operation, SceneOptimizerOperationDestroy>;
+using OperationUPtr = std::unique_ptr<Operation, UsdOptimizeOperationDestroy>;
 
-/// Scene Optimizer Plugin Manager
+/// Usd Optimize Plugin Manager
 ///
-/// This class is a singleton that allows plugins to register themselves with the scene optimizer.
-class OMNI_SO_EXPORT SceneOptimizerCore
+/// This class is a singleton that allows plugins to register themselves with usd optimize.
+class USD_OPTIMIZE_EXPORT UsdOptimizeCore
 {
 
 public:
-    /// Get the scene optimizer core object.
-    static SceneOptimizerCore& getInstance();
+    /// Get the usd optimize core object.
+    static UsdOptimizeCore& getInstance();
 
     /// Returns whether the core has been initialised yet - aka loadPlugins has been called.
     bool isInitialized() const;
@@ -85,7 +85,7 @@ public:
     OperationUPtr getOperation(const std::string& name) const;
 
     /// Register an operation
-    void registerOperation(SceneOptimizerOperationCreate creation, SceneOptimizerOperationDestroy destruction);
+    void registerOperation(UsdOptimizeOperationCreate creation, UsdOptimizeOperationDestroy destruction);
 
     /// Deregister an operation
     void deregisterOperation(const std::string& name);
@@ -96,7 +96,7 @@ public:
     /// Loads plugins contained in a directory
     void loadPluginsFromPath(const std::string& path);
 
-    /// Load the plugins that ship with scene optimizer and from any paths defined in the SCENE_OPTIMIZER_PLUGIN_PATH
+    /// Load the plugins that ship usd optimize and from any paths defined in the USD_OPTIMIZE_PLUGIN_PATH
     /// environment variable
     void loadPlugins();
 
@@ -143,7 +143,8 @@ public:
     /// \param context The ExecutionContext to run the operation in.
     /// \param args A string of json containing the args to execute the operation with.
     ///
-    /// \return A OperationResult struct which contains the results of the execution. Note: so_operation_result_free
+    /// \return A OperationResult struct which contains the results of the execution. Note:
+    /// usd_optimize_operation_result_free
     ///         must be used to clean up this struct.
     OperationResult executeOperation(const std::string& operationName, ExecutionContext* context, const std::string& args);
 
@@ -159,13 +160,13 @@ public:
     /// \param config A JSON string containing an array of operation configurations.
     ///
     /// \return A vector of OperationResult structs, one per executed operation (excluding
-    ///         executionContext entries). The caller must call so_operation_result_free on
+    ///         executionContext entries). The caller must call usd_optimize_operation_result_free on
     ///         each result.
     std::vector<OperationResult> executeConfig(ExecutionContext* context, const std::string& config);
 
     // Disable copy/assign
-    SceneOptimizerCore(const SceneOptimizerCore&) = delete;
-    void operator=(const SceneOptimizerCore&) = delete;
+    UsdOptimizeCore(const UsdOptimizeCore&) = delete;
+    void operator=(const UsdOptimizeCore&) = delete;
 
     // Unit tests will have access to the carb framework but because of weak linkage of
     // the logging functions/interface, actually accessing those directly will fail from within core
@@ -179,9 +180,9 @@ private:
 
     Impl* pImpl;
 
-    SceneOptimizerCore();
-    virtual ~SceneOptimizerCore();
+    UsdOptimizeCore();
+    virtual ~UsdOptimizeCore();
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

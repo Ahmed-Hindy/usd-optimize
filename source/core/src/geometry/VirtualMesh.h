@@ -4,13 +4,13 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/Types.h"
-#include "omni/scene.optimizer/core/UsdIncludes.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/Types.h"
+#include "usd_optimize/core/UsdIncludes.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -33,12 +33,12 @@ namespace omni::scene::optimizer
 /// counter to the internal data. Copy-on-write is used where possible when making subsets/supersets to avoid doing any
 /// unnecessary copying of data. The geometry of VirtualMeshes (in the case of subsets and supersets) is lazily computed
 /// only when `computeGeometry` is called or a function that requires computed geometry is called.
-class OMNI_SO_EXPORT VirtualMesh
+class USD_OPTIMIZE_EXPORT VirtualMesh
 {
 public:
     /// Scoped structure that when initialised sets up global VirtualMesh optimization structures and then cleans them
     /// up when it goes out of scope.
-    class OMNI_SO_EXPORT OptLifetime
+    class USD_OPTIMIZE_EXPORT OptLifetime
     {
     public:
         /// Constructor
@@ -50,7 +50,7 @@ public:
 
     /// Scoped structure used to control global configuration options for VirtualMeshes and reverts the options when it
     /// goes out of scope.
-    class OMNI_SO_EXPORT ConfigLifetime
+    class USD_OPTIMIZE_EXPORT ConfigLifetime
     {
     public:
         /// Constructor
@@ -373,4 +373,4 @@ private:
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

@@ -4,8 +4,8 @@
 
 #include "TestUtils.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
 
 // carb
 #include <carb/logging/ILogging.h>
@@ -14,17 +14,17 @@
 #include <doctest/doctest.h>
 
 
-using namespace omni::scene::optimizer;
+using namespace usd_optimize;
 
 int main(int argc, char** argv)
 {
     doctest::Context context(argc, argv);
 
     // Initialize the Optimizer with all plugins.
-    SceneOptimizerCore::getInstance().loadPlugins();
+    UsdOptimizeCore::getInstance().loadPlugins();
 
     // Make sure we can get logging inside core.
-    SceneOptimizerCore::getInstance().setLoggingInterface(carb::logging::getLogging());
+    UsdOptimizeCore::getInstance().setLoggingInterface(carb::logging::getLogging());
 
     return context.run();
 }

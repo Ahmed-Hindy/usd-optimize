@@ -4,9 +4,9 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/Log.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/Log.h"
 
 // C++
 #include <condition_variable>
@@ -15,7 +15,7 @@
 #include <thread>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -34,15 +34,15 @@ public:
     /// attempting to log messages.
     ///
     /// \param path The output filename to use
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     explicit Report(const std::string& path);
 
     /// Copy constructor
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     Report(const Report& other) = delete;
 
     /// Destructor
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     ~Report();
 
     /// Initialize the report for use.
@@ -50,7 +50,7 @@ public:
     /// This function must be called before calling \ref log, otherwise the output handle will not be open.
     ///
     /// \return Success
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     bool initialize();
 
     /// Log a message
@@ -65,7 +65,7 @@ public:
     /// \param category An arbitrary category to allow filtering messages
     /// \param message The log message
     /// \param multiline Whether the message should be treated as multiline
-    OMNI_SO_EXPORT
+    USD_OPTIMIZE_EXPORT
     void log(LogLevel level, const std::string& category, const std::string& message, bool multiline = false);
 
 private:
@@ -79,4 +79,4 @@ private:
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

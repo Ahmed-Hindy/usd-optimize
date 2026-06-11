@@ -4,13 +4,13 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/Operation.h"
-#include "omni/scene.optimizer/core/PythonUtils.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/Operation.h"
+#include "usd_optimize/core/PythonUtils.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -35,7 +35,7 @@ public:
     std::string getAuthor() const override;
 
     /// Get the version of this plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     /// Returns whether or not this operation is visible.
     bool getVisible() const override;
@@ -53,10 +53,10 @@ protected:
 private:
     RefCountedPyObject m_pyObject;
     std::string m_author;
-    SOPluginVersion m_version;
+    UsdOptimizePluginVersion m_version;
     bool m_visible;
     std::unordered_map<std::string, PXR_NS::JsValue> m_argDefaults;
 };
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

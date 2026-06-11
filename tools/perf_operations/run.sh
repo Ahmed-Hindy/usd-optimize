@@ -13,8 +13,8 @@ set -e
 SCRIPT_DIR=$(realpath "$(dirname "${BASH_SOURCE[0]}")")
 REPO_ROOT=$(realpath "$SCRIPT_DIR/../..")
 
-CONFIG="${SO_CONFIG:-release}"
-PLATFORM="${SO_PLATFORM:-linux-x86_64}"
+CONFIG="${USD_OPTIMIZE_CONFIG:-release}"
+PLATFORM="${USD_OPTIMIZE_PLATFORM:-linux-x86_64}"
 BUILD_DIR="$REPO_ROOT/_build/$PLATFORM/$CONFIG"
 USD_DIR="$REPO_ROOT/_build/target-deps/usd/$CONFIG"
 PYTHON="$REPO_ROOT/_build/target-deps/python/bin/python3.12"

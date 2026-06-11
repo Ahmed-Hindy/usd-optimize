@@ -4,15 +4,15 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Defs.h>
-#include <omni/scene.optimizer/core/Operation.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Defs.h>
+#include <usd_optimize/core/Operation.h>
 
 // C++
 #include <mutex>
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Generate atlas UVs using the boundary first flattening (BFF) algorithm.
@@ -25,7 +25,7 @@ public:
     std::string getAuthor() const override;
 
     /// Get the version of this plugin
-    SOPluginVersion getVersion() const override;
+    UsdOptimizePluginVersion getVersion() const override;
 
     /// Get the category for reporting.
     std::string getCategory() const override;
@@ -44,4 +44,4 @@ private:
     std::mutex m_logMutex;
 };
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

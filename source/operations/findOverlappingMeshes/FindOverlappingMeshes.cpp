@@ -4,10 +4,10 @@
 
 #include "FindOverlappingMeshes.h"
 
-// Scene Optimizer
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/MeshToolsCommon.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/MeshToolsCommon.h>
+#include <usd_optimize/core/Utils.h>
 
 // USD
 #include <pxr/usd/usdGeom/metrics.h>
@@ -21,7 +21,7 @@ using namespace MeshTools;
 
 #define PARALLELIZE_FIND_OVERLAPPING_MESHES 1
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 void FindOverlappingMeshes::clearBookkeeping()
@@ -83,7 +83,8 @@ size_t FindOverlappingMeshes::processStage(const ClashDetectorParameters& parame
         GetStageMeshDescriptors(m_meshDescriptors, m_meshPaths, stage, primsToProcess);
         if (m_meshDescriptors.size() != m_meshPaths.size())
         {
-            SO_LOG_ERROR("FindOverlappingMeshes::processStage: mesh descriptors and paths are not the same size.");
+            USD_OPTIMIZE_LOG_ERROR(
+                "FindOverlappingMeshes::processStage: mesh descriptors and paths are not the same size.");
             return 0;
         }
 
@@ -136,4 +137,4 @@ size_t FindOverlappingMeshes::processStage(const ClashDetectorParameters& parame
     return overlapCount;
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

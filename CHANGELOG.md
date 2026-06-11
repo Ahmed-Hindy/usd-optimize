@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.0.4] - 2026-06-09
+### Added
+- Asset Validator parameters API: expose validator rule tuning so checker thresholds (e.g. `OccludedMeshesChecker`, `SmallMeshChecker`) can be configured via parameters.
+- `MergeMeshes`: new spatial merge mode that welds coincident boundary vertices across seams.
+- `DeduplicateGeometry`: new "Point Instancer" mode.
+- `PrunePayloads`: option to avoid pruning unloaded payloads.
+- `DeduplicateHierarchies`: support for nested instancing.
+
+### Changed
+- Renamed Scene Optimizer to Usd Optimize.
+- Validators now register against capability requirements (e.g. `GeometryRequirements`, `HierarchyRequirements`, `MaterialsRequirements`) via the new plugin entry point instead of rule categories.
+- Migrated the asset validator dependency to `usd-validation-nvidia`.
+- Reduced default logging noise across operations.
+- Improved performance of `PruneLeaves`.
+- Reverted `repo_usd` pin to 5.0.26 (restores the stock build; the 5.0.34 exchange build trimmed link deps).
+
+### Fixed
+- `DeduplicateHierarchies`: fix value variant grouping.
+- `DiceMeshes`: fix irregular multi-axis cuts.
+- Fix gcc13 build issues from stricter compiler checks (DGX Spark defaults to gcc13).
+
 ## [1.0.3] - 2026-05-28
 ### Fixed
 - `FitPrimitive`: no longer incorrectly fits a cube primitive to hollow meshes (e.g. an extruded box). Such meshes are now left unchanged instead of being replaced by a solid cube.

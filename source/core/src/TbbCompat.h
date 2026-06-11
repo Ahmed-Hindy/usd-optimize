@@ -17,7 +17,7 @@
 #    include <tbb/pipeline.h>
 #endif
 
-namespace omni::scene::optimizer::tbbcompat
+namespace usd_optimize::tbbcompat
 {
 
 #if PXR_VERSION >= 2511
@@ -50,4 +50,4 @@ void parallelForEach(Iterator first, Iterator last, const Function& function)
 
 #endif
 
-} // namespace omni::scene::optimizer::tbbcompat
+} // namespace usd_optimize::tbbcompat

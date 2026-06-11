@@ -9,8 +9,8 @@
 // Carbonite
 #include <carb/profiler/Profile.h>
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
 
 // OmniMesh
 #include <OmniMeshOps/Primitive.h>
@@ -29,10 +29,10 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::PrimitiveToMeshOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::PrimitiveToMeshOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 /// Constants
@@ -140,10 +140,10 @@ PrimitiveToMeshOperation::PrimitiveToMeshOperation()
 
 std::string PrimitiveToMeshOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
-SOPluginVersion PrimitiveToMeshOperation::getVersion() const
+UsdOptimizePluginVersion PrimitiveToMeshOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -258,7 +258,7 @@ ProcessedData* PrimitiveToMeshOperation::processMesh(const UsdPrim& usd_prim, tb
     {
         const std::string primPath = usd_prim.GetPath().GetAsString();
         const std::string primType = std::string("UsdGeom") + usd_prim.GetTypeName().GetText();
-        SO_LOG_VERBOSE("Prim: %s\nType %s", primPath.c_str(), primType.c_str());
+        USD_OPTIMIZE_LOG_VERBOSE("Prim: %s\nType %s", primPath.c_str(), primType.c_str());
     }
 
     const omo::Primitive prim = {
@@ -273,11 +273,11 @@ inline void logPrimitiveReplacement(const char* name, size_t count)
 {
     if (count != 1)
     {
-        SO_LOG_INFO("Replaced %zu %ss with meshes", count, name);
+        USD_OPTIMIZE_LOG_INFO("Replaced %zu %ss with meshes", count, name);
     }
     else
     {
-        SO_LOG_INFO("Replaced 1 %s with a mesh", name);
+        USD_OPTIMIZE_LOG_INFO("Replaced 1 %s with a mesh", name);
     }
 }
 
@@ -293,4 +293,4 @@ void PrimitiveToMeshOperation::executePost(const TotalStats& totalStats)
     m_hash_cache.clear();
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

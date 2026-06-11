@@ -45,10 +45,10 @@ Optimize Materials reduces the number of materials in a scene by deduplicating i
 ## Prerequisites & Workflows
 
 - Works standalone on any USD stage with materials.
-- Supports analysis mode for Asset Validator integration.
+- Supports analysis mode for usd-validation-nvidia integration.
 - Common pipeline: `optimizeMaterials` → `removeUnusedUVs`.
 
 ## Known Limitations
 
 - Materials from external references cannot be deleted in the current edit target.
-- Hidden `analysisCheckPrimvars` is for Asset Validator integration.
+- Hidden `analysisCheckPrimvars` is for usd-validation-nvidia integration.

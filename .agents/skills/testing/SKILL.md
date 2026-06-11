@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Run all tests or individual tests for Scene Optimizer (repo.sh on Linux, repo.bat on Windows). Use for unit, binding, and coverage runs.
+description: Run all tests or individual tests for Usd Optimize (repo.sh on Linux, repo.bat on Windows). Use for unit, binding, and coverage runs.
 version: "1.0.0"
 allowed-tools: Shell
 metadata:
@@ -11,7 +11,7 @@ metadata:
 <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# Testing Scene Optimizer
+# Testing Usd Optimize
 
 ## What this skill covers
 
@@ -105,7 +105,7 @@ You can also run the wrapper script directly for full doctest CLI control (use t
 ### Python Binding Tests
 
 Run Python binding tests through the repo wrapper so the bundled Python, USD,
-and Scene Optimizer paths are set correctly:
+and Usd Optimize paths are set correctly:
 
 ```bash
 ./repo.sh test -s python                    # run everything
@@ -158,7 +158,7 @@ Do **not** use `repo.sh test -s python -f "test_operation_*.py"` for filtering:
 
 ```
 source/tests/
-├── test.cpp/omni.scene.optimizer.core/   # C++ unit tests (Doctest)
+├── test.cpp/usd_optimize.core/   # C++ unit tests (Doctest)
 │   ├── TestPlugins.cpp
 │   ├── TestMerge.cpp
 │   ├── TestDeletePrims.cpp
@@ -223,7 +223,7 @@ failure as the signal to look at — don't paper over it.
 |---|---|---|
 | All tests fail with `library not found` / `DLL load failed` | Built one config but ran tests against another (e.g. built `debug`, ran default `release`). | Match `--config` between `build` and `test` (or pass `-c debug` to both). |
 | `[doctest] Status: SUCCESS!` but the trailing summary says `1 tests processes returned 0` | Quirk of the runner — the C++ suite isn't `glob_and_exec`, so the summary undercounts. | Scroll up to confirm the `[doctest]` line. The exit code is authoritative. |
-| Python binding test errors with `ImportError: cannot import name SceneOptimizerCore` | Build didn't produce the bindings, or `PYTHONPATH` is shadowed. | Check `_build/<platform>/<config>/python/` exists. Run via `./repo.sh test -s python` (don't invoke pytest directly). |
+| Python binding test errors with `ImportError: cannot import name UsdOptimizeCore` | Build didn't produce the bindings, or `PYTHONPATH` is shadowed. | Check `_build/<platform>/<config>/python/` exists. Run via `./repo.sh test -s python` (don't invoke pytest directly). |
 | `repo.sh test -s python -f "test_operation_foo.py"` reports `All 0 tests processes returned 0` | `-f` filtered out the `test.python` wrapper instead of selecting a Python test file. | Use `-e=test_operation_foo` (not `-f`) to forward the spec through to `run_discover.py`. |
 | Coverage HTML is empty after `cxx_coverage --collect` | Counters weren't zeroed, or no test was actually executed under the gcov build. | Run `./repo.sh cxx_coverage --zero-coverage` first, then `./repo.sh test`, then `--collect --generate-html`. |
 | A specific Doctest case won't match `--test-case` filter | Pattern needs quoting — shells can eat `*`. | Use `-e="--test-case=*Plugins*"` (the `=` is required so the runner doesn't parse the value as its own flag). |

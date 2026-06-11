@@ -4,15 +4,15 @@
 
 #pragma once
 
-// Scene Optimizer Core
-#include "omni/scene.optimizer/core/Defs.h"
-#include "omni/scene.optimizer/core/Report.h"
-#include "omni/scene.optimizer/core/Types.h"
-#include "omni/scene.optimizer/core/geometry/Cluster.h"
-#include "omni/scene.optimizer/core/geometry/VirtualMesh.h"
+// Usd Optimize Core
+#include "usd_optimize/core/Defs.h"
+#include "usd_optimize/core/Report.h"
+#include "usd_optimize/core/Types.h"
+#include "usd_optimize/core/geometry/Cluster.h"
+#include "usd_optimize/core/geometry/VirtualMesh.h"
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -46,7 +46,7 @@ struct PreBucket
 /// This class can be instantiated and then given a list of VirtualMeshs with a path they can be merged at via
 /// \ref AddVirtualMeshes. This can be used multiple times to specify VirtualMeshs at various paths. When all the
 /// VirtualMeshs have been added, calling \ref Bucket will perform the bucket.
-class OMNI_SO_EXPORT Bucketer
+class USD_OPTIMIZE_EXPORT Bucketer
 {
 public:
     /// Constructor
@@ -124,8 +124,8 @@ private:
 using BucketerPtr = std::shared_ptr<Bucketer>;
 
 // Populate the value, authored and ignore attributes for a bucketer in the manner that makes sense to merge geometry.
-OMNI_SO_EXPORT
+USD_OPTIMIZE_EXPORT
 void _populateMergeBucketerAttributes(const BucketerPtr& bucketer, bool considerPrimAttributes);
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

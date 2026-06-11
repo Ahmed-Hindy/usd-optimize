@@ -4,11 +4,11 @@
 
 #include "UtilityFunction.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/Log.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/Log.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -19,10 +19,10 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 
-SO_PLUGIN_INIT(omni::scene::optimizer::UtilityFunctionOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::UtilityFunctionOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -54,11 +54,11 @@ UtilityFunctionOperation::UtilityFunctionOperation()
 
 std::string UtilityFunctionOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion UtilityFunctionOperation::getVersion() const
+UsdOptimizePluginVersion UtilityFunctionOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -72,10 +72,10 @@ std::string UtilityFunctionOperation::getCategory() const
 
 bool UtilityFunctionOperation::deinstance(const std::vector<UsdPrim>& prims)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|Utility|deinstance");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|Utility|deinstance");
 
     std::string suffix = prims.size() == 1 ? "" : "s";
-    SO_LOG_INFO("Running deinstance on %zu prim%s", prims.size(), suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Running deinstance on %zu prim%s", prims.size(), suffix.c_str());
 
     size_t processed = 0;
 
@@ -91,7 +91,7 @@ bool UtilityFunctionOperation::deinstance(const std::vector<UsdPrim>& prims)
     }
 
     suffix = processed == 1 ? "" : "s";
-    SO_LOG_INFO("Deinstanced %zu prim%s", processed, suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Deinstanced %zu prim%s", processed, suffix.c_str());
 
     return true;
 }
@@ -99,10 +99,10 @@ bool UtilityFunctionOperation::deinstance(const std::vector<UsdPrim>& prims)
 
 bool UtilityFunctionOperation::unbindMaterials(const std::vector<UsdPrim>& prims)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|Utility|unbindMaterials");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|Utility|unbindMaterials");
 
     std::string suffix = prims.size() == 1 ? "" : "s";
-    SO_LOG_INFO("Running unbindMaterials on %zu prim%s", prims.size(), suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Running unbindMaterials on %zu prim%s", prims.size(), suffix.c_str());
 
     size_t processed = 0;
 
@@ -133,7 +133,7 @@ bool UtilityFunctionOperation::unbindMaterials(const std::vector<UsdPrim>& prims
     }
 
     suffix = processed == 1 ? "" : "s";
-    SO_LOG_INFO("Removed %zu material binding%s", processed, suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Removed %zu material binding%s", processed, suffix.c_str());
 
     return true;
 }
@@ -170,7 +170,7 @@ bool UtilityFunctionOperation::makePrimInstanceable(const UsdPrim& prim)
 
     if (getContext()->verbose)
     {
-        SO_LOG_VERBOSE("Set %s instanceable", prim.GetPrimPath().GetAsString().c_str());
+        USD_OPTIMIZE_LOG_VERBOSE("Set %s instanceable", prim.GetPrimPath().GetAsString().c_str());
     }
 
     return true;
@@ -203,10 +203,10 @@ static bool _hasDirectComposition(const UsdPrim& prim)
 
 bool UtilityFunctionOperation::setInstanceable(const std::vector<UsdPrim>& prims)
 {
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|Utility|setInstanceable");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|Utility|setInstanceable");
 
     std::string suffix = prims.size() == 1 ? "" : "s";
-    SO_LOG_INFO("Running setInstanceable on %zu prim%s", prims.size(), suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Running setInstanceable on %zu prim%s", prims.size(), suffix.c_str());
 
     size_t processed = 0;
 
@@ -240,7 +240,7 @@ bool UtilityFunctionOperation::setInstanceable(const std::vector<UsdPrim>& prims
     }
 
     suffix = processed == 1 ? "" : "s";
-    SO_LOG_INFO("Set %zu prim%s to instanceable", processed, suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Set %zu prim%s to instanceable", processed, suffix.c_str());
 
     return true;
 }
@@ -249,10 +249,10 @@ bool UtilityFunctionOperation::setInstanceable(const std::vector<UsdPrim>& prims
 bool UtilityFunctionOperation::flattenInstances(const std::vector<UsdPrim>& prims)
 {
 
-    CARB_PROFILE_ZONE(0, "SceneOptimizer|Utility|flattenInstances");
+    CARB_PROFILE_ZONE(0, "UsdOptimize|Utility|flattenInstances");
 
     std::string suffix = prims.size() == 1 ? "" : "s";
-    SO_LOG_INFO("Running flatten on %zu prim%s", prims.size(), suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Running flatten on %zu prim%s", prims.size(), suffix.c_str());
 
     size_t flattened = 0;
 
@@ -261,13 +261,13 @@ bool UtilityFunctionOperation::flattenInstances(const std::vector<UsdPrim>& prim
         if (prim.IsInstance())
         {
             _flattenInstance(prim);
-            SO_LOG_VERBOSE("Flattened %s", prim.GetPrimPath().GetAsString().c_str());
+            USD_OPTIMIZE_LOG_VERBOSE("Flattened %s", prim.GetPrimPath().GetAsString().c_str());
             ++flattened;
         }
     }
 
     suffix = flattened == 1 ? "" : "s";
-    SO_LOG_INFO("Flattened %d instance%s", flattened, suffix.c_str());
+    USD_OPTIMIZE_LOG_INFO("Flattened %d instance%s", flattened, suffix.c_str());
 
     return true;
 }
@@ -298,11 +298,11 @@ OperationResult UtilityFunctionOperation::executeImpl()
         result.success = flattenInstances(prims);
         break;
     default:
-        SO_LOG_WARN("Unknown utility specified: %d", static_cast<int>(m_functionType));
+        USD_OPTIMIZE_LOG_WARN("Unknown utility specified: %d", static_cast<int>(m_functionType));
     }
 
     return result;
 }
 
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize

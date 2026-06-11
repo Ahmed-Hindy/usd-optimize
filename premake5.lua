@@ -2,7 +2,7 @@
 repo_build = require("omni/repo/build")
 repo_build.setup_options()
 
-so_build = require("tools/premake/scene-optimizer-public")
+usd_optimize_build = require("tools/premake/usd-optimize-public")
 
 -- Repo root
 root = repo_build.get_abs_path(".")
@@ -106,7 +106,7 @@ workspace(_OPTIONS["solution-name"])
         files {".editorconfig"}
         editandcontinue "Off"
 
-        so_build.use_host_toolchain()
+        usd_optimize_build.use_host_toolchain()
 
         buildoptions {"/utf-8", "/bigobj"}
         buildoptions {"/permissive-", "/Zc:twoPhase-"}

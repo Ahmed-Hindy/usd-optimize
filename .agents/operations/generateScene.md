@@ -8,7 +8,7 @@
 
 ## Overview
 
-Generate Scene creates synthetic test scenes by procedurally placing meshes in a layout. This is a developer/testing utility for generating scenes with controllable complexity — useful for benchmarking Scene Optimizer operations or stress-testing renderers.
+Generate Scene creates synthetic test scenes by procedurally placing meshes in a layout. This is a developer/testing utility for generating scenes with controllable complexity — useful for benchmarking Usd Optimize operations or stress-testing renderers.
 
 The operation places copies of reference meshes according to a layout pattern (uniform grid or random). Meshes can be instances or unique copies, with optional scale variation and clustering.
 

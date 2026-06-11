@@ -1,6 +1,6 @@
-# Scene Optimizer — Developer Library
+# Usd Optimize — Developer Library
 
-Scene Optimizer is a USD scene optimization library: a broad set of operations for processing and optimizing Universal Scene Description (USD) stages. A published package includes C++ headers, Python bindings, and prebuilt libraries so you can embed Scene Optimizer in your own applications and pipelines—**without installing Omniverse Kit**.
+Usd Optimize is a USD scene optimization library: a broad set of operations for processing and optimizing Universal Scene Description (USD) stages. A published package includes C++ headers, Python bindings, and prebuilt libraries so you can embed Usd Optimize in your own applications and pipelines—**without installing Omniverse Kit**.
 
 This project is currently not accepting contributions.
 
@@ -11,8 +11,8 @@ This project is currently not accepting contributions.
 | **Quickstart** | [Build from source](#quickstart) |
 | **Prebuilt packages** | [Install guides](#prebuilt-packages) |
 | **Documentation** | [User manual](https://docs.omniverse.nvidia.com/extensions/latest/ext_scene-optimizer/user-manual.html) |
-| **Contribute** | [Open an issue](https://github.com/NVIDIA-Omniverse/scene-optimizer-core/issues/new) |
-| **Support** | [GitHub Issues](https://github.com/NVIDIA-Omniverse/scene-optimizer-core/issues) |
+| **Contribute** | [Open an issue](https://github.com/NVIDIA-Omniverse/usd-optimize/issues/new) |
+| **Support** | [GitHub Issues](https://github.com/NVIDIA-Omniverse/usd-optimize/issues) |
 | **Security** | [SECURITY.md](SECURITY.md) |
 | **Governance** | [Code of Conduct](CODE_OF_CONDUCT.md) |
 
@@ -31,7 +31,7 @@ Prerequisites are listed under [Requirements](#requirements). Run `./repo.sh ci 
 
 | Directory | Description |
 | --- | --- |
-| `include/` | C++ public headers (`omni/scene.optimizer/core/`) |
+| `include/` | C++ public headers (`usd_optimize/core/`) |
 | `lib/` | Prebuilt libraries and Windows import libraries |
 | `python/` | Python bindings and modules |
 | `usdpy/` | USD Python runtime modules |
@@ -64,7 +64,7 @@ To consume a published binary drop (headers, prebuilt libraries, and Python bind
 
 OpenUSD and Python are fetched automatically via Packman during `./repo.sh build` — no manual install required. The C++ toolchain must still be installed as described under [Requirements](#requirements).
 
-The **`omniverse-scene-optimizer` wheel** produced by `./repo.sh py_package` declares a specific Python **minor** in its tags (see `requires-python` in `tools/pyproject/pyproject.toml` and the `cp3xx` segment in the wheel filename). Set **`PYTHON_BIN`** to a matching interpreter (e.g. `python3.12` for a `cp312` wheel, or `python3.10` / `python3.11` after rebuilding with `--set-token python_ver:…` — see [Building Usd Versions](#building-usd-versions)) and use **`"$PYTHON_BIN" -m pip`** for install and for any **`python -m …`** invocations below.
+The **`usd-optimize` wheel** produced by `./repo.sh py_package` declares a specific Python **minor** in its tags (see `requires-python` in `tools/pyproject/pyproject.toml` and the `cp3xx` segment in the wheel filename). Set **`PYTHON_BIN`** to a matching interpreter (e.g. `python3.12` for a `cp312` wheel, or `python3.10` / `python3.11` after rebuilding with `--set-token python_ver:…` — see [Building Usd Versions](#building-usd-versions)) and use **`"$PYTHON_BIN" -m pip`** for install and for any **`python -m …`** invocations below.
 
 ## Building Usd Versions
 
@@ -181,17 +181,17 @@ All other build-time dependencies (USD, Python, third-party libraries, **premake
 
 ## Performance Validators
 
-Scene Optimizer integrates with the [`omniverse-asset-validator`](https://pypi.org/project/omniverse-asset-validator/) PyPI package to expose its performance checks as asset-validator rules under the `Performance` category. Each rule wraps the analysis mode of a Scene Optimizer operation. Most register by default; a few are opt-in because they're slow on large stages — pass `include_expensive=True` to `register_all()` to register the slow ones too. The authoritative rule lists live in `source/core/python/omni/scene/optimizer/validators/_plugin.py` (`_default_rule_classes()` and `_expensive_rule_classes()`).
+Usd Optimize integrates with the [`usd-validation-nvidia`](https://pypi.org/project/usd-validation-nvidia/) PyPI package to expose its performance checks as validation rules under the `Performance` category. Each rule wraps the analysis mode of a Usd Optimize operation. All rules register together via `register_all()`; the authoritative rule list lives in `source/validators/python/usd_optimize/validators/__init__.py` (`_RULE_CATEGORIES`).
 
-`omniverse-asset-validator` is pulled in automatically as a runtime dependency of the `omniverse-scene-optimizer` wheel.
+`usd-validation-nvidia` is pulled in automatically as a runtime dependency of the `usd-optimize` wheel.
 
 ### Programmatic use
 
-Use the **same Python** and, on Linux, the **`PYTHONPATH` / loader alignment** from [CLI use](#cli-use) so **`pxr` and Scene Optimizer’s C++ core bind the same `libusd`**.
+Use the **same Python** and, on Linux, the **`PYTHONPATH` / loader alignment** from [CLI use](#cli-use) so **`pxr` and Usd Optimize’s C++ core bind the same `libusd`**.
 
 ```python
-from omni.scene.optimizer.validators import register_all
-from omni.asset_validator import ValidationEngine
+from usd_optimize.validators import register_all
+from usd_validation_nvidia import ValidationEngine
 from pxr import Usd
 
 register_all()
@@ -205,65 +205,61 @@ for issue in results.issues():
 
 **From a source checkout**, prefer **`tools/perf_validators/run.sh`** (see the **`run-validators`** skill): it aligns `PYTHONPATH` and loader paths with the `./repo.sh build` tree, calls `register_all()` directly (no wheel entry-point plumbing), and avoids several footguns documented below.
 
-**Raw `omni_asset_validate`** is still useful for pipelines that rely on upstream's CLI behavior after a **`pip install`**.
+**Raw `nvidia_usd_validate`** is still useful for pipelines that rely on upstream's CLI behavior after a **`pip install`**.
 
-`omni_asset_validate` discovers Scene Optimizer’s plugin through **`importlib.metadata` distribution entry points**. The declarator lives under `[project.entry-points."omni.asset_validator"]` in `tools/pyproject/pyproject.toml` and is stamped onto the **`omniverse-scene-optimizer` wheel**.
+`nvidia_usd_validate` discovers Usd Optimize’s plugin through **`importlib.metadata` distribution entry points**. The declarator lives under `[project.entry-points."omni.asset_validator"]` in `tools/pyproject/pyproject.toml` and is stamped onto the **`usd-optimize` wheel**. The `usd-validation-nvidia` `PluginManager` scans both the `usd_validation_nvidia` and `omni.asset_validator` entry-point groups, so this declaration is discovered regardless of the group name.
 
-**Installing the Python package is required.** Putting this repository on `PYTHONPATH` is enough for `python -c "from omni.scene.optimizer.validators …"` imports, but it **does not** publish entry-point metadata, so the CLI still sees only `'omni.asset_validator:DefaultPlugin'`, emits no `SceneOptimizer*` rules, logs no warning that Scene Optimizer is missing—and `-c Performance` fails with “invalid choice” because upstream only knows its built-in categories until our plugin registers the `Performance` category.
+**Installing the Python package is required.** Putting this repository on `PYTHONPATH` is enough for `python -c "from usd_optimize.validators …"` imports, but it **does not** publish entry-point metadata, so the CLI emits no `UsdOptimize*` rules, logs no warning that Usd Optimize is missing—and `-c Performance` fails with “invalid choice” because upstream only knows its built-in categories until our plugin registers the `Performance` category.
 
 Minimal install from source (libraries first, wheel second). **Pick `PYTHON_BIN`** so its minor version matches the wheel under `_build/packages/` (the `cp3xx` in the filename must agree — see [Supported Versions](#supported-versions)):
 
 ```bash
 ./repo.sh build
-./repo.sh py_package                                          # emits _build/packages/omniverse_scene_optimizer-*.whl
+./repo.sh py_package                                          # emits _build/packages/usd_optimize-*.whl
 PYTHON_BIN=python3.12                                         # e.g. python3.10 / python3.11 if you rebuilt py_package for that minor
-"$PYTHON_BIN" -m pip install _build/packages/omniverse_scene_optimizer-*.whl
+"$PYTHON_BIN" -m pip install _build/packages/usd_optimize-*.whl
 ```
 
-Use the **same Python environment** for `omni_asset_validate` below (e.g. activate the venv you installed into, or ensure the `omni_asset_validate` on `PATH` came from **`$PYTHON_BIN`**).
+Use the **same Python environment** for `nvidia_usd_validate` below (e.g. activate the venv you installed into, or ensure the `nvidia_usd_validate` on `PATH` came from **`$PYTHON_BIN`**).
 
-**Linux — align `libusd` / `pxr` after `pip install`:** The wheel bundles Scene Optimizer and repaired dependency `.so` files under `omniverse_scene_optimizer.libs/`, but **`usd-exchange`** (a runtime dependency of the wheel) can install **`pxr` linked to a different auditwheel-mangled `libusd_*.so`**. Then Python and the C++ core disagree on `UsdUtilsStageCache`, every rule fails with a stage-ID / cache error. Until packaging deduplicates that stack, **`pip install` from a local `./repo.sh py_package` build should export the dev-tree USD you built against**:
+**Linux — align `libusd` / `pxr` after `pip install`:** The wheel bundles Usd Optimize and repaired dependency `.so` files under `usd_optimize.libs/`, but **`usd-exchange`** (a runtime dependency of the wheel) can install **`pxr` linked to a different auditwheel-mangled `libusd_*.so`**. Then Python and the C++ core disagree on `UsdUtilsStageCache`, every rule fails with a stage-ID / cache error. Until packaging deduplicates that stack, **`pip install` from a local `./repo.sh py_package` build should export the dev-tree USD you built against**:
 
 ```bash
 # From repo root. Set PLATFORM to your _build/ child (examples: linux-x86_64, linux-aarch64).
 PLATFORM=linux-x86_64
-SO_ROOT="$PWD/_build/${PLATFORM}/release"
-export PYTHONPATH="$SO_ROOT/python:$PWD/_build/target-deps/usd/release/lib/python:${PYTHONPATH:-}"
-export LD_LIBRARY_PATH="$SO_ROOT/lib:$SO_ROOT/extraLibs:${LD_LIBRARY_PATH:-}"
+USD_OPTIMIZE_ROOT="$PWD/_build/${PLATFORM}/release"
+export PYTHONPATH="$USD_OPTIMIZE_ROOT/python:$PWD/_build/target-deps/usd/release/lib/python:${PYTHONPATH:-}"
+export LD_LIBRARY_PATH="$USD_OPTIMIZE_ROOT/lib:$USD_OPTIMIZE_ROOT/extraLibs:${LD_LIBRARY_PATH:-}"
 ```
 
-Repair still reduces **loader** coupling for bundled Scene Optimizer bits; **`PYTHONPATH` alignment is separate** — see `.agents/skills/validators/SKILL.md` § *CLI invocation*. Unrepaired wheels need dev-tree loader paths plus all core `.so`s from `_build/` (that skill spells out the unrepaired-path matrix).
+Repair still reduces **loader** coupling for bundled Usd Optimize bits; **`PYTHONPATH` alignment is separate** — see `.agents/skills/validators/SKILL.md` § *CLI invocation*. Unrepaired wheels need dev-tree loader paths plus all core `.so`s from `_build/` (that skill spells out the unrepaired-path matrix).
 
-**Second gate:** once the wheel is installed, the asset-validator’s `PluginManager` uses `OMNI_ASSET_VALIDATOR_ISOLATE_ENTRYPOINTS` as an allow-list—which plugins to instantiate among those **discovered** via metadata:
+**Plugins auto-load once installed:** the `usd-validation-nvidia` `PluginManager` automatically instantiates **all** plugins it discovers via `importlib.metadata`—there is no allow-list env var to set. As soon as the `usd-optimize` wheel is installed (so its `registrant` entry-point is visible to `importlib.metadata`), its rules load automatically.
 
-```bash
-export OMNI_ASSET_VALIDATOR_ISOLATE_ENTRYPOINTS="omni.asset_validator:DefaultPlugin,omni.scene.optimizer.validators:SceneOptimizerValidatorPlugin"
-```
-
-Smoke-check discovery with the **same interpreter** as **`$PYTHON_BIN`** / `omni_asset_validate` (expect at least one `SceneOptimizer*` line). **Upstream quirk:** `omni_asset_validate --listChecks` may exit non-zero even when listing succeeds; **`grep` exiting 0** still means discovery worked. Prefer wiring failure off the **`grep`** result instead of trusting only the CLI exit code under `set -e`.
+Smoke-check discovery with the **same interpreter** as **`$PYTHON_BIN`** / `nvidia_usd_validate` (expect at least one `UsdOptimize*` line). `nvidia_usd_validate --help` lists the discovered rules as the `-r/--rule` choices, so a successful install surfaces the `UsdOptimize*` rule classes there:
 
 ```bash
-omni_asset_validate --listChecks | grep SceneOptimizer || { echo >&2 "No SceneOptimizer rules — install omniverse_scene_optimizer wheel or inspect LOG for plugin discovery"; exit 1; }
+nvidia_usd_validate --help | grep UsdOptimize || { echo >&2 "No UsdOptimize rules — install usd_optimize wheel or inspect LOG for plugin discovery"; exit 1; }
 ```
 
 Example runs (**`simpleFourCubes.usda`** is a repo fixture; swap in your `.usd` / `.usdz` path):
 
 ```bash
 ASSET=source/tests/data/simpleFourCubes.usda
-omni_asset_validate "$ASSET" --json-output issues.json    # structured per-prim findings
-omni_asset_validate "$ASSET" --csv-output issues.csv       # flat per-issue rows
-omni_asset_validate -c Performance "$ASSET"              # only Scene Optimizer's Performance rules
+nvidia_usd_validate "$ASSET" --json-output issues.json    # structured per-prim findings
+nvidia_usd_validate "$ASSET" --csv-output issues.csv       # flat per-issue rows
+nvidia_usd_validate -c Performance "$ASSET"              # only Usd Optimize's Performance rules
 ```
 
 For the full runbook (file logging, adding new validators, `register_all()` vs entry-point semantics), see `.agents/skills/validators/SKILL.md`.
 
 ## Documentation
 
-The **[Scene Optimizer user manual](https://docs.omniverse.nvidia.com/extensions/latest/ext_scene-optimizer/user-manual.html)** includes the C++ and Python API references, the developer guide (including **packman** and **premake** integration for C++), and per-operation details.
+The **[Usd Optimize user manual](https://docs.omniverse.nvidia.com/extensions/latest/ext_scene-optimizer/user-manual.html)** includes the C++ and Python API references, the developer guide (including **packman** and **premake** integration for C++), and per-operation details.
 
 ## License
 
-Scene Optimizer Core is licensed under the [Apache License, Version 2.0](LICENSE).
+Usd Optimize Core is licensed under the [Apache License, Version 2.0](LICENSE).
 
 Copyright (c) 2022-2026, NVIDIA CORPORATION.
 

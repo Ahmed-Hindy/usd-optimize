@@ -4,21 +4,21 @@
 
 #include "RemoveSmallGeometry.h"
 
-// Scene Optimizer Core
-#include <omni/scene.optimizer/core/Core.h>
-#include <omni/scene.optimizer/core/JsonUtils.h>
-#include <omni/scene.optimizer/core/ResolveSdfPaths.h>
-#include <omni/scene.optimizer/core/Utils.h>
+// Usd Optimize Core
+#include <usd_optimize/core/Core.h>
+#include <usd_optimize/core/JsonUtils.h>
+#include <usd_optimize/core/ResolveSdfPaths.h>
+#include <usd_optimize/core/Utils.h>
 
 // USD
 #include <pxr/usd/usd/primRange.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-SO_PLUGIN_INIT(omni::scene::optimizer::RemoveSmallGeometryOperation);
+USD_OPTIMIZE_PLUGIN_INIT(usd_optimize::RemoveSmallGeometryOperation);
 
 
-namespace omni::scene::optimizer
+namespace usd_optimize
 {
 
 
@@ -73,11 +73,11 @@ RemoveSmallGeometryOperation::~RemoveSmallGeometryOperation() = default;
 
 std::string RemoveSmallGeometryOperation::getAuthor() const
 {
-    return OMNI_SO_TO_STRING(SO_PLUGIN_AUTHOR);
+    return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
 }
 
 
-SOPluginVersion RemoveSmallGeometryOperation::getVersion() const
+UsdOptimizePluginVersion RemoveSmallGeometryOperation::getVersion() const
 {
     return { 1, 0, 0 };
 }
@@ -109,6 +109,11 @@ OperationResult RemoveSmallGeometryOperation::executeImpl()
     {
         SdfChangeBlock changeBlock;
         _removePrims(m_removeMethod, getUsdStage(), smallGeometry);
+    }
+
+    if (!smallGeometry.empty())
+    {
+        USD_OPTIMIZE_LOG_INFO("Removed %zu small geometry prim(s)", smallGeometry.size());
     }
 
     return { true };
@@ -194,8 +199,8 @@ std::vector<UsdPrim> RemoveSmallGeometryOperation::findSmallGeometry()
         // if for some reason we still don't have a valid extent, skip this prim
         if (extentArray.size() != 2)
         {
-            SO_LOG_WARN("Unable to resolve extents either from attribute or points for %s",
-                        prim.GetPath().GetAsString().c_str());
+            USD_OPTIMIZE_LOG_WARN("Unable to resolve extents either from attribute or points for %s",
+                                  prim.GetPath().GetAsString().c_str());
             continue;
         }
 
@@ -291,9 +296,9 @@ std::vector<UsdPrim> RemoveSmallGeometryOperation::findSmallGeometry()
             // if we're not in analysis mode, log that the small geometry will be removed
             if (getContext()->analysisMode == false)
             {
-                SO_LOG_INFO("Removing small geometry with size %s at %s",
-                            std::to_string(size).c_str(),
-                            prim.GetPath().GetAsString().c_str());
+                USD_OPTIMIZE_LOG_VERBOSE("Removing small geometry with size %s at %s",
+                                         std::to_string(size).c_str(),
+                                         prim.GetPath().GetAsString().c_str());
             }
             return true;
         }
@@ -305,4 +310,4 @@ std::vector<UsdPrim> RemoveSmallGeometryOperation::findSmallGeometry()
     return _resolveExpressionsToPrims(getUsdStage()->GetPseudoRoot(), m_paths, false, false, predicate, resolveFilter);
 }
 
-} // namespace omni::scene::optimizer
+} // namespace usd_optimize
