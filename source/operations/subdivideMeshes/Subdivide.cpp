@@ -26,7 +26,7 @@ namespace usd_optimize
 constexpr const char* s_categorySubdivide = "SUBDIVIDE";
 
 SubdivideOperation::SubdivideOperation()
-    : OmniOperation("subdivideMeshes", "Subdivide Meshes", "This operation subdivides meshes.")
+    : OmniOperation("subdivideMeshes", "Subdivide Meshes", "Apply Catmull-Clark or Loop subdivision iterations to meshes.")
     , m_gpu_face_count_threshold(4000)
     , m_face_count_limit(2000000)
     , m_method(Method::eCatmullClark)
@@ -64,6 +64,27 @@ SubdivideOperation::SubdivideOperation()
                 m_iteration_count)
         .setMin(1)
         .setMax(10);
+}
+
+
+std::string SubdivideOperation::getDocumentation() const
+{
+    return "This operation performs either Catmull-Clark or Loop subdivision "
+           "on meshes in a stage, replacing the topology with the subdivided "
+           "result.\nMesh subsets are forwarded and floating-point data "
+           "defined on corners and vertices will be interpolated.\n\nCreases "
+           "and corners may be described using the crease and corner index "
+           "attributes of UsdGeomMesh.\nSee creaseIndices, creaseLengths, "
+           "creaseSharpnesses, cornerIndices, and cornerSharpnesses.\nThe "
+           "resulting mesh will have updated crease and corner attributes, "
+           "reflecting edge and vertex forwarding from the original mesh to "
+           "the result.  Also, the forwarded sharpnesses will be decremented "
+           "by 1 with each subdivision iteration. Non-positive sharpnesses "
+           "result in the removal of creases or corners.  This way the "
+           "operation may be repeatedly applied to a mesh, leading to "
+           "consistent sharpnesses of crease and corners regardless of how "
+           "many iterations are performed with each execution of the "
+           "operation.";
 }
 
 

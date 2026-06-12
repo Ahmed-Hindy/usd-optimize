@@ -74,6 +74,11 @@ public:
     /// Get the description of this plugin.
     std::string getDescription() const;
 
+    /// Returns the full documentation for this operation. If this is not
+    /// overridden by the plugin, it will return the same string as
+    /// getDescription().
+    virtual std::string getDocumentation() const;
+
     /// Get the author of this operation.
     virtual std::string getAuthor() const = 0;
 

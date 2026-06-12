@@ -129,9 +129,9 @@ python3.12 -m pip install _build/packages/usd_optimize-*.whl
 
 Caveats:
 
-- **Host toolchain (Linux).** `auditwheel repair` needs **`patchelf`** installed (`sudo apt-get install patchelf`). Without it, repair fails before wheels land under `_build/packages/`.
+- **Host toolchain (Linux).** `auditwheel repair` requires `patchelf`. Ensure `patchelf` is installed through your approved system package manager before running `./repo.sh py_package`. Do not install host packages from this skill automatically. Without it, repair fails before wheels land under `_build/packages/`.
 - **Network.** `tools/pyproject/pybuild.sh` bootstraps a venv under `_build/host-deps/py_package_venv/` and pip-installs Poetry, auditwheel, and tooling from PyPI. Air‑gapped or blocked hosts must pre-seed equivalents.
-- **`py_package` venv wedged:** If bootstrap failed part‑way but `_build/host-deps/py_package_venv/` exists, the helper may reuse a broken env and invoke an incompatible system Poetry. **`rm -rf _build/host-deps/py_package_venv`** and rerun `./repo.sh py_package`.
+- **`py_package` venv wedged:** If bootstrap failed part‑way but `_build/host-deps/py_package_venv/` exists, the helper may reuse a broken env and invoke an incompatible system Poetry. Move the generated venv aside or delete it only after confirming the path is exactly under the checkout's `_build/host-deps/` directory, then rerun `./repo.sh py_package`.
 
 - **Toolchain assumption (Linux).** The `auditwheel` repair step that runs
   inside `py_package` targets manylinux_2_35. On distros newer than the build

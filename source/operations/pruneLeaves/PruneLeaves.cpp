@@ -87,10 +87,7 @@ static bool _hasUnloadedPayload(const UsdPrim& prim)
 
 
 PruneLeavesOperation::PruneLeavesOperation()
-    : Operation("pruneLeaves",
-                "Prune Leaves",
-                "This operation finds and prunes any leaf grouping primitives found in a stage (for example "
-                "Xform, Scope).")
+    : Operation("pruneLeaves", "Prune Leaves", "Prune unnecessary leaf grouping prims (``Scope``, ``Xform``) from a stage.")
 {
 
     addArgument("paths", "Prim Paths to Search", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_primPaths)

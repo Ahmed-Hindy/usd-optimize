@@ -98,7 +98,10 @@ struct PrimitiveFitProcessedData : public ProcessedHostPrim
 constexpr const char* s_categoryFitPrimitives = "FIT_PRIMITIVES";
 
 PrimitiveFitOperation::PrimitiveFitOperation()
-    : OmniOperation("fitPrimitives", "Fit Primitives", "This operation fits primitives to meshes.")
+    : OmniOperation(
+          "fitPrimitives",
+          "Fit Primitives",
+          "Replace meshes in a stage with transformed primitive geometries (sphere, cylinder, cone, or cube) if they can be fit within tolerance.")
     , m_gpuFaceCountThreshold(0)
     , m_showFittingParameters(true)
     , m_vertexTolerance(0.01f)
@@ -253,6 +256,15 @@ PrimitiveFitOperation::PrimitiveFitOperation()
                          "Whether or not to add a base to generated cone meshes.",
                          m_meshParameters.coneParameters.capped))
         .setVisibleIf("generateMeshes"); // group mesh generation parameters
+}
+
+std::string PrimitiveFitOperation::getDocumentation() const
+{
+    return "This operation attempts to fit transformed primitive shape prims "
+           "(sphere, cylinder, cone, or cube) to selected meshes.\nIf the mesh "
+           "can be fit within tolerance, it is replaced with the transformed "
+           "primitive that fits best. The user can choose which of the four "
+           "primitive types (in any combination) to attempt to fit.";
 }
 
 std::string PrimitiveFitOperation::getAuthor() const

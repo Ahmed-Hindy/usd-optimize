@@ -695,6 +695,11 @@ std::string Operation::getDescription() const
 }
 
 
+std::string Operation::getDocumentation() const
+{
+    return pImpl->m_description;
+}
+
 bool Operation::getVisible() const
 {
     return true;

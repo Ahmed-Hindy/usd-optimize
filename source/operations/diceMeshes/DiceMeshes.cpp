@@ -29,7 +29,7 @@ namespace usd_optimize
 constexpr const char* s_categoryDiceMeshes = "DICEMESHES";
 
 DiceMeshesOperation::DiceMeshesOperation()
-    : OmniOperation("diceMeshes", "Dice Meshes", "This operation dices up meshes into a grid.")
+    : OmniOperation("diceMeshes", "Dice Meshes", "Dice meshes to a given regular grid or an irregular one.")
     , m_splitDices(false)
     , m_gridType(GridType::eRegular)
     , m_gridCellSize({ 0, 0, 0 })
@@ -94,6 +94,18 @@ DiceMeshesOperation::DiceMeshesOperation()
                      addArgument("upVectorCy", "Up-vector C y", kDisplayTypeFloatSlider, "Up-vector Z", m_upZ[1]),
                      addArgument("upVectorCz", "Up-vector C z", kDisplayTypeFloatSlider, "Up-vector Z", m_upZ[2])))
         .setVisibleIf("advancedSettings");
+}
+
+
+std::string DiceMeshesOperation::getDocumentation() const
+{
+    return "This operation will create new vertices and faces where needed "
+           "based on regular or irregular input grid parameters. Each grid "
+           "cell should be self-contained, as in there should be no part of "
+           "the sub-mesh that extends outside the grid cell definition.\n\n"
+           ".. Caution:: To create separate mesh prims after the dice meshes "
+           "has completed, use the :doc:`Split Meshes<splitMeshes>` operation "
+           "or enable *Split Dices* to split desired geometry.";
 }
 
 

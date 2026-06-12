@@ -38,7 +38,10 @@ constexpr const char* s_categoryFindOccludedMeshes = "FIND_OCCLUDED_MESHES";
 
 
 FindOccludedMeshesOperation::FindOccludedMeshesOperation()
-    : Operation("findOccludedMeshes", "Find Occluded Meshes", "This operation finds meshes that are occluded by others.")
+    : Operation(
+          "findOccludedMeshes",
+          "Find Occluded Meshes",
+          "Finds meshes that are globally occluded meaning they are occluded from any camera that does not cross meshes in the scene.")
 {
 
     addArgument("paths",

@@ -10,13 +10,27 @@ from usd_optimize.core.operation import Operation
 
 class PythonScriptOperation(Operation):
     def __init__(self):
-        super().__init__("pythonScript", "Python Script", "Executes a user defined Python script.")
+        super().__init__(
+            "pythonScript",
+            "Python Script",
+            "Execute a user defined python script with access to the current USD stage.",
+        )
         self.add_argument(
             "python",
             "Python Script",
             Operation.ArgumentDisplayTypeCode,
             "The Python script to execute.",
             'print("Hello world!")',
+        )
+
+    @property
+    def documentation(self):
+        return (
+            "This operation executes user defined python code with access "
+            "to the current stage. It can be used to manipulate the stage "
+            "in ways not currently supported by the Scene Optimizer. The "
+            "python script can be stored in the Preset configuration file, "
+            "making it reusable and portable."
         )
 
     @property

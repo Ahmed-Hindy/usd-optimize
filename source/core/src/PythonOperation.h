@@ -31,6 +31,9 @@ public:
     /// Destructor
     ~PythonOperation() override;
 
+    /// Get the documentation string for this plugin.
+    std::string getDocumentation() const override;
+
     /// Get the author of this plugin
     std::string getAuthor() const override;
 
@@ -52,6 +55,7 @@ protected:
 
 private:
     RefCountedPyObject m_pyObject;
+    std::string m_documentation;
     std::string m_author;
     UsdOptimizePluginVersion m_version;
     bool m_visible;

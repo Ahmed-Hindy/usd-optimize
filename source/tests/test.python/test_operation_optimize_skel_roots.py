@@ -5,7 +5,6 @@
 
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdSkel
 
-from .scripts import standalone
 from .test_utils import Test_Operation
 
 
@@ -177,7 +176,7 @@ class Test_Operation_Optimize_Skel_Roots(Test_Operation):
 
         # Execute
         json = """[{"operation": "optimizeSkelRoots"}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        status = self._execute_json_string(stage, json)
         self.assertTrue(status)
 
         # Basic test that things roughly worked (tested properly in test_command)

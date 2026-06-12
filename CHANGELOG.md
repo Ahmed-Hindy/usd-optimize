@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.4] - 2026-06-09
+## [1.0.4] - 2026-06-12
 ### Added
 - Asset Validator parameters API: expose validator rule tuning so checker thresholds (e.g. `OccludedMeshesChecker`, `SmallMeshChecker`) can be configured via parameters.
 - `MergeMeshes`: new spatial merge mode that welds coincident boundary vertices across seams.
@@ -15,6 +15,9 @@
 - Reduced default logging noise across operations.
 - Improved performance of `PruneLeaves`.
 - Reverted `repo_usd` pin to 5.0.26 (restores the stock build; the 5.0.34 exchange build trimmed link deps).
+- Pin Visual Studio to 2019.
+- Auto-generated documentation for Usd Optimize lib.
+- Replaced unsafe sudo/rm guidance in validators skill.
 
 ### Fixed
 - `DeduplicateHierarchies`: fix value variant grouping.

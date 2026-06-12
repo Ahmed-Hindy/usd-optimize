@@ -31,11 +31,7 @@ namespace usd_optimize
 constexpr const char* s_categoryMeshCleanup = "MESHCLEANUP";
 
 MeshCleanupOperation::MeshCleanupOperation()
-    : OmniOperation("meshCleanup",
-                    "Mesh Cleanup",
-                    "This operation applies various cleanups to a mesh, e.g merge vertices that are closer to one "
-                    "another than a given tolerance, removing degenerate faces, making the resulting mesh be manifold "
-                    "and/or removing any isolated vertices.")
+    : OmniOperation("meshCleanup", "Mesh Cleanup", "Applies various cleanups to meshes.")
     , m_mergeVertices(true)
     , m_tolerance(0)
     , m_makeManifold(false)
@@ -107,6 +103,15 @@ MeshCleanupOperation::MeshCleanupOperation()
                 kDisplayTypeBool,
                 "Ensure the final result is a manifold mesh",
                 m_makeManifold);
+}
+
+
+std::string MeshCleanupOperation::getDocumentation() const
+{
+    return "Applies various cleanups to a mesh, e.g merge vertices that are "
+           "closer to one another than a given tolerance, removing degenerate "
+           "faces, making the resulting mesh be manifold and/or removing any "
+           "isolated vertices.";
 }
 
 

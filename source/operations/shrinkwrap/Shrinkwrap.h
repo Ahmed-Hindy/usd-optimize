@@ -23,6 +23,8 @@ public:
 
     ~ShrinkwrapOperation() override;
 
+    std::string getDocumentation() const override;
+
     std::string getAuthor() const override;
 
     UsdOptimizePluginVersion getVersion() const override;

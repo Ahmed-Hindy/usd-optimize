@@ -4,7 +4,8 @@
 
 import json
 
-from .scripts import standalone
+from usd_optimize.core import UsdOptimizeCore
+
 from .test_utils import Test_Operation
 
 
@@ -19,7 +20,7 @@ class TestRenaming(Test_Operation):
         old_config = [{"operation": "findCoincidingMeshes", "meshPrimPaths": ["foo"]}]
 
         # Use the exposed Usd Optimize mapping function to update the config
-        mapped = standalone.map_config(json.dumps(old_config))
+        mapped = UsdOptimizeCore.getInstance().mapConfig(json.dumps(old_config))
         mapped_config = json.loads(mapped)
 
         # Should be different, but still only one entry
@@ -42,7 +43,7 @@ class TestRenaming(Test_Operation):
         old_config = [{"opreation": "abc"}, {"operation": "no such operation"}]
 
         # Map
-        mapped = standalone.map_config(json.dumps(old_config))
+        mapped = UsdOptimizeCore.getInstance().mapConfig(json.dumps(old_config))
         mapped_config = json.loads(mapped)
 
         # Should be different

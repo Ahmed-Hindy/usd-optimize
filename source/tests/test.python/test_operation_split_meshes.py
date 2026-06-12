@@ -6,7 +6,6 @@
 from pxr import Sdf, Usd, UsdGeom, UsdShade
 from usd_optimize.core import UsdOptimizeCore
 
-from .scripts import standalone
 from .test_utils import Test_Operation, _get_context
 
 METHOD_GEOM_SUBSETS = 0
@@ -324,7 +323,7 @@ class Test_Operation_Split_Meshes(Test_Operation):
 
         # Run split meshes
         json = """[{"operation": "splitMeshes", "paths": [], "splitCollocatedPoints": true}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        status = self._execute_json_string(stage, json)
         self.assertTrue(status)
 
         # First, check that the random array data was NOT carried over
@@ -460,7 +459,7 @@ class Test_Operation_Split_Meshes(Test_Operation):
 
         # Run split meshes
         json = """[{"operation": "splitMeshes", "paths": [], "splitCollocatedPoints": true}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        status = self._execute_json_string(stage, json)
         self.assertTrue(status)
 
         # Assert the parts also contain the schema
@@ -517,7 +516,7 @@ class Test_Operation_Split_Meshes(Test_Operation):
 
         # Execute command
         json = """[{"operation": "splitMeshes", "paths": [], "splitOn": 1, "splitCollocatedPoints": true, "originalGeomOption": 2}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        status = self._execute_json_string(stage, json)
 
         # Assert new expected mesh count
         meshes = [x for x in stage.Traverse() if UsdGeom.Mesh(x)]

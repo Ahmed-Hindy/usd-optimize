@@ -5,7 +5,6 @@
 
 from pxr import Gf, Sdf, Usd, UsdGeom, Vt
 
-from .scripts import standalone
 from .test_utils import Test_Operation
 
 
@@ -107,7 +106,7 @@ class Test_Operation_Project_UVs(Test_Operation):
 
         # Execute command
         json = """[{"operation": "generateProjectionUVs", "paths": [], "projectionType": 0, "scaleFactor": 1.0}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        self._execute_json_string(stage, json)
 
         cube = stage.GetPrimAtPath("/World/pCube1")
         self.assertTrue(cube)
@@ -118,7 +117,7 @@ class Test_Operation_Project_UVs(Test_Operation):
         # Re-open stage and execute again with a different scale factor
         stage = self._open_stage("meshNoUVs.usd")
         json = """[{"operation": "generateProjectionUVs", "paths": [], "projectionType": 0, "scaleFactor": 0.02}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        self._execute_json_string(stage, json)
 
         cube = stage.GetPrimAtPath("/World/pCube1")
         self.assertTrue(cube)
@@ -134,7 +133,7 @@ class Test_Operation_Project_UVs(Test_Operation):
         # Open the stage a third time and apply a different scale unit this time
         stage = self._open_stage("meshNoUVs.usd")
         json = """[{"operation": "generateProjectionUVs", "paths": [], "projectionType": 0, "scaleFactor": 0.02, "scaleUnits": 1.0}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        self._execute_json_string(stage, json)
 
         cube = stage.GetPrimAtPath("/World/pCube1")
         self.assertTrue(cube)
@@ -153,7 +152,7 @@ class Test_Operation_Project_UVs(Test_Operation):
 
         # Execute command
         json = """[{"operation": "generateProjectionUVs", "paths": [], "projectionType": 0, "scaleFactor": 1.0, "preprojectionXform": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        self._execute_json_string(stage, json)
 
         cube = stage.GetPrimAtPath("/World/pCube1")
         self.assertTrue(cube)
@@ -164,7 +163,7 @@ class Test_Operation_Project_UVs(Test_Operation):
         # Re-open stage and execute again with a different preprojection xform
         stage = self._open_stage("meshNoUVs.usd")
         json = """[{"operation": "generateProjectionUVs", "paths": [], "projectionType": 0, "scaleFactor": 1.0, "preprojectionXform": [1.0, 0.5, 0.0, 0.0, 0.5, 1.0, 0.0, 0.5, 0.0, 1.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.5]}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        self._execute_json_string(stage, json)
 
         cube = stage.GetPrimAtPath("/World/pCube1")
         self.assertTrue(cube)

@@ -6,6 +6,7 @@
 
 import asyncio
 import functools
+import json
 import logging
 import pathlib
 import time
@@ -13,8 +14,6 @@ import unittest
 
 from pxr import Sdf, Usd, UsdGeom, UsdUtils
 from usd_optimize.core import ExecutionContext, UsdOptimizeCore
-
-from .scripts import standalone
 
 logger = logging.getLogger(__name__)
 
@@ -179,16 +178,16 @@ class Test_Operation(unittest.TestCase, metaclass=_CombinedMeta):
             context = _get_context(stage)
         return _execute_operation(self.OPERATION, args, context)
 
-    def _get_output_paths(self):
-        """Return any output paths executing the operation may have set."""
-        return standalone.get_output_paths(self.OPERATION)
-
-    def _get_output_path_arrays(self):
-        """Return any output path arrays executing the operation may have set."""
-        return standalone.get_output_path_arrays(self.OPERATION)
+    def _execute_json_string(self, stage, json_str):
+        """Execute the operations described in a JSON string on the given stage and assert success."""
+        context = _get_context(stage)
+        return UsdOptimizeCore.getInstance().executeConfig(context, json.loads(json_str))
 
     def _execute_json(self, stage, name):
         """Execute the operations described in a JSON file on the given stage and assert success."""
-        file_path = _get_test_data_file_path(name)
-        status = standalone.execute_commands_from_json(stage, file_path)
-        self.assertTrue(status)
+        with open(_get_test_data_file_path(name)) as f:
+            context = _get_context(stage)
+            status = UsdOptimizeCore.getInstance().executeConfig(context, json.load(f))
+            self.assertTrue(status)
+            return status
+        return None

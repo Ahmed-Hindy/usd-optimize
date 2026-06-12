@@ -40,7 +40,9 @@ constexpr const char* s_categoryPrimitivesToMeshes = "PRIMITIVES_TO_MESHES";
 
 /// PrimitiveToMeshOperation methods
 PrimitiveToMeshOperation::PrimitiveToMeshOperation()
-    : OmniOperation("primitivesToMeshes", "Primitives to Meshes", "This operation converts primitives to meshes.")
+    : OmniOperation("primitivesToMeshes",
+                    "Primitives to Meshes",
+                    "Replace gprim types sphere, cylinder, cone, or cube in a stage with a mesh approximation.")
 {
     addArgument("paths",
                 "Primitives to convert",
@@ -136,6 +138,14 @@ PrimitiveToMeshOperation::PrimitiveToMeshOperation()
                 kDisplayTypeBool,
                 "Whether or not to generate meshes from cube prims.",
                 m_options.convertCubes);
+}
+
+
+std::string PrimitiveToMeshOperation::getDocumentation() const
+{
+    return "This operation replaces gprim types sphere, cylinder, cone, and "
+           "cube with a mesh approximation. This allows the geometry to be "
+           "used with operations that require mesh types.";
 }
 
 std::string PrimitiveToMeshOperation::getAuthor() const

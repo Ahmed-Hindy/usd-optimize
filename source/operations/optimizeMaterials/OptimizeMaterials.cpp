@@ -100,10 +100,7 @@ static bool _hasSpecializes(const UsdPrim& prim)
 
 
 OptimizeMaterialsOperation::OptimizeMaterialsOperation()
-    : Operation("optimizeMaterials",
-                "Optimize Materials",
-                "Run operations to optimize materials in a stage. Run this optimization to replace duplicates with "
-                "references to unique materials. This can reduce memory usage and also improve performance.")
+    : Operation("optimizeMaterials", "Optimize Materials", "Run operations to optimize materials in a stage.")
 {
 
     addArgument("materialPrimPaths",
@@ -131,6 +128,15 @@ OptimizeMaterialsOperation::OptimizeMaterialsOperation()
                 "Whether to check for materials that can be deduplicated with primvars during analysis mode",
                 m_analysisCheckPrimvars)
         .setVisible(false);
+}
+
+
+std::string OptimizeMaterialsOperation::getDocumentation() const
+{
+    return "Run operations to optimize materials in a stage. Run this "
+           "optimization to replace duplicates with references to unique "
+           "materials. This can reduce memory usage and also improve "
+           "performance.";
 }
 
 

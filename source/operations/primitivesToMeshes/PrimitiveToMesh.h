@@ -23,6 +23,9 @@ class PrimitiveToMeshOperation : public OmniOperation
 public:
     PrimitiveToMeshOperation();
 
+    /// Get the documentation string for this plugin.
+    std::string getDocumentation() const override;
+
     /// Get the author of this plugin
     std::string getAuthor() const override;
 

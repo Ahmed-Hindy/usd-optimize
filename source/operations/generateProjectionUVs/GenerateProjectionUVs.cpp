@@ -57,7 +57,9 @@ struct SdfPathHashFunctor
 
 
 GenerateProjectionUVsOperation::GenerateProjectionUVsOperation()
-    : Operation("generateProjectionUVs", "Generate Projection UVs", "Generate Projection UVs")
+    : Operation("generateProjectionUVs",
+                "Generate Projection UVs",
+                "Generate *texture coordinates* for meshes using various projection methods.")
 {
 
     addArgument("paths",

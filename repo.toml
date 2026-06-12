@@ -52,12 +52,12 @@ docker.enabled = false
 #
 # If CI fails with: missing VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt — the selected
 # Visual Studio does not have the MSVC toolset. Install the "Desktop development with C++" workload
-# (or Build Tools for Visual Studio with the C++ workload). Empty vs_version lets repo_build pick
-# a VS; if a broken/partial 2019 is chosen, pin to an install that has MSVC, e.g.:
-#   msbuild.vs_version = "vs2022"
+# (or Build Tools for Visual Studio with the C++ workload).
+#
+# Pinned to vs2019 to match Kit and other dependencies (OmniMesh/Autouv)
 msbuild.link_host_toolchain = true
 msbuild.sln_file = "usd-optimize.sln"
-msbuild.vs_version = ""  # "vs2019" | "vs2022" | "" (vswhere; prefer an install with MSVC + Win SDK)
+msbuild.vs_version = "vs2019"  # "vs2019" | "vs2022" | "" (vswhere); pinned to match Kit (MSVC 14.29)
 
 # Generate deps/usd-deps.generated.packman.xml before pulling dependencies.
 # This selects the correct USD packages for the chosen flavor.
@@ -265,6 +265,89 @@ enabled = true
 # note this folder would only exist during CI
 folder_input = "${root}/_build/unsignedpackages"
 folder_output = "${root}/_build/signedpackages"
+
+########################################################################################################################
+# Docs
+########################################################################################################################
+
+[repo_docs]
+enabled = true
+project = "${conf:repo.name}"
+name = "Usd Optimize"
+copyright_start = 2022
+config = "release"
+enable_dark_theme_switcher = true
+copybutton_enabled = true
+
+sphinx_conf_py_extra = "autodoc_member_order = 'bysource'"
+sphinx_exclude_patterns = [
+    # Build / tooling trees
+    "_build",
+    "_compiler",
+    "_repo",
+    ".agents",
+    ".claude",
+    ".codex",
+    "deps",
+    "resources",
+    "tools",
+    # Root markdown that is not part of the rendered docs
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "CITATION.md",
+    "CLAUDE.md",
+    "CODE_OF_CONDUCT.md",
+    "PLUGINS.md",
+    "README.md",
+    "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md",
+    "VERSION.md",
+    # Install guides are not wired into the toctree
+    "docs/install-prebuilt-linux.md",
+    "docs/install-prebuilt-windows.md",
+]
+
+use_fast_doxygen_conversion = true
+only_preprocessor_enabled = true
+api_output_directory = "api"
+api_root_page = {docname = "api", title = "Usd Optimize C++ API", toc_docnames = "*"}
+
+
+doxygen_input = [
+    "source/core/src/*.h",
+]
+
+# Tell doxygen how to expand the export macro, otherwise it gets confused.
+doxygen_predefined = [
+    "USD_OPTIMIZE_EXPORT=",
+]
+
+doxygen_conf_extra = """
+SHOW_FILES  = YES
+EXTRACT_ALL = YES
+"""
+
+sphinx_generate_doxygen_groups = true
+sphinx_generate_doxygen_pages = true
+
+# Runtime paths so the Python autodoc step can import the built package.
+library_paths = [
+    "${root}/_build/${platform}/${config}/lib",
+    "${root}/_build/${platform}/${config}/extraLibs",
+    "${root}/_build/target-deps/usd/${config}/lib",
+]
+python_paths = [
+    "${root}/_build/${platform}/${config}/python",
+    "${root}/_build/target-deps/usd/${config}/lib/python",
+]
+# controls the runtime python executable
+python_path = "${root}/_build/target-deps/python/python${exe_ext}"
+
+social_media = [
+    [ "www", "https://developer.nvidia.com/usd" ],
+    [ "github", "https://github.com/NVIDIA-Omniverse/usd-optimize" ]
+]
+social_media_set = ""
 
 
 ########################################################################################################################

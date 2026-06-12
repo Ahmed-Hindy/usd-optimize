@@ -206,7 +206,7 @@ static RemoveMethod _updateRemoveMethod(RemoveMethod a, RemoveMethod b)
 
 
 RemovePrimsOperation::RemovePrimsOperation()
-    : Operation("removePrims", "Remove Prims", "Identifies and removes prims from the stage for various reasons.")
+    : Operation("removePrims", "Remove Prims", "Finds various prims that can be removed from that stage.")
 {
     addArgument("paths", "Paths", kDisplayTypePrimPaths, "Optional list of prim paths to consider.", m_paths)
         .setPlaceholder("Add paths or entire scene will be processed");
@@ -275,6 +275,14 @@ RemovePrimsOperation::RemovePrimsOperation()
 
 
 RemovePrimsOperation::~RemovePrimsOperation() = default;
+
+
+std::string RemovePrimsOperation::getDocumentation() const
+{
+    return "Configurable operation that can find different types of prims that "
+           "can be removed from the stage and provides options for how to "
+           "remove them.";
+}
 
 
 std::string RemovePrimsOperation::getAuthor() const

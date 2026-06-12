@@ -24,7 +24,7 @@ namespace usd_optimize
 constexpr const char* s_categoryManifold = "MANIFOLD";
 
 ManifoldOperation::ManifoldOperation()
-    : OmniOperation("manifoldMeshes", "Manifold Meshes", "This operation makes meshes into manifold meshes.")
+    : OmniOperation("manifoldMeshes", "Manifold Meshes", "Makes mesh Manifold.")
 {
 
     addArgument("paths", "Meshes To Process", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_meshPrimPaths)

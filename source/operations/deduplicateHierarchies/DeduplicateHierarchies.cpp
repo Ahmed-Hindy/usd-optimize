@@ -775,12 +775,7 @@ static bool _applyInternalReferences(const UsdStageWeakPtr& stage, const Hierarc
 DeduplicateHierarchiesOperation::DeduplicateHierarchiesOperation()
     : Operation("deduplicateHierarchies",
                 "Deduplicate Hierarchies",
-                "Find duplicate prim hierarchies and replace duplicates with instanceable "
-                "internal references to a prototype. Groups prims by subtree shape, then "
-                "partitions each group into value-equivalence classes so that a set of "
-                "structurally-identical copies with multiple value-variants yields one "
-                "prototype per variant. Recurses into each prototype so nested duplicates "
-                "are consolidated into nested instanceable references.")
+                "Find duplicate prim hierarchies and replace duplicates with instances.")
     , m_paths()
     , m_tolerance(0.001)
     , m_ignoreShaderOutputs(true)
@@ -825,6 +820,16 @@ DeduplicateHierarchiesOperation::DeduplicateHierarchiesOperation()
 
 
 DeduplicateHierarchiesOperation::~DeduplicateHierarchiesOperation() = default;
+
+
+std::string DeduplicateHierarchiesOperation::getDocumentation() const
+{
+    return "Find duplicate prim hierarchies and replace duplicates with "
+           "instanceable internal references to a prototype. Identical "
+           "hierarchies that contain variants will produce one prototype per "
+           "variant. Recurses into each prototype so nested duplicates are "
+           "consolidated into nested instanceable references.";
+}
 
 
 std::string DeduplicateHierarchiesOperation::getAuthor() const
