@@ -116,20 +116,6 @@ static std::string _UsdOptimizeCore_getOperationDescription(UsdOptimizeCore& cor
 }
 
 
-static const char* _UsdOptimizeCore_getOperationDocumentation_docString =
-    "Returns the full documentation for this operation. If this is not overridden by the plugin, it will return the same string as getOperationDescription().";
-static std::string _UsdOptimizeCore_getOperationDocumentation(UsdOptimizeCore& core, const std::string& operationName)
-{
-    const OperationUPtr operation = core.getOperation(operationName);
-    if (operation == nullptr)
-    {
-        return "";
-    }
-
-    return operation->getDocumentation();
-}
-
-
 static const char* _UsdOptimizeCore_getOperationArguments_docString =
     "Returns the arguments of the given operation as JSON list, or an empty list if the operation doesn't exist.";
 static pybind11::object _UsdOptimizeCore_getOperationArguments(UsdOptimizeCore& core, const std::string& operationName)
@@ -368,9 +354,6 @@ Singleton object that manages loading of Usd Optimize plugins and execution of o
         .def("getOperationDescription",
              &_UsdOptimizeCore_getOperationDescription,
              _UsdOptimizeCore_getOperationDescription_docString)
-        .def("getOperationDocumentation",
-             &_UsdOptimizeCore_getOperationDocumentation,
-             _UsdOptimizeCore_getOperationDocumentation_docString)
         .def("getOperationArguments",
              &_UsdOptimizeCore_getOperationArguments,
              _UsdOptimizeCore_getOperationArguments_docString)

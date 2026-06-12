@@ -15,14 +15,12 @@
 - Reduced default logging noise across operations.
 - Improved performance of `PruneLeaves`.
 - Reverted `repo_usd` pin to 5.0.26 (restores the stock build; the 5.0.34 exchange build trimmed link deps).
-- Pin Visual Studio to 2019.
-- Auto-generated documentation for Usd Optimize lib.
-- Replaced unsafe sudo/rm guidance in validators skill.
 
 ### Fixed
 - `DeduplicateHierarchies`: fix value variant grouping.
 - `DiceMeshes`: fix irregular multi-axis cuts.
 - Fix gcc13 build issues from stricter compiler checks (DGX Spark defaults to gcc13).
+- Replaced unsafe sudo/rm guidance in validators skill.
 
 ## [1.0.3] - 2026-05-28
 ### Fixed

@@ -221,9 +221,7 @@ static bool computeUVs(const UsdGeomMesh& mesh,
 }
 
 AtlasUVsOperation::AtlasUVsOperation()
-    : Operation("generateAtlasUVs",
-                "Auto UV Unwrap",
-                "Generate *texture coordinates* for meshes using unwrap methods with low distortion.")
+    : Operation("generateAtlasUVs", "Auto UV Unwrap", "Generates texture(UV) coordinates using AutoUV unwrap")
     , m_distortionThreshold(3.0)
     , m_enableAtlasPacking(true)
     , m_useWorldSpaceScales(true)
@@ -275,14 +273,6 @@ AtlasUVsOperation::AtlasUVsOperation()
                 kDisplayTypeBool,
                 "Overwrite existing UVs on the meshes selected for processing",
                 m_overwriteExisting);
-}
-
-
-std::string AtlasUVsOperation::getDocumentation() const
-{
-    return "This operation generates texture(UV) coordinates for mesh prims "
-           "with lower distortion than projection based methods, and adds them "
-           "as the ``st`` primvar.";
 }
 
 

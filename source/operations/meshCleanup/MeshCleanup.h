@@ -23,9 +23,6 @@ class MeshCleanupOperation : public OmniOperation
 public:
     MeshCleanupOperation();
 
-    /// Get the documentation string for this plugin.
-    std::string getDocumentation() const override;
-
     /// Get the author of this plugin
     std::string getAuthor() const override;
 

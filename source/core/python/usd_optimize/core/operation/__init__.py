@@ -75,15 +75,6 @@ class Operation:
         return self.__description
 
     @property
-    def documentation(self):
-        """
-        Returns the full documentation for this operation. If this is not
-        overridden by the plugin, it will return the same string as
-        `description`.
-        """
-        return self.__description
-
-    @property
     def author(self):
         """
         To be implemented by derived classes. Returns a `str` representing the author of the operation.
@@ -170,6 +161,12 @@ class Operation:
             metadata["enableIf"] = enable_if
         if visible_if is not None:
             metadata["visibleIf"] = visible_if
+
+        # does the value need encoding?
+        if display_type == Operation.ArgumentDisplayTypeCode and isinstance(default_value, str):
+            readable_bytes = default_value.encode("ascii")
+            base64_bytes = base64.b64encode(readable_bytes)
+            default_value = base64_bytes.decode("ascii")
 
         arg_data = {
             "name": name,

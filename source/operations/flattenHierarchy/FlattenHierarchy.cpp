@@ -40,7 +40,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 static GfMatrix4d s_identity;
 
 FlattenHierarchyOperation::FlattenHierarchyOperation()
-    : Operation("flattenHierarchy", "Flatten Hierarchy", "Finds and removes redundant Xforms to reduce prim count.")
+    : Operation("flattenHierarchy", "Flatten Hierarchy", "Remove redundant Xforms from a stage, to reduce prim count")
 {
 
     addArgument("paths", "Paths To Process", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_primPaths)
@@ -51,24 +51,6 @@ FlattenHierarchyOperation::FlattenHierarchyOperation()
                 kDisplayTypeBool,
                 "Only remove Xforms that do not contribute any transformation values to the hierarchy",
                 m_identityOnly);
-}
-
-
-std::string FlattenHierarchyOperation::getDocumentation() const
-{
-    return "Finds any Xforms in a stage that are redundant and removes them, "
-           "in order to reduce prim count. This is typically an Xform that has "
-           "a single Xform underneath it, or chains of single Xforms.\n\n"
-           "Certain conditions prevent an Xform from being removed. This "
-           "includes Xforms that have multiple children, in order to retain "
-           "some semblance of scene layout. Also Xforms that have a "
-           "relationship (for example a material binding) or something that "
-           "has a relationship targeting them (e.g. a material).\nXforms that "
-           "have time samples are not removed. Only Xforms in the current edit "
-           "target are considered, any external references will be skipped.\n\n"
-           "Xforms that are referenced (for example as an instance) must also "
-           "retain their original path, however Xforms underneath them can "
-           "potentially be removed.";
 }
 
 

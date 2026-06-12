@@ -21,18 +21,6 @@ PythonOperation::PythonOperation(const std::string& name,
     , m_pyObject(pyObject)
     , m_visible(true)
 {
-    // get the documentation string for the plugin
-    static const std::string kDocumentationAttribute = "documentation";
-    try
-    {
-        m_documentation = _pyAsString(_pyGetObjectAttribute(m_pyObject.obj, kDocumentationAttribute).obj);
-    }
-    catch (const std::exception& exc)
-    {
-        throw std::runtime_error("Error getting \"" + kDocumentationAttribute +
-                                 "\" attribute: " + std::string(exc.what()));
-    }
-
     // get the author of the plugin
     static const std::string kAuthorAttribute = "author";
     try
@@ -125,12 +113,6 @@ PythonOperation::PythonOperation(const std::string& name,
 
 PythonOperation::~PythonOperation()
 {
-}
-
-
-std::string PythonOperation::getDocumentation() const
-{
-    return m_documentation;
 }
 
 

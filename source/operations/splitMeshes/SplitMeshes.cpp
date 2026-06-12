@@ -430,7 +430,11 @@ void SplitMeshesOperation::splitMeshes(const std::vector<UsdPrim>& prims, Operat
 
 
 SplitMeshesOperation::SplitMeshesOperation()
-    : Operation("splitMeshes", "Split Meshes", "Split disjoint meshes into multiple mesh prims.")
+    : Operation("splitMeshes",
+                "Split Meshes",
+                "This operation determines whether meshes in a stage contain multiple disjoint mesh descriptions, "
+                "specifically parts of a mesh that don't share any vertices. These can then be replaced with multiple "
+                "mesh prims that contain just their part of the geometry.")
 {
 
     addArgument("paths", "Meshes to split", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_paths)
@@ -470,20 +474,6 @@ SplitMeshesOperation::SplitMeshesOperation()
 
     addArgument("multiCluster", "Multi Cluster", kDisplayTypeText, "Multiple cluster configuration settings", m_multiCluster)
         .setVisible(false);
-}
-
-
-std::string SplitMeshesOperation::getDocumentation() const
-{
-    return "This operation determines whether meshes in a stage contain "
-           "multiple disjoint mesh descriptions, specifically parts of a mesh "
-           "that don't share any vertices. These can then be replaced with "
-           "multiple mesh prims that contains their defined entity part of the "
-           "geometry.\n\nWhen the ``Spatial Clustering Mode`` is enabled "
-           "meshes will be split and merged spatially by user specified "
-           "values. This also greatly improves processing performance when "
-           "running in this mode to split and merge meshes in a single process "
-           "versus running each operation separately.";
 }
 
 

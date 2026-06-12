@@ -115,21 +115,6 @@ ShrinkwrapOperation::ShrinkwrapOperation()
 ShrinkwrapOperation::~ShrinkwrapOperation() = default;
 
 
-std::string ShrinkwrapOperation::getDocumentation() const
-{
-    return "This operation converts meshes to a level set volume using "
-           "`OpenVDB <https://www.openvdb.org/>`_ and extracts a watertight "
-           "mesh back out.\nIt is useful for closing holes, simplifying "
-           "topology, and creating LOD meshes.\n\nThe algorithm works by "
-           "rasterizing the input mesh into a narrow-band level set, "
-           "optionally eroding the surface to close gaps and holes, and then "
-           "extracting a new polygon mesh from the resulting volume.\n"
-           "Resolution is controlled by either a voxel size or a grid "
-           "dimension limit.\nThe output mesh is written as a new sibling prim "
-           "alongside the original, which is preserved.";
-}
-
-
 std::string ShrinkwrapOperation::getAuthor() const
 {
     return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);

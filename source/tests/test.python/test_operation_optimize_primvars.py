@@ -5,6 +5,7 @@
 
 from pxr import Usd, UsdGeom
 
+from .scripts import standalone
 from .test_utils import Test_Operation, _get_context
 
 # Mode Enum
@@ -305,7 +306,7 @@ class Test_Operation_OptimizePrimvars(Test_Operation):
             "paths": ["/World/ArbitraryPrimvars"],
             "mode": 1
              }]"""
-        status = self._execute_json_string(stage, json)
+        status = standalone.execute_commands_from_json(stage, json)
 
         # Assert the bad indexing remains
         self._checkPrimvar(stage, "/World/ArbitraryPrimvars", "badindexing", UsdGeom.Tokens.faceVarying, 16, 16)
@@ -316,7 +317,7 @@ class Test_Operation_OptimizePrimvars(Test_Operation):
             "paths": ["/World/ArbitraryPrimvars"],
             "mode": 2
              }]"""
-        status = self._execute_json_string(stage, json)
+        status = standalone.execute_commands_from_json(stage, json)
 
         # Assert the bad indexing was fixed
         self._checkPrimvar(stage, "/World/ArbitraryPrimvars", "badindexing", UsdGeom.Tokens.faceVarying, 2, 16)

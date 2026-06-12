@@ -31,9 +31,11 @@ constexpr const char* s_category = "UTILITY_FUNCTION";
 
 
 UtilityFunctionOperation::UtilityFunctionOperation()
-    : Operation("utilityFunction",
-                "Utility Function",
-                "Helper functions to pre-process components for scene optimizer operations..")
+    : Operation(
+          "utilityFunction",
+          "Utility Function",
+          "This operation contains a number of smaller functions that don't necessarily need a full operation of their "
+          "own. Generally this would mean they are a simple process that does not require any real configuration.")
 {
 
     // Prim Paths
@@ -47,15 +49,6 @@ UtilityFunctionOperation::UtilityFunctionOperation()
         { UtilityFunctionType::eSetInstanceable, "Set Instanceable" },
         { UtilityFunctionType::eFlattenInstance, "Flatten Instances" },
     });
-}
-
-
-std::string UtilityFunctionOperation::getDocumentation() const
-{
-    return "This operation contains a number of smaller functions that don't "
-           "necessarily need a full operation of their own. Generally this "
-           "would mean they are a simple process that does not require any "
-           "real configuration.";
 }
 
 

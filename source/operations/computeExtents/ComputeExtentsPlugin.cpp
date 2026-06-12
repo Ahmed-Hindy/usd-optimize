@@ -19,7 +19,10 @@ namespace usd_optimize
 constexpr const char* s_category = "COMPUTE_EXTENTS";
 
 ComputeExtentsOperation::ComputeExtentsOperation()
-    : Operation("computeExtents", "Compute Extents", "Compute and author the ``extent`` property for meshes.")
+    : Operation("computeExtents",
+                "Compute Extents",
+                "This will compute/recompute and author the ``extents`` property for meshes. If the paths "
+                "argument is empty, all prims in the stage will be computed.")
 {
 
     addArgument("paths", "Meshes To Process", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_primPaths)
@@ -28,19 +31,6 @@ ComputeExtentsOperation::ComputeExtentsOperation()
 
 
 ComputeExtentsOperation::~ComputeExtentsOperation() = default;
-
-
-std::string ComputeExtentsOperation::getDocumentation() const
-{
-    return "This will compute/recompute and author the ``extents`` property "
-           "for meshes. If the ``meshPrimPaths`` option is empty, all prims in "
-           "the stage will be computed.\n\nExtents are the axis aligned "
-           "bounding boxes of the meshes, these do not always exist in a USD "
-           "file. The extents can be used to improve scene performance since "
-           "they allow the application to know the exact bounds of an object. "
-           "Running this operation on an imported stage can potentially help "
-           "improve overall render and stage traversal performance.";
-}
 
 
 std::string ComputeExtentsOperation::getAuthor() const

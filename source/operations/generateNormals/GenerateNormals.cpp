@@ -40,7 +40,7 @@ namespace usd_optimize
 constexpr const char* s_categoryGenerateNormals = "NORMALS";
 
 GenerateNormalsOperation::GenerateNormalsOperation()
-    : OmniOperation("generateNormals", "Generate Normals", "Generate normals for meshes.")
+    : OmniOperation("generateNormals", "Generate Normals", "This operation generates normals for meshes.")
     , m_existingNormals(ExistingNormals::eFix)
     , m_sharpnessAngle(60.0f)
     , m_binding(Binding::eAuto)

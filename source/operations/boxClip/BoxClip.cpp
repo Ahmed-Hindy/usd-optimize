@@ -44,7 +44,7 @@ namespace usd_optimize
 constexpr const char* s_categoryBoxClip = "BOXCLIP";
 
 BoxClipOperation::BoxClipOperation()
-    : OmniOperation("boxClip", "Box Clip", "Clips mesh prims to the provided world-space axis-aligned bounding-box.")
+    : OmniOperation("boxClip", "Box Clip", "This operation clips meshes by a provided box.")
     , m_min({ 0, 0, 0 })
     , m_max({ 0, 0, 0 })
     , m_clipBoxDef(ClipBoxDefinition::eByPrim)
@@ -128,14 +128,6 @@ BoxClipOperation::BoxClipOperation()
         { ClipMode::eOutsideKeep, "Keep if fully outside clip box + keep if partially outside" },
         { ClipMode::eOutsideDiscard, "Keep if fully outside clip box + discard if partially outside" },
     });
-}
-
-
-std::string BoxClipOperation::getDocumentation() const
-{
-    return "Clips meshes to a user defined axis-aligned box, with options for "
-           "keeping geometry inside or outside the box and handling partial "
-           "intersections.";
 }
 
 

@@ -65,7 +65,12 @@ constexpr const char* s_categoryDeduplicate = "DEDUPLICATE_GEOMETRY";
 
 
 DeduplicateGeometryOperation::DeduplicateGeometryOperation()
-    : Operation("deduplicateGeometry", "Deduplicate Geometry", "Convert identical meshes into instances.")
+    : Operation("deduplicateGeometry",
+                "Deduplicate Geometry",
+                "This will replace multiple duplicate meshes in a scene to a single mesh and "
+                "create references/instances to the single mesh prim. Since a referenced mesh "
+                "uses less memory than the full duplicated mesh, this option can reduce system "
+                "memory and vram consumption.")
 {
 
     addArgument("meshPrimPaths",
@@ -176,25 +181,6 @@ DeduplicateGeometryOperation::DeduplicateGeometryOperation()
 
 
 DeduplicateGeometryOperation::~DeduplicateGeometryOperation() = default;
-
-
-std::string DeduplicateGeometryOperation::getDocumentation() const
-{
-    return "This will replace multiple duplicate geometric prims in a scene to "
-           "a single prim and create references/instances to the single prim. "
-           "Since a referenced prim uses less memory than the full duplicated "
-           "prim, this option can reduce system memory and vram "
-           "consumption.\n\nThis process is only effective if there are prims "
-           "that are identical but are not already instanced; however, you may "
-           "find this optimization may not have any effect on your scene.\n\n"
-           "The operation also supports a fuzzy comparison mode. In this mode, "
-           "the similarity measure used is independent of the tessellation of "
-           "meshes and based on their relative shape deviation. The fuzzy mode "
-           "comparison is available as a CPU and GPU implementation.\n\nThis "
-           "process supports deduplicating point-based geometry (meshes, basis "
-           "curves, etc.). Note that in fuzzy mode, currently only meshes are "
-           "supported for deduplication.";
-}
 
 
 std::string DeduplicateGeometryOperation::getAuthor() const

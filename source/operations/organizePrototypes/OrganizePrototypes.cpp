@@ -529,7 +529,8 @@ static bool _processSceneGraphInstances(const UsdStageRefPtr& stage,
 OrganizePrototypesOperation::OrganizePrototypesOperation()
     : Operation("organizePrototypes",
                 "Organize Prototypes",
-                "Reparent internal scene-graph instance prototypes under a user-specified namespace.")
+                "Reparent internal scene-graph instance prototypes under "
+                "a user-specified namespace.")
     , m_protosNamespace("Prototypes")
     , m_hierarchyLevels(0)
 {

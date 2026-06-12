@@ -186,7 +186,7 @@ inline static bool intersectionIsEmpty(const SortedContainerA& A, const SortedCo
 FindOverlappingMeshesOperation::FindOverlappingMeshesOperation()
     : OmniOperation("findOverlappingMeshes",
                     "Find Overlapping Meshes",
-                    "Finds meshes that overlap with each other and displays the overlapping regions for selected meshes.")
+                    "This operation finds interfering geometry in a stage.")
     , m_meshOverlapService(FindOverlappingMeshes::get())
 {
     // Drop the clashdetector's CUDA buffers at process shutdown, while the
@@ -312,18 +312,6 @@ FindOverlappingMeshesOperation::FindOverlappingMeshesOperation()
 
 FindOverlappingMeshesOperation::~FindOverlappingMeshesOperation()
 {
-}
-
-std::string FindOverlappingMeshesOperation::getDocumentation() const
-{
-    return "This operation shows which meshes are overlapping in the scene.  "
-           "The intersections are represented in the viewport as a graph "
-           "connecting centroids of overlapping pairs.  The user may select "
-           "any mesh in the viewport to see a detailed visualization of its "
-           "intersections with other meshes. This is updated as the mesh is "
-           "moved or scaled, allowing the user to quickly fix overlapping "
-           "meshes in the scene.  This also works with multiple selected "
-           "meshes or primitives with mesh descendants in the scene hierarchy.";
 }
 
 std::string FindOverlappingMeshesOperation::getAuthor() const

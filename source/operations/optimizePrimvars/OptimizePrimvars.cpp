@@ -31,10 +31,10 @@ constexpr const char* s_category = "OPTIMIZE_PRIMVARS";
 
 
 OptimizePrimvarsOperation::OptimizePrimvarsOperation()
-    : Operation(
-          "optimizePrimvars",
-          "Optimize Primvars",
-          "Flatten or index primvars, or check whether they can be simplified, for example reducing from faceVarying to uniform..")
+    : Operation("optimizePrimvars",
+                "Optimize Primvars",
+                "This operation provides utilities for optimizing primvars - simplifying their data (eg converting "
+                "faceVarying to uniform if possible), and indexing or flattening.")
 {
 
     addArgument("paths", "Prim Paths", kDisplayTypePrimPaths, "A list of prim paths to consider", m_primPaths)
@@ -75,24 +75,6 @@ OptimizePrimvarsOperation::OptimizePrimvarsOperation()
     // so for example can be used by the validation extension to avoid iterating the stage many times
     addArgument("primvarPaths", "Primvar Paths", kDisplayTypeTextList, "Explicit full primvar paths to target", m_primvarPaths)
         .setVisible(false);
-}
-
-
-std::string OptimizePrimvarsOperation::getDocumentation() const
-{
-    return "Run operations to optimize primvars in the stage. This tool can "
-           "convert flat primvars to indexed, or indexed primvars to "
-           "flattened. It can also attempt to simplify primvars. For example "
-           "if a primvar is authored as faceVarying (a value per vertex), but "
-           "all the values are equal, this can be simplified to ``constant`` "
-           "interpolation. Or if all the values for each face are equal, it "
-           "could be reduced to ``uniform`` interpolation.\n\nFlattening "
-           "refers to removing indexing from a primvar and authoring all of "
-           "the values in one array, whether they are unique or not. This may "
-           "take more disk space. Indexing refers to recording only unique "
-           "values in the primvar data, and having separate indices that refer "
-           "to the unique values. This can take less space, particularly if "
-           "there are not many unique values versus the length of the array.";
 }
 
 

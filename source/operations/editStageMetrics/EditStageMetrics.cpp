@@ -80,17 +80,6 @@ static const GfVec3d Z_AXIS(0.0, 0.0, 1.0);
 static const std::vector<GfVec3d> AXIS = { X_AXIS, Y_AXIS, Z_AXIS };
 
 
-/// Copies the default value out of an attribute spec.
-/// Do not call UncheckedGet on the temporary from GetDefaultValue(); GCC 13+ reports false
-/// -Wuninitialized warnings on that rvalue path.
-template <typename T>
-static T _copyDefaultValue(const SdfAttributeSpecHandle& attrSpec)
-{
-    VtValue defaultValue = attrSpec->GetDefaultValue();
-    return defaultValue.UncheckedGet<T>();
-}
-
-
 /// Scales a SdfAttributeSpec with a single value type (e.g. float or GfVec3f) by a given scale factor.
 template <typename T>
 static void _scaleSingleType(const SdfAttributeSpecHandle& attrSpec, const double scale)
@@ -98,7 +87,7 @@ static void _scaleSingleType(const SdfAttributeSpecHandle& attrSpec, const doubl
     // scale the default value if there is one
     if (attrSpec->HasDefaultValue())
     {
-        T value = _copyDefaultValue<T>(attrSpec);
+        T value = attrSpec->GetDefaultValue().UncheckedGet<T>();
         value *= scale;
         attrSpec->SetDefaultValue(VtValue(value));
     }
@@ -126,7 +115,7 @@ static void _scaleArrayType(const SdfAttributeSpecHandle& attrSpec, const double
     // scale the default value if there is one
     if (attrSpec->HasDefaultValue())
     {
-        VtArray<T> values = _copyDefaultValue<VtArray<T>>(attrSpec);
+        VtArray<T> values = attrSpec->GetDefaultValue().UncheckedGet<VtArray<T>>();
         for (T& v : values)
         {
             v *= scale;
@@ -168,8 +157,7 @@ static void _rotateSingleType(const SdfAttributeSpecHandle& attrSpec, const GfRo
     // rotate the default value if there is one
     if (attrSpec->HasDefaultValue())
     {
-        T value = _copyDefaultValue<T>(attrSpec);
-        attrSpec->SetDefaultValue(VtValue(rotation.TransformDir(value)));
+        attrSpec->SetDefaultValue(VtValue(rotation.TransformDir(attrSpec->GetDefaultValue().UncheckedGet<T>())));
     }
 
     // rotate the time samples if the attribute has them
@@ -193,7 +181,7 @@ static void _rotateArrayType(const SdfAttributeSpecHandle& attrSpec, const GfRot
     // rotate the default value if there is one
     if (attrSpec->HasDefaultValue())
     {
-        VtArray<T> values = _copyDefaultValue<VtArray<T>>(attrSpec);
+        VtArray<T> values = attrSpec->GetDefaultValue().UncheckedGet<VtArray<T>>();
         for (T& v : values)
         {
             v = GfVec3f(rotation.TransformDir(v));
@@ -254,7 +242,7 @@ static void _changeBasisOfRotateXformOp(const SdfAttributeSpecHandle& attrSpec,
     if (attrSpec->HasDefaultValue())
     {
         // get the euler values and change their basis
-        T eulerValue = _copyDefaultValue<T>(attrSpec);
+        T eulerValue = attrSpec->GetDefaultValue().UncheckedGet<T>();
         _changeBasisOfEulerAngles<T>(eulerValue, axisOrder, changeOfBasis, changeOfBasisInv);
 
         attrSpec->SetDefaultValue(VtValue(eulerValue));
@@ -308,7 +296,7 @@ static void _changeBasisOfScaleXformOp(const SdfAttributeSpecHandle& attrSpec,
     // change basis of the default value if there is one
     if (attrSpec->HasDefaultValue())
     {
-        T scaleValue = _copyDefaultValue<T>(attrSpec);
+        T scaleValue = attrSpec->GetDefaultValue().UncheckedGet<T>();
         scaleVec3Lambda(scaleValue);
         attrSpec->SetDefaultValue(VtValue(scaleValue));
     }
@@ -353,8 +341,8 @@ static void _changeBasisOfSingleQuaternion(const SdfAttributeSpecHandle& attrSpe
     // change basis of the default value if there is one
     if (attrSpec->HasDefaultValue())
     {
-        T quat = _copyDefaultValue<T>(attrSpec);
-        GfMatrix3d matrix = changeOfBasis * GfMatrix3d(GfRotation(quat)) * changeOfBasisInv;
+        GfMatrix3d matrix =
+            changeOfBasis * GfMatrix3d(GfRotation(attrSpec->GetDefaultValue().UncheckedGet<T>())) * changeOfBasisInv;
         attrSpec->SetDefaultValue(VtValue(T(matrix.ExtractRotation().GetQuat())));
     }
 
@@ -382,7 +370,7 @@ static void _changeBasisOfArrayQuaternion(const SdfAttributeSpecHandle& attrSpec
     // change basis of the default value if there is one
     if (attrSpec->HasDefaultValue())
     {
-        VtArray<T> quats = _copyDefaultValue<VtArray<T>>(attrSpec);
+        VtArray<T> quats = attrSpec->GetDefaultValue().UncheckedGet<VtArray<T>>();
         for (T& quat : quats)
         {
             GfMatrix3d matrix = changeOfBasis * GfMatrix3d(GfRotation(quat)) * changeOfBasisInv;
@@ -419,8 +407,8 @@ static void _changeBasisOfSingleMatrix(const SdfAttributeSpecHandle& attrSpec,
     // change basis of the default value if there is one
     if (attrSpec->HasDefaultValue())
     {
-        T value = _copyDefaultValue<T>(attrSpec);
-        attrSpec->SetDefaultValue(VtValue(changeOfBasis * value * changeOfBasisInv));
+        attrSpec->SetDefaultValue(
+            VtValue(changeOfBasis * attrSpec->GetDefaultValue().UncheckedGet<T>() * changeOfBasisInv));
     }
 
     // change basis of time samples if the attribute has them
@@ -445,7 +433,7 @@ static void _changeBasisOfArrayMatrix(const SdfAttributeSpecHandle& attrSpec,
     // change basis of the default value if there is one
     if (attrSpec->HasDefaultValue())
     {
-        VtArray<T> matrices = _copyDefaultValue<VtArray<T>>(attrSpec);
+        VtArray<T> matrices = attrSpec->GetDefaultValue().UncheckedGet<VtArray<T>>();
         for (T& matrix : matrices)
         {
             matrix = changeOfBasis * matrix * changeOfBasisInv;
@@ -1412,7 +1400,8 @@ private:
                 {
                     if (attrSpec->GetTypeName() == SdfValueTypeNames->Half)
                     {
-                        GfHalf angle = _copyDefaultValue<GfHalf>(attrSpec) * static_cast<GfHalf>(axisValues[i]);
+                        GfHalf angle =
+                            attrSpec->GetDefaultValue().UncheckedGet<GfHalf>() * static_cast<GfHalf>(axisValues[i]);
                         if (additiveXformOp != nullptr && additiveXformOp->hasDefault())
                         {
                             angle += additiveXformOp->getDefaultAs<GfHalf>();
@@ -1421,7 +1410,8 @@ private:
                     }
                     else if (attrSpec->GetTypeName() == SdfValueTypeNames->Float)
                     {
-                        float angle = _copyDefaultValue<float>(attrSpec) * static_cast<float>(axisValues[i]);
+                        float angle =
+                            attrSpec->GetDefaultValue().UncheckedGet<float>() * static_cast<float>(axisValues[i]);
                         if (additiveXformOp != nullptr && additiveXformOp->hasDefault())
                         {
                             angle += additiveXformOp->getDefaultAs<float>();
@@ -1430,7 +1420,7 @@ private:
                     }
                     else if (attrSpec->GetTypeName() == SdfValueTypeNames->Double)
                     {
-                        double angle = _copyDefaultValue<double>(attrSpec) * axisValues[i];
+                        double angle = attrSpec->GetDefaultValue().UncheckedGet<double>() * axisValues[i];
                         if (additiveXformOp != nullptr && additiveXformOp->hasDefault())
                         {
                             angle += additiveXformOp->getDefaultAs<double>();
@@ -2225,7 +2215,32 @@ private:
 
 
 EditStageMetricsOperation::EditStageMetricsOperation()
-    : Operation("editStageMetrics", "Edit Stage Metrics", "Set the ``metersPerUnit`` and/or ``upAxis`` of a stage.")
+    : Operation("editStageMetrics",
+                "Edit Stage Metrics",
+                "This operation changes the ``metersPerUnit`` and/or ``upAxis`` of a stage's active edit target layer "
+                "by updating the layer's metadata and applying relevant transformations to attributes that represent "
+                "world space units so that they reflect the new ``metersPerUnit/upAxis``."
+                "The operation is designed to only modify attributes that represent a world space value in the stage's "
+                "active edit layer. This means prims/attributes that exist in the scene from external references or "
+                "sublayers will not be affected by the operation.\n"
+                "An overview of some specifics about how the operation will affect attributes or xformOps in the "
+                "stage:\n"
+                "- When changing the ``metersPerUnit`` of prims that are a defined schema that have inferred "
+                "attributes values that don't need to be defined. For example a Cube prim has a ``size`` attribute "
+                "that does not need to be defined, and if it is not the cube will have a value of ``2.0``. When "
+                "changing the ``metersPerUnit``, the operation needs to create this ``size`` attribute in order to "
+                "scale its inferred value of ``2.0``. These inferred attributes will only be created if they represent "
+                "world space values and the prim of the attribute exists as a concrete ``def`` in the active edit "
+                "layer.\n"
+                "- When changing the ``upAxis`` of prims that don't have geometry that can be rotated, the operation "
+                "will add an additional `xformOp:rotateX:upAxisCorrection` attribute to correct the rotation of the "
+                "prim.\n"
+                "- When changing the ``upAxis`` of transforms and collapseXforms is enabled, the Edit Stage Metrics "
+                "operation will collapse a prim's ``xformOp`` stack into a single matrix ``xformOp``. This creates a "
+                "few cases with surprising behavior, for example if the edit stage layer contains an ``over`` on a "
+                "single ``xformOp`` in a stack of ``xformOps`` on a prim in the underlying sublayer/reference, this "
+                "will cause the entire ``xformOp`` stack to have its up axis transformed even though only a part of "
+                "the stack exists in the active edit layer.\n")
 {
     addArgument(
         "metersPerUnit",
@@ -2258,35 +2273,6 @@ EditStageMetricsOperation::EditStageMetricsOperation()
 
 
 EditStageMetricsOperation::~EditStageMetricsOperation() = default;
-
-
-std::string EditStageMetricsOperation::getDocumentation() const
-{
-    return "This operation changes the ``metersPerUnit`` and/or ``upAxis`` of a stage's active edit target layer "
-           "by updating the layer's metadata and applying relevant transformations to attributes that represent "
-           "world space units so that they reflect the new ``metersPerUnit/upAxis``."
-           "The operation is designed to only modify attributes that represent a world space value in the stage's "
-           "active edit layer. This means prims/attributes that exist in the scene from external references or "
-           "sublayers will not be affected by the operation.\n\n"
-           "An overview of some specifics about how the operation will affect attributes or xformOps in the "
-           "stage:\n"
-           "    - When changing the ``metersPerUnit`` of prims that are a defined schema that have inferred "
-           "attributes values that don't need to be defined. For example a Cube prim has a ``size`` attribute "
-           "that does not need to be defined, and if it is not the cube will have a value of ``2.0``. When "
-           "changing the ``metersPerUnit``, the operation needs to create this ``size`` attribute in order to "
-           "scale its inferred value of ``2.0``. These inferred attributes will only be created if they represent "
-           "world space values and the prim of the attribute exists as a concrete ``def`` in the active edit "
-           "layer.\n"
-           "    - When changing the ``upAxis`` of prims that don't have geometry that can be rotated, the operation "
-           "will add an additional `xformOp:rotateX:upAxisCorrection` attribute to correct the rotation of the "
-           "prim.\n"
-           "    - When changing the ``upAxis`` of transforms and collapseXforms is enabled, the Edit Stage Metrics "
-           "operation will collapse a prim's ``xformOp`` stack into a single matrix ``xformOp``. This creates a "
-           "few cases with surprising behavior, for example if the edit stage layer contains an ``over`` on a "
-           "single ``xformOp`` in a stack of ``xformOps`` on a prim in the underlying sublayer/reference, this "
-           "will cause the entire ``xformOp`` stack to have its up axis transformed even though only a part of "
-           "the stack exists in the active edit layer.\n";
-}
 
 
 std::string EditStageMetricsOperation::getAuthor() const

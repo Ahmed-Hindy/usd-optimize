@@ -126,20 +126,6 @@ workspace(_OPTIONS["solution-name"])
     filter { "platforms:x86_64" }
         architecture "x86_64"
 
-    -- carb/AlignSize.h assumes 64-byte cache lines; GCC's generic aarch64 tuning reports 256.
-    -- GCC 12+ only: older toolchains (e.g. gcc-11) do not recognize this --param.
-    -- The probe queries $CC (falling back to "gcc"); for aarch64 cross-builds, point $CC at the
-    -- aarch64 cross-compiler so the version gate matches the toolchain premake actually invokes.
-    -- os.outputof returns nil when the binary is missing, so guard against a nil dereference.
-    local host_gcc = os.getenv("CC") or "gcc"
-    local ver_output = os.outputof(host_gcc .. " -dumpversion") or ""
-    local host_gcc_major = tonumber(ver_output:match("^(%d+)")) or 0
-    if host_gcc_major >= 12 then
-        filter { "system:linux", "platforms:aarch64" }
-            buildoptions { "--param=destructive-interference-size=64" }
-        filter {}
-    end
-
     -- Debug configuration settings
     filter { "configurations:debug" }
         defines { "DEBUG" }

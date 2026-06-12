@@ -30,7 +30,9 @@ namespace usd_optimize
 constexpr const char* s_categoryDecimate = "DECIMATE";
 
 DecimateOperation::DecimateOperation()
-    : OmniOperation("decimateMeshes", "Decimate Meshes", "Reduce tessellation density for mesh prims.")
+    : OmniOperation("decimateMeshes",
+                    "Decimate Meshes",
+                    "Reduce decimation amount on an input ``UsdGeom`` mesh primitive type.")
     , m_reductionFactor(50)
     , m_maxMeanError(0)
     , m_minFeatureArea(0)
@@ -103,13 +105,6 @@ DecimateOperation::DecimateOperation()
 }
 
 DecimateOperation::~DecimateOperation() = default;
-
-
-std::string DecimateOperation::getDocumentation() const
-{
-    return "Reduce decimation amount on an input ``UsdGeom`` mesh primitive "
-           "type.";
-}
 
 
 std::string DecimateOperation::getAuthor() const

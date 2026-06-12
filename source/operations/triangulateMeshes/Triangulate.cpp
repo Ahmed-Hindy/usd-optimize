@@ -26,7 +26,7 @@ namespace usd_optimize
 constexpr const char* s_categoryTriangulate = "TRIANGULATE";
 
 TriangulateOperation::TriangulateOperation()
-    : OmniOperation("triangulateMeshes", "Triangulate Meshes", "Converts polygonal meshes to triangle-only meshes.")
+    : OmniOperation("triangulateMeshes", "Triangulate Meshes", "This operation triangulates meshes.")
     , m_gpu_vertexcount_threshold(1000000)
 {
 

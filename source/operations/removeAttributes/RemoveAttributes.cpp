@@ -51,26 +51,6 @@ RemoveAttributesOperation::RemoveAttributesOperation()
 }
 
 
-std::string RemoveAttributesOperation::getDocumentation() const
-{
-    return "This operation will find and remove attributes from prims. Exact "
-           "attribute names can be specified, or namespaces can be used to "
-           "remove any attribute with a matching namespace prefix.\n\nWhen "
-           "using the Remove mode, attributes can only be removed from the "
-           "current edit target. This means that if the edit target has an "
-           "opinion on an attribute, and there is also a weaker opinion (for "
-           "example, overriding an attribute on a prim that has been "
-           "referenced), then the original referenced value will now be in "
-           "use. If there was no stronger opinion in the current edit target "
-           "(for example, a prim was referenced and does not override the "
-           "attribute), then nothing happens, as the edit target contains no "
-           "opinion to remove.\n\nBlocking an attribute means the attribute "
-           "remains authored but has no value. This becomes the strongest "
-           "opinion meaning regardless of the prims composition the attribute "
-           "has no effective value.";
-}
-
-
 std::string RemoveAttributesOperation::getAuthor() const
 {
     return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);

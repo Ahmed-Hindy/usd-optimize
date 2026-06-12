@@ -6,6 +6,7 @@
 from pxr import Usd
 from usd_optimize.core import UsdOptimizeCore
 
+from .scripts import standalone
 from .test_utils import Test_Operation, _get_context
 
 # Default arguments for the command
@@ -55,7 +56,7 @@ class Test_Operation_OptimizeTimeSamples(Test_Operation):
             "removeInterpolated": false,
             "epsilonD": 1e-12,
             "epsilonF": 1e-6 }]"""
-        status = self._execute_json_string(stage, json)
+        status = standalone.execute_commands_from_json(stage, json)
         self.assertTrue(status)
 
         # The only thing removed should have been the redundant trailing samples

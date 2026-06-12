@@ -71,15 +71,6 @@ RemoveSmallGeometryOperation::RemoveSmallGeometryOperation()
 RemoveSmallGeometryOperation::~RemoveSmallGeometryOperation() = default;
 
 
-std::string RemoveSmallGeometryOperation::getDocumentation() const
-{
-    return "This operation will find and remove small or degenerate geometry "
-           "in the scene. Degenerate geometry are prims with an extent size of "
-           "0.0, whereas small geometry is defined by a percentage size of the "
-           "overall scene's median extent size.";
-}
-
-
 std::string RemoveSmallGeometryOperation::getAuthor() const
 {
     return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);

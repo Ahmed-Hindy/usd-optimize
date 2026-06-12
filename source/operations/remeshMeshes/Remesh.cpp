@@ -27,7 +27,7 @@ namespace usd_optimize
 constexpr const char* s_categoryRemesh = "REMESH";
 
 RemeshOperation::RemeshOperation()
-    : OmniOperation("remeshMeshes", "Remesh Meshes", "Remesh existing mesh prims to user defined tolerance.")
+    : OmniOperation("remeshMeshes", "Remesh Meshes", "Remesh an input ``UsdGeom`` mesh primitive type.")
     , m_gradation(0)
     , m_maxError(0.1)
     , m_gpu_vertexcount_threshold(500000)
@@ -61,14 +61,6 @@ RemeshOperation::RemeshOperation()
 
 
 RemeshOperation::~RemeshOperation(){};
-
-
-std::string RemeshOperation::getDocumentation() const
-{
-    return "This operation will remesh input mesh prims to a defined tolerance "
-           "to create a new mesh topology. Input mesh and normals will guide "
-           "the maximum error and size of the triangles to match input volume.";
-}
 
 
 std::string RemeshOperation::getAuthor() const
