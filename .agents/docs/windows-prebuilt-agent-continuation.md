@@ -360,3 +360,26 @@ Local check passed:
 ```text
 py -3 -m py_compile source/tests/test.python/test_operation_decimate_meshes.py
 ```
+
+## 2026-07-02 CI result for decimate comparison patch
+
+Run `28594618988` tested commit:
+
+```text
+8e4e9ea decimate-semantic-golden-compare
+```
+
+Result: overall workflow `success` in 8m49s.
+
+Important log evidence:
+
+```text
+Ran 591 tests in 69.216s
+OK (skipped=1)
+[ ok ] test process passed.
+[   ok   ] [  70.7s]            test.python.bat
+PASSED: external_fixture_open
+Packaged wheel installed to _build/packages/usd_optimize-1.0.4-cp312-cp312-win_amd64.whl
+```
+
+The previous `Process completed with exit code 2` workflow annotation is gone. The only remaining annotation is GitHub's Node.js 20 deprecation warning for upstream GitHub actions, not a repo test/package failure.
