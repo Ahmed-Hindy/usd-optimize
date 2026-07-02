@@ -544,6 +544,34 @@ gh workflow run "Windows Build" --repo Ahmed-Hindy/usd-optimize --ref main -f ru
 
 Expected next result: package smoke should remain green and `Build Python wheel` should create a wheel instead of failing on the missing `omni/scene/optimizer` staging tree.
 
+## 2026-07-02 CI result — wheel staging fixed
+
+Run `28586207717` tested commit `5f76642 wheel-staging-fix`.
+
+Result: overall workflow `success` in 9m19s.
+
+Important passing steps:
+
+```text
+Build package archive: success
+Smoke-test packaged runtime: success
+Build Python wheel: success
+Upload package artifacts: success
+```
+
+This proves the wheel staging fix resolved the missing `_build/pyproject/omni/scene/optimizer` failure. The only remaining workflow annotation is the known non-blocking full test failure from `test.python.bat`, matching the decimate golden comparison issue already documented.
+
+## 2026-07-02 Update — external OpenUSD fixture smoke test
+
+New CI-test patch prepared:
+
+- Added `source/tests/data/external/openusd_helloworld.usda`, copied from OpenUSD `extras/usd/tutorials/authoringProperties/HelloWorld.usda` on the `release` branch.
+- Added `source/tests/data/external/README.md` documenting source URL, branch, purpose, and license provenance.
+- Added `--external-fixture-usd` to `tools/windows_prebuilt_repro/smoke_package.py`.
+- Updated `.github/workflows/windows-build.yml` so `Smoke-test packaged runtime` passes `source\tests\data\external\openusd_helloworld.usda`.
+
+Expected CI behavior: package smoke should still pass the existing subprocess checks, then run `external_fixture_open`, opening the checked-in OpenUSD tutorial fixture through the extracted prebuilt package and asserting `/hello/world` exists.
+
 ## Do not forget
 
 - The successful run `28580744788` proves the zip package can work when the smoke harness manually configures DLL directories.

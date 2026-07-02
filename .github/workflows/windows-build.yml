@@ -127,7 +127,7 @@ jobs:
       - name: Smoke-test packaged runtime
         if: ${{ inputs.build_package == 'true' }}
         shell: cmd
-        run: .\_build\target-deps\python\python tools\windows_prebuilt_repro\smoke_package.py --packages-dir _build\packages
+        run: .\_build\target-deps\python\python tools\windows_prebuilt_repro\smoke_package.py --packages-dir _build\packages --external-fixture-usd source\tests\data\external\openusd_helloworld.usda
 
       - name: Build Python wheel
         if: ${{ inputs.build_package == 'true' }}

@@ -74,6 +74,19 @@ CHECKS = {
     """,
 }
 
+EXTERNAL_FIXTURE_CHECK = """
+    import os
+    from pathlib import Path
+
+    from pxr import Usd
+
+    fixture_path = Path(os.environ["USD_OPTIMIZE_EXTERNAL_FIXTURE_USD"])
+    stage = Usd.Stage.Open(str(fixture_path))
+    assert stage, f"failed to open fixture USD: {fixture_path}"
+    assert stage.GetPrimAtPath("/hello/world"), "fixture is missing /hello/world"
+    print(f"external USD fixture opened successfully: {fixture_path}")
+"""
+
 
 DLL_DIRECTORIES = ("lib", "extraLibs", "lib/operations")
 PYTHON_DIRECTORIES = ("python", "usdpy")
@@ -86,6 +99,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--package-root", type=Path, help="Path to an already extracted prebuilt package root.")
     parser.add_argument(
         "--packages-dir", type=Path, default=Path("_build/packages"), help="Directory to search for package zips."
+    )
+    parser.add_argument(
+        "--external-fixture-usd",
+        type=Path,
+        help="Optional file-backed USD fixture to open through the packaged runtime.",
     )
     parser.add_argument(
         "--keep-extracted",
@@ -162,11 +180,12 @@ def validate_package_root(package_root: Path) -> list[str]:
     return errors
 
 
-def make_subprocess_environment(package_root: Path) -> dict[str, str]:
+def make_subprocess_environment(package_root: Path, external_fixture_usd: Path | None = None) -> dict[str, str]:
     """Create an isolated environment for package smoke subprocesses.
 
     Args:
         package_root: Extracted package root.
+        external_fixture_usd: Optional file-backed USD fixture to smoke-test.
 
     Returns:
         Environment variables for a smoke subprocess.
@@ -185,6 +204,8 @@ def make_subprocess_environment(package_root: Path) -> dict[str, str]:
     environment["PATH"] = os.pathsep.join(path_entries + [environment.get("PATH", "")])
     environment["PYTHONUTF8"] = "1"
     environment["USD_OPTIMIZE_PACKAGE_ROOT"] = str(package_root)
+    if external_fixture_usd:
+        environment["USD_OPTIMIZE_EXTERNAL_FIXTURE_USD"] = str(external_fixture_usd)
     return environment
 
 
@@ -255,13 +276,24 @@ def main() -> int:
                 print(error, flush=True)
             return 1
 
-        environment = make_subprocess_environment(package_root)
+        external_fixture_usd = args.external_fixture_usd.resolve() if args.external_fixture_usd else None
+        if external_fixture_usd and not external_fixture_usd.is_file():
+            print(f"Missing external USD fixture: {external_fixture_usd}", flush=True)
+            return 1
+
+        environment = make_subprocess_environment(package_root, external_fixture_usd)
         print(f"Package root: {package_root}", flush=True)
         print(f"Python executable: {sys.executable}", flush=True)
         print(f"PYTHONPATH: {environment['PYTHONPATH']}", flush=True)
+        if external_fixture_usd:
+            print(f"External USD fixture: {external_fixture_usd}", flush=True)
+
+        checks = dict(CHECKS)
+        if external_fixture_usd:
+            checks["external_fixture_open"] = EXTERNAL_FIXTURE_CHECK
 
         success = True
-        for check_name, check_body in CHECKS.items():
+        for check_name, check_body in checks.items():
             success = run_check(check_name, check_body, environment) and success
         return 0 if success else 1
     finally:

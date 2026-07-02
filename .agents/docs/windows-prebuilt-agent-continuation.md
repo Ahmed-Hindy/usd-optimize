@@ -282,3 +282,31 @@ python -m py_compile tools/repoman/py_package.py
 ```
 
 Next CI expectation: package smoke remains green, and `Build Python wheel` should no longer fail on a missing `omni/scene/optimizer` package tree.
+
+## 2026-07-02 CI result for wheel staging patch
+
+Run `28586207717` tested commit `5f76642 wheel-staging-fix`.
+
+Result: overall workflow `success` in 9m19s.
+
+Important passing steps:
+
+```text
+Build package archive: success
+Smoke-test packaged runtime: success
+Build Python wheel: success
+Upload package artifacts: success
+```
+
+The wheel staging blocker is fixed. The only remaining workflow annotation is the known non-blocking full test failure from `test.python.bat`.
+
+## Current patch — external OpenUSD fixture smoke test
+
+Prepared changes:
+
+- Added `source/tests/data/external/openusd_helloworld.usda` from OpenUSD `extras/usd/tutorials/authoringProperties/HelloWorld.usda` on the `release` branch.
+- Added `source/tests/data/external/README.md` with source, branch, license, and test-purpose notes.
+- Added optional `--external-fixture-usd` support to `tools/windows_prebuilt_repro/smoke_package.py`.
+- Updated `.github/workflows/windows-build.yml` so package smoke passes the OpenUSD fixture path in CI.
+
+Expected next CI result: `Smoke-test packaged runtime` should include and pass an `external_fixture_open` check that opens the file-backed fixture and asserts `/hello/world` exists.
