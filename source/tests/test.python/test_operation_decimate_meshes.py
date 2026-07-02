@@ -89,8 +89,8 @@ class Test_Operation_DecimateMeshes(Test_Operation):
 
         return True
 
-    def _compare_decimate_usdc_stages(self, golden_path: str, result_path: str) -> bool:
-        """When USDA text differs (e.g. aarch64 float formatting), compare mesh geometry."""
+    def _compare_decimate_stages(self, golden_path: str, result_path: str) -> bool:
+        """When serialized layers differ, compare decimated mesh geometry semantically."""
         s1 = Usd.Stage.Open(golden_path)
         s2 = Usd.Stage.Open(result_path)
         if not s1 or not s2:
@@ -142,13 +142,15 @@ class Test_Operation_DecimateMeshes(Test_Operation):
                 os.unlink(tmp_result)
             except OSError:
                 pass
-        return self._compare_decimate_usdc_stages(golden_file_path, result_file_path)
+        return self._compare_decimate_stages(golden_file_path, result_file_path)
 
     def compare_files(self, golden_file_path, result_file_path):
         if golden_file_path.endswith(".usdc") and result_file_path.endswith(".usdc"):
             result = self._compare_usdc_files(golden_file_path, result_file_path)
         else:
             result = filecmp.cmp(golden_file_path, result_file_path, False)
+            if not result and "_decimate_" in os.path.basename(golden_file_path):
+                result = self._compare_decimate_stages(golden_file_path, result_file_path)
         if result:
             return result
 

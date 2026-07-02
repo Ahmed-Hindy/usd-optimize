@@ -597,6 +597,36 @@ PASSED: external_fixture_open
 
 This proves the Windows prebuilt package can open a real file-backed USD fixture from the repo, not only an in-memory stage.
 
+## 2026-07-02 Update — decimate golden comparison cleanup
+
+Current remaining CI annotation after run `28590020858`:
+
+```text
+test_decimate_max_mean_error_parallel: failed golden file comparison
+test_decimate_max_mean_error_single_threaded: failed golden file comparison
+```
+
+Both failures reported the same decimated mesh counts as the golden expectation:
+
+```text
+VertexCount: 550000 -> 2954
+FaceCount: 539055 -> 4567
+```
+
+Root cause hypothesis: the decimate test already had a semantic mesh-geometry fallback for `.usdc` golden comparisons, but these two tests write `.usda` result files. On Windows/USD 25.11, the serialized USDA text can differ while the mesh topology and point data are equivalent within tolerance.
+
+Patch prepared:
+
+- Renamed `_compare_decimate_usdc_stages()` to `_compare_decimate_stages()` because the logic opens stages and is format-agnostic.
+- Kept raw file comparison as the first check.
+- If raw comparison fails for a decimate golden file, fall back to semantic stage comparison of prim paths, type names, mesh points, face counts, face indices, and normals.
+
+Local check:
+
+```powershell
+py -3 -m py_compile source/tests/test.python/test_operation_decimate_meshes.py
+```
+
 ## Do not forget
 
 - The successful run `28580744788` proves the zip package can work when the smoke harness manually configures DLL directories.

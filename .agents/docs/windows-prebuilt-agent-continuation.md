@@ -335,3 +335,28 @@ PASSED: external_fixture_open
 ```
 
 This proves the Windows prebuilt package can open a real file-backed USD fixture from the repo, not only an in-memory stage.
+
+## Current patch — decimate golden comparison cleanup
+
+Current remaining CI annotation after run `28590020858`:
+
+```text
+test_decimate_max_mean_error_parallel: failed golden file comparison
+test_decimate_max_mean_error_single_threaded: failed golden file comparison
+```
+
+Both failures reported the expected decimated mesh counts: `VertexCount: 550000 -> 2954` and `FaceCount: 539055 -> 4567`.
+
+Root cause hypothesis: the test already had a semantic mesh comparison fallback for `.usdc` golden comparisons, but these two tests write `.usda` result files. Windows/USD 25.11 appears to serialize equivalent decimated USDA differently enough to fail raw text comparison.
+
+Prepared patch:
+
+- Rename `_compare_decimate_usdc_stages()` to `_compare_decimate_stages()`.
+- Keep raw file comparison first.
+- For decimate golden files, fall back to semantic comparison of prim paths, type names, mesh points, face counts, face indices, and normals when raw text comparison fails.
+
+Local check passed:
+
+```text
+py -3 -m py_compile source/tests/test.python/test_operation_decimate_meshes.py
+```
