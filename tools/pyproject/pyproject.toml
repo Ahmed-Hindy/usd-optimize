@@ -38,6 +38,7 @@ packages = [
     { include="usd_optimize.libs/operation_mapping.json" }
 ]
 include = [
+    { path="usd_optimize/bootstrap.py", format="wheel" },
     { path="lib", format="wheel" },
 ]
 exclude = [

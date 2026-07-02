@@ -63,6 +63,11 @@ project_with_location("core_python")
         python_sources = "python/usd_optimize/impl/core/*.py",
     })
 
+    repo_build.prebuild_copy({
+        "python/usd_optimize/bootstrap.py",
+        "%{root}/_build/%{cfg.system}-%{cfg.platform}/%{config}/python/usd_optimize",
+    })
+
     usd_optimize_build.symlink_folder({
         target_dir = "python/usd_optimize/core",
         source_dir = "python/usd_optimize/core",

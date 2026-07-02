@@ -1,5 +1,24 @@
 # Windows Prebuilt Stability Implementation Plan
 
+## Current Handoff Pointer — 2026-07-02
+
+The latest implementation details, CI run history, exact failure logs, and next-agent checklist are now captured in:
+
+```text
+docs/windows-prebuilt-bugfix-handoff.md
+.agents/docs/windows-prebuilt-agent-continuation.md
+```
+
+Current blocker at the time of that handoff:
+
+```text
+CI run 28582356556
+Smoke-test packaged runtime: failure
+ModuleNotFoundError: No module named 'usd_optimize.bootstrap'
+```
+
+Interpretation: `usd_optimize.bootstrap` exists in source but is not included in the generated prebuilt zip's `python/usd_optimize/` tree. Fix packaging/staging inclusion before investigating DLL loading further.
+
 ## Purpose
 
 This document is the implementation plan for making the Windows prebuilt `usd-optimize` package reliable enough to use as a standalone optimization tool on production USD assets.

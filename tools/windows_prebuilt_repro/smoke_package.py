@@ -149,8 +149,17 @@ def validate_package_root(package_root: Path) -> list[str]:
         A list of validation error messages.
     """
     required_directories = ("python", "usdpy", "lib", "extraLibs")
-    missing = [name for name in required_directories if not (package_root / name).exists()]
-    return [f"Missing package directory: {name}" for name in missing]
+    required_files = (
+        "python/usd_optimize/bootstrap.py",
+        "python/usd_optimize/core/scripts/standalone.py",
+    )
+
+    missing_directories = [name for name in required_directories if not (package_root / name).exists()]
+    missing_files = [name for name in required_files if not (package_root / name).is_file()]
+
+    errors = [f"Missing package directory: {name}" for name in missing_directories]
+    errors.extend(f"Missing package file: {name}" for name in missing_files)
+    return errors
 
 
 def make_subprocess_environment(package_root: Path) -> dict[str, str]:
