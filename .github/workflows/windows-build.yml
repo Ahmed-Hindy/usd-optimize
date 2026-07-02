@@ -49,6 +49,7 @@ jobs:
       PM_PACKAGES_ROOT: ${{ github.workspace }}\.cache\packman
       PIP_CACHE_DIR: ${{ github.workspace }}\.cache\pip
       POETRY_CACHE_DIR: ${{ github.workspace }}\.cache\poetry
+      USD_ASSET_CACHE_DIR: ${{ github.workspace }}\.cache\usd-assets
       BUILD_TOKENS: >-
         --set-token usd_flavor:usd
         --set-token usd_ver:${{ inputs.usd_ver }}
@@ -83,6 +84,15 @@ jobs:
             py-package-${{ runner.os }}-py${{ inputs.python_ver }}-
             py-package-${{ runner.os }}-
 
+      - name: Restore external USD asset cache
+        if: ${{ inputs.build_package == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.USD_ASSET_CACHE_DIR }}
+          key: external-usd-assets-${{ hashFiles('tools/windows_prebuilt_repro/external_usd_assets.json') }}
+          restore-keys: |
+            external-usd-assets-
+
       - name: Show runner/toolchain info
         shell: pwsh
         run: |
@@ -96,6 +106,7 @@ jobs:
           Write-Host "PM_PACKAGES_ROOT=$env:PM_PACKAGES_ROOT"
           Write-Host "PIP_CACHE_DIR=$env:PIP_CACHE_DIR"
           Write-Host "POETRY_CACHE_DIR=$env:POETRY_CACHE_DIR"
+          Write-Host "USD_ASSET_CACHE_DIR=$env:USD_ASSET_CACHE_DIR"
           Write-Host "BUILD_TOKENS=$env:BUILD_TOKENS"
 
       - name: Build release
@@ -124,10 +135,23 @@ jobs:
         shell: cmd
         run: repo.bat %BUILD_TOKENS% package
 
+      - name: Download external USD assets
+        if: ${{ inputs.build_package == 'true' }}
+        shell: pwsh
+        run: |
+          python tools\windows_prebuilt_repro\download_external_assets.py `
+            --manifest tools\windows_prebuilt_repro\external_usd_assets.json `
+            --assets-dir "$env:USD_ASSET_CACHE_DIR"
+
       - name: Smoke-test packaged runtime
         if: ${{ inputs.build_package == 'true' }}
         shell: cmd
-        run: .\_build\target-deps\python\python tools\windows_prebuilt_repro\smoke_package.py --packages-dir _build\packages --external-fixture-usd source\tests\data\external\openusd_helloworld.usda
+        run: >-
+          .\_build\target-deps\python\python tools\windows_prebuilt_repro\smoke_package.py
+          --packages-dir _build\packages
+          --external-fixture-usd source\tests\data\external\openusd_helloworld.usda
+          --external-asset-manifest tools\windows_prebuilt_repro\external_usd_assets.json
+          --external-assets-dir "%USD_ASSET_CACHE_DIR%"
 
       - name: Build Python wheel
         if: ${{ inputs.build_package == 'true' }}
@@ -140,7 +164,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Continue"
-          foreach ($path in @($env:PM_PACKAGES_ROOT, $env:PIP_CACHE_DIR, $env:POETRY_CACHE_DIR, "_build\packages")) {
+          foreach ($path in @($env:PM_PACKAGES_ROOT, $env:PIP_CACHE_DIR, $env:POETRY_CACHE_DIR, $env:USD_ASSET_CACHE_DIR, "_build\packages")) {
             if (Test-Path $path) {
               $size = (Get-ChildItem $path -Recurse -File | Measure-Object -Property Length -Sum).Sum
               Write-Host "$path = $([math]::Round($size / 1GB, 2)) GB"

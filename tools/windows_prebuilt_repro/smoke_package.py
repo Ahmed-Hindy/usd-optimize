@@ -87,6 +87,43 @@ EXTERNAL_FIXTURE_CHECK = """
     print(f"external USD fixture opened successfully: {fixture_path}")
 """
 
+EXTERNAL_ASSET_MANIFEST_CHECK = """
+    import json
+    import os
+    from pathlib import Path
+
+    from pxr import Usd, UsdGeom
+    from usd_optimize.core.scripts import standalone
+
+    manifest_path = Path(os.environ["USD_OPTIMIZE_EXTERNAL_ASSET_MANIFEST"])
+    assets_dir = Path(os.environ["USD_OPTIMIZE_EXTERNAL_ASSETS_DIR"])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    smoke_count = 0
+
+    for asset in manifest.get("assets", []):
+        asset_path = assets_dir / asset["relative_path"]
+        stage = Usd.Stage.Open(str(asset_path))
+        assert stage, f"failed to open external USD asset: {asset_path}"
+        traversed_prims = list(stage.TraverseAll())
+        assert traversed_prims, f"asset contains no traversable prims: {asset_path}"
+        for prim_path in asset.get("expected_prims", []):
+            assert stage.GetPrimAtPath(prim_path), f"{asset['name']} is missing {prim_path}"
+
+        delete_path = "/__usd_optimize_ci_delete_me"
+        UsdGeom.Xform.Define(stage, delete_path)
+        operations_json = json.dumps([
+            {"operation": "executionContext", "verbose": False},
+            {"operation": "deletePrims", "primPaths": [delete_path]},
+        ])
+        assert standalone.execute_commands_from_json(stage, operations_json)
+        assert not stage.GetPrimAtPath(delete_path), f"deletePrims did not remove {delete_path}"
+        smoke_count += 1
+        print(f"external asset smoke passed: {asset['name']} ({len(traversed_prims)} prims)")
+
+    assert smoke_count > 0, "external asset manifest did not contain any assets"
+    print(f"external asset manifest smoke passed for {smoke_count} assets")
+"""
+
 
 DLL_DIRECTORIES = ("lib", "extraLibs", "lib/operations")
 PYTHON_DIRECTORIES = ("python", "usdpy")
@@ -104,6 +141,16 @@ def parse_args() -> argparse.Namespace:
         "--external-fixture-usd",
         type=Path,
         help="Optional file-backed USD fixture to open through the packaged runtime.",
+    )
+    parser.add_argument(
+        "--external-asset-manifest",
+        type=Path,
+        help="Optional manifest for downloaded external USD asset smoke tests.",
+    )
+    parser.add_argument(
+        "--external-assets-dir",
+        type=Path,
+        help="Directory containing downloaded external USD assets from the manifest.",
     )
     parser.add_argument(
         "--keep-extracted",
@@ -180,12 +227,19 @@ def validate_package_root(package_root: Path) -> list[str]:
     return errors
 
 
-def make_subprocess_environment(package_root: Path, external_fixture_usd: Path | None = None) -> dict[str, str]:
+def make_subprocess_environment(
+    package_root: Path,
+    external_fixture_usd: Path | None = None,
+    external_asset_manifest: Path | None = None,
+    external_assets_dir: Path | None = None,
+) -> dict[str, str]:
     """Create an isolated environment for package smoke subprocesses.
 
     Args:
         package_root: Extracted package root.
         external_fixture_usd: Optional file-backed USD fixture to smoke-test.
+        external_asset_manifest: Optional external USD asset manifest.
+        external_assets_dir: Optional directory containing downloaded external USD assets.
 
     Returns:
         Environment variables for a smoke subprocess.
@@ -206,6 +260,10 @@ def make_subprocess_environment(package_root: Path, external_fixture_usd: Path |
     environment["USD_OPTIMIZE_PACKAGE_ROOT"] = str(package_root)
     if external_fixture_usd:
         environment["USD_OPTIMIZE_EXTERNAL_FIXTURE_USD"] = str(external_fixture_usd)
+    if external_asset_manifest:
+        environment["USD_OPTIMIZE_EXTERNAL_ASSET_MANIFEST"] = str(external_asset_manifest)
+    if external_assets_dir:
+        environment["USD_OPTIMIZE_EXTERNAL_ASSETS_DIR"] = str(external_assets_dir)
     return environment
 
 
@@ -281,16 +339,34 @@ def main() -> int:
             print(f"Missing external USD fixture: {external_fixture_usd}", flush=True)
             return 1
 
-        environment = make_subprocess_environment(package_root, external_fixture_usd)
+        external_asset_manifest = (
+            args.external_asset_manifest.resolve() if args.external_asset_manifest else None
+        )
+        external_assets_dir = args.external_assets_dir.resolve() if args.external_assets_dir else None
+        if external_asset_manifest and not external_asset_manifest.is_file():
+            print(f"Missing external USD asset manifest: {external_asset_manifest}", flush=True)
+            return 1
+        if external_asset_manifest and (not external_assets_dir or not external_assets_dir.is_dir()):
+            print(f"Missing external USD asset directory: {external_assets_dir}", flush=True)
+            return 1
+
+        environment = make_subprocess_environment(
+            package_root, external_fixture_usd, external_asset_manifest, external_assets_dir
+        )
         print(f"Package root: {package_root}", flush=True)
         print(f"Python executable: {sys.executable}", flush=True)
         print(f"PYTHONPATH: {environment['PYTHONPATH']}", flush=True)
         if external_fixture_usd:
             print(f"External USD fixture: {external_fixture_usd}", flush=True)
+        if external_asset_manifest:
+            print(f"External USD asset manifest: {external_asset_manifest}", flush=True)
+            print(f"External USD assets directory: {external_assets_dir}", flush=True)
 
         checks = dict(CHECKS)
         if external_fixture_usd:
             checks["external_fixture_open"] = EXTERNAL_FIXTURE_CHECK
+        if external_asset_manifest:
+            checks["external_asset_manifest_smoke"] = EXTERNAL_ASSET_MANIFEST_CHECK
 
         success = True
         for check_name, check_body in checks.items():

@@ -650,9 +650,33 @@ Packaged wheel installed to _build/packages/usd_optimize-1.0.4-cp312-cp312-win_a
 
 This removes the previous `Process completed with exit code 2` annotation from the Windows workflow. The only remaining annotation is GitHub's Node.js 20 deprecation warning for upstream GitHub actions, not a repo test/package failure.
 
+## 2026-07-02 Planned CI expansion — external USD asset smoke set
+
+The next patch moves asset-level smoke testing into CI instead of relying only on the checked-in tiny fixture.
+
+Files added/changed:
+
+- `tools/windows_prebuilt_repro/external_usd_assets.json`: pinned manifest of seven OpenUSD tutorial assets from the public Pixar OpenUSD repository.
+- `tools/windows_prebuilt_repro/download_external_assets.py`: downloads the manifest assets into `.cache/usd-assets` and verifies SHA-256 before use.
+- `tools/windows_prebuilt_repro/smoke_package.py`: accepts `--external-asset-manifest` and `--external-assets-dir`, opens every downloaded asset through the packaged runtime, verifies expected prims, and runs a harmless `deletePrims` operation on a temporary in-memory prim.
+- `.github/workflows/windows-build.yml`: adds `USD_ASSET_CACHE_DIR`, restores an `actions/cache` entry keyed by the asset manifest hash, downloads assets before package smoke, and passes the asset directory into the smoke harness.
+
+Asset source and licensing:
+
+- Source repository: `https://github.com/PixarAnimationStudios/OpenUSD`
+- Source branch: `release`
+- Raw URLs are pinned per asset in the manifest.
+- License reference: OpenUSD `LICENSE.txt`, Tomorrow Open Source Technology License 1.0.
+
+Local checks before CI dispatch:
+
+```powershell
+py -3 -m py_compile tools/windows_prebuilt_repro/download_external_assets.py tools/windows_prebuilt_repro/smoke_package.py
+py -3 -c "import json, pathlib; data=json.loads(pathlib.Path('tools/windows_prebuilt_repro/external_usd_assets.json').read_text(encoding='utf-8')); assert len(data['assets']) == 7"
+```
+
 ## Do not forget
 
-- The successful run `28580744788` proves the zip package can work when the smoke harness manually configures DLL directories.
-- Run `28585222656` proves the zip package now stages `usd_optimize.bootstrap` correctly and passes the package smoke matrix.
-- The current next blocker is wheel staging: `_build/pyproject/omni/scene/optimizer` is missing during `repo.bat ... py_package`.
-- Treat failures in order; do not assume all Windows issues are fixed by the zip smoke passing.
+- The clean run `28594618988` proves full Windows Python tests, package archive smoke, external checked-in fixture smoke, and wheel build all pass together.
+- The external asset smoke set is broader than the tiny checked-in fixture, but it is still a smoke layer. It proves packaged runtime behavior across multiple public USD assets; it does not replace destructive testing on copied production assets.
+- Treat failures in order: download/hash failure means asset/cache/source issue; `Usd.Stage.Open` failure means package/USD resolver issue; `deletePrims` failure means operation/runtime integration issue.
