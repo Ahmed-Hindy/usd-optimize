@@ -572,6 +572,31 @@ New CI-test patch prepared:
 
 Expected CI behavior: package smoke should still pass the existing subprocess checks, then run `external_fixture_open`, opening the checked-in OpenUSD tutorial fixture through the extracted prebuilt package and asserting `/hello/world` exists.
 
+## 2026-07-02 CI result — external fixture smoke passed
+
+Run `28590020858` tested commit:
+
+```text
+1ddf8cb fixture-smoke
+```
+
+Result: overall workflow `success` in 9m10s.
+
+Relevant smoke log evidence:
+
+```text
+PASSED: pxr_import
+PASSED: core_import
+PASSED: operation_registry
+PASSED: standalone_import
+PASSED: standalone_execute
+=== external_fixture_open ===
+external USD fixture opened successfully: D:\a\usd-optimize\usd-optimize\source\tests\data\external\openusd_helloworld.usda
+PASSED: external_fixture_open
+```
+
+This proves the Windows prebuilt package can open a real file-backed USD fixture from the repo, not only an in-memory stage.
+
 ## Do not forget
 
 - The successful run `28580744788` proves the zip package can work when the smoke harness manually configures DLL directories.

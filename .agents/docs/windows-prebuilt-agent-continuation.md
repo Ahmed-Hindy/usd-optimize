@@ -310,3 +310,28 @@ Prepared changes:
 - Updated `.github/workflows/windows-build.yml` so package smoke passes the OpenUSD fixture path in CI.
 
 Expected next CI result: `Smoke-test packaged runtime` should include and pass an `external_fixture_open` check that opens the file-backed fixture and asserts `/hello/world` exists.
+
+## 2026-07-02 CI result for external OpenUSD fixture
+
+Run `28590020858` tested commit:
+
+```text
+1ddf8cb fixture-smoke
+```
+
+Result: overall workflow `success` in 9m10s.
+
+Relevant smoke log evidence:
+
+```text
+PASSED: pxr_import
+PASSED: core_import
+PASSED: operation_registry
+PASSED: standalone_import
+PASSED: standalone_execute
+=== external_fixture_open ===
+external USD fixture opened successfully: D:\a\usd-optimize\usd-optimize\source\tests\data\external\openusd_helloworld.usda
+PASSED: external_fixture_open
+```
+
+This proves the Windows prebuilt package can open a real file-backed USD fixture from the repo, not only an in-memory stage.
