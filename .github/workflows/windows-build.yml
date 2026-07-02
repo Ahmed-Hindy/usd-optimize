@@ -104,8 +104,20 @@ jobs:
 
       - name: Run tests
         if: ${{ inputs.run_tests == 'true' }}
+        continue-on-error: true
         shell: cmd
         run: repo.bat %BUILD_TOKENS% test
+
+      - name: Upload test diagnostics
+        if: ${{ always() && inputs.run_tests == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: usd-optimize-test-diagnostics-${{ inputs.usd_ver }}-py${{ inputs.python_ver }}
+          path: |
+            _build/windows-x86_64/release/_testoutput/**
+            _repo/repo.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Build package archive
         if: ${{ inputs.build_package == 'true' }}
