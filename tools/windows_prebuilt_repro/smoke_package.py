@@ -188,17 +188,14 @@ def build_check_code(check_body: str) -> str:
     Returns:
         Complete Python code including runtime bootstrap configuration.
     """
-    return textwrap.dedent(
-        f"""
-        import os
+    bootstrap_code = """
+import os
 
-        from usd_optimize.bootstrap import configure_runtime
+from usd_optimize.bootstrap import configure_runtime
 
-        configure_runtime(os.environ["USD_OPTIMIZE_PACKAGE_ROOT"])
-
-        {textwrap.indent(textwrap.dedent(check_body).strip(), "        ")}
-        """
-    )
+configure_runtime(os.environ["USD_OPTIMIZE_PACKAGE_ROOT"])
+"""
+    return "\n".join((textwrap.dedent(bootstrap_code).strip(), textwrap.dedent(check_body).strip(), ""))
 
 
 def run_check(check_name: str, check_body: str, environment: dict[str, str]) -> bool:
