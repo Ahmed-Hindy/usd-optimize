@@ -87,7 +87,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--packages-dir", type=Path, default=Path("_build/packages"), help="Directory to search for package zips."
     )
-    parser.add_argument("--keep-extracted", action="store_true", help="Keep temporary extraction directory after the run.")
+    parser.add_argument(
+        "--keep-extracted",
+        action="store_true",
+        help="Keep temporary extraction directory after the run.",
+    )
     return parser.parse_args()
 
 
@@ -160,7 +164,9 @@ def make_subprocess_environment(package_root: Path) -> dict[str, str]:
     """
     environment = os.environ.copy()
     python_paths = [str(package_root / directory) for directory in PYTHON_DIRECTORIES]
-    path_entries = [str(package_root / directory) for directory in DLL_DIRECTORIES if (package_root / directory).exists()]
+    path_entries = [
+        str(package_root / directory) for directory in DLL_DIRECTORIES if (package_root / directory).exists()
+    ]
 
     existing_python_path = environment.get("PYTHONPATH")
     if existing_python_path:
@@ -180,19 +186,15 @@ def build_check_code(check_body: str) -> str:
         check_body: Python code body for the check.
 
     Returns:
-        Complete Python code including Windows DLL directory registration.
+        Complete Python code including runtime bootstrap configuration.
     """
     return textwrap.dedent(
         f"""
         import os
-        from pathlib import Path
 
-        package_root = Path(os.environ["USD_OPTIMIZE_PACKAGE_ROOT"])
-        if hasattr(os, "add_dll_directory"):
-            for relative_path in {DLL_DIRECTORIES!r}:
-                directory = package_root / relative_path
-                if directory.exists():
-                    os.add_dll_directory(str(directory))
+        from usd_optimize.bootstrap import configure_runtime
+
+        configure_runtime(os.environ["USD_OPTIMIZE_PACKAGE_ROOT"])
 
         {textwrap.indent(textwrap.dedent(check_body).strip(), "        ")}
         """

@@ -70,14 +70,14 @@ Two paths must be exported every session:
 | Variable | Why |
 | --- | --- |
 | `PYTHONPATH` += `python;usdpy` | Lets the interpreter find both `usd_optimize.*` and `pxr.*` |
-| `PATH` += `lib;extraLibs` | Lets Windows resolve transitive DLL dependencies (USD, TBB, Alembic, plugin DLLs) |
+| `PATH` += `lib;extraLibs;lib\operations` | Lets Windows resolve transitive DLL dependencies for USD, TBB, Alembic, core bindings, and operation plugins |
 
 PowerShell:
 
 ```powershell
 $root = "C:\path\to\usd_optimize_usd_25.11_py_3.12@<version>.windows-x86_64.release"
 $env:PYTHONPATH = "$root\python;$root\usdpy;$env:PYTHONPATH"
-$env:PATH = "$root\lib;$root\extraLibs;$env:PATH"
+$env:PATH = "$root\lib;$root\extraLibs;$root\lib\operations;$env:PATH"
 ```
 
 cmd.exe:
@@ -85,18 +85,37 @@ cmd.exe:
 ```bat
 set PACKAGE_ROOT=C:\path\to\usd_optimize_usd_25.11_py_3.12@<version>.windows-x86_64.release
 set PYTHONPATH=%PACKAGE_ROOT%\python;%PACKAGE_ROOT%\usdpy;%PYTHONPATH%
-set PATH=%PACKAGE_ROOT%\lib;%PACKAGE_ROOT%\extraLibs;%PATH%
+set PATH=%PACKAGE_ROOT%\lib;%PACKAGE_ROOT%\extraLibs;%PACKAGE_ROOT%\lib\operations;%PATH%
 ```
 
 To make the settings durable, wrap them in an activation script (e.g. extend `.venv\Scripts\activate.ps1`) or set them via the **System Properties → Environment Variables** dialog.
 
+### 4. Bootstrap DLL directories from Python
+
+For Python 3.8+, setting `PATH` alone is not always enough for extension modules and plugin DLLs. Before importing `pxr` or `usd_optimize.core`, call the package bootstrap helper once:
+
+```python
+from usd_optimize.bootstrap import configure_runtime
+
+configure_runtime(r"C:\path\to\usd_optimize_usd_25.11_py_3.12@<version>.windows-x86_64.release")
+```
+
+The helper is idempotent. It adds `python` and `usdpy` to `sys.path`, prepends the runtime DLL directories to `PATH`, and registers `lib`, `extraLibs`, and `lib\operations` with `os.add_dll_directory()` on Windows.
+
 ## Verifying the Install
 
-A two-step smoke test confirms the bindings load and a real operation executes against an in-memory USD stage. Save the script as `smoke_check.py` and run it with the matching Python.
+A two-step smoke test confirms the bindings load and a real operation executes against an in-memory USD stage. Save the script as `smoke_check.py` in the extracted package root and run it with the matching Python.
 
 ```python
 # smoke_check.py
 import json
+from pathlib import Path
+
+from usd_optimize.bootstrap import configure_runtime
+
+package_root = Path(__file__).resolve().parent
+configure_runtime(package_root)
+
 from usd_optimize.core import ExecutionContext, UsdOptimizeCore
 from usd_optimize.core.scripts import standalone
 from pxr import Usd, UsdGeom
@@ -154,6 +173,10 @@ The exact value of `<N>` varies by build — any positive number confirms the pl
 The public Python entry point is `usd_optimize.core.scripts.standalone`. It accepts a `Usd.Stage` and a list of operation descriptors as JSON:
 
 ```python
+from usd_optimize.bootstrap import configure_runtime
+
+configure_runtime(r"C:\path\to\usd_optimize_usd_25.11_py_3.12@<version>.windows-x86_64.release")
+
 from usd_optimize.core.scripts import standalone
 from pxr import Usd
 
@@ -185,7 +208,7 @@ The self-contained tests in `test_core_python_bindings.py` (`test_executionConte
 Your interpreter does not match the package's `py_<version>` token. Install the matching Python.
 
 **`ImportError: DLL load failed while importing _tf` (or another `pxr` module)**
-`PATH` is missing `lib` or `extraLibs`. Both must be on `PATH` before the Python process starts so Windows can resolve transitive DLLs. Setting them after `import pxr` has already run will not help — restart the interpreter.
+`PATH` is missing `lib`, `extraLibs`, or `lib\operations`, or `configure_runtime()` was not called before importing native modules. Set the paths and restart the interpreter before importing `pxr` or `usd_optimize.core`.
 
 **`ModuleNotFoundError: No module named 'usd_optimize'` or `'pxr'`**
 `PYTHONPATH` is missing `python` or `usdpy`. Both directories must be on `PYTHONPATH`.
@@ -194,4 +217,4 @@ Your interpreter does not match the package's `py_<version>` token. Install the 
 The `test_validators_*.py` modules require PyPI **`usd-validation-nvidia`** (`pip install usd-validation-nvidia`). Without it, `run_discover.py` fails during its import phase and runs no tests. Prefer `test_core_python_bindings.py` or the [smoke check](#verifying-the-install) for package verification alone.
 
 **`UsdOptimizeCore.getInstance().getOperations()` returns an empty list**
-The plugin DLLs in `lib/` did not load. Confirm the directory is on `PATH`, that no DLLs were quarantined by antivirus, and that the package matches your platform (`windows-x86_64`).
+The plugin DLLs in `lib\operations` did not load. Confirm `lib`, `extraLibs`, and `lib\operations` are on `PATH`, call `configure_runtime()` before importing `usd_optimize.core`, verify no DLLs were quarantined by antivirus, and confirm the package matches your platform (`windows-x86_64`).
