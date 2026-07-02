@@ -656,9 +656,9 @@ The next patch moves asset-level smoke testing into CI instead of relying only o
 
 Files added/changed:
 
-- `tools/windows_prebuilt_repro/external_usd_assets.json`: pinned manifest of seven OpenUSD tutorial assets from the public Pixar OpenUSD repository.
+- `tools/windows_prebuilt_repro/external_usd_assets.json`: pinned manifest of ten OpenUSD tutorial files from the public Pixar OpenUSD repository. Seven are primary smoke assets; three are sibling reference dependencies for Ball/Table composition.
 - `tools/windows_prebuilt_repro/download_external_assets.py`: downloads the manifest assets into `.cache/usd-assets` and verifies SHA-256 before use.
-- `tools/windows_prebuilt_repro/smoke_package.py`: accepts `--external-asset-manifest` and `--external-assets-dir`, opens every downloaded asset through the packaged runtime, verifies expected prims, and runs a harmless `deletePrims` operation on a temporary in-memory prim.
+- `tools/windows_prebuilt_repro/smoke_package.py`: accepts `--external-asset-manifest` and `--external-assets-dir`, opens every primary smoke asset through the packaged runtime, verifies expected prims, and runs a harmless `deletePrims` operation on a temporary in-memory prim. Entries with `"smoke": false` are downloaded and hash-verified but not opened as standalone smoke roots.
 - `.github/workflows/windows-build.yml`: adds `USD_ASSET_CACHE_DIR`, restores an `actions/cache` entry keyed by the asset manifest hash, downloads assets before package smoke, and passes the asset directory into the smoke harness.
 
 Asset source and licensing:
@@ -672,7 +672,7 @@ Local checks before CI dispatch:
 
 ```powershell
 py -3 -m py_compile tools/windows_prebuilt_repro/download_external_assets.py tools/windows_prebuilt_repro/smoke_package.py
-py -3 -c "import json, pathlib; data=json.loads(pathlib.Path('tools/windows_prebuilt_repro/external_usd_assets.json').read_text(encoding='utf-8')); assert len(data['assets']) == 7"
+py -3 -c "import json, pathlib; data=json.loads(pathlib.Path('tools/windows_prebuilt_repro/external_usd_assets.json').read_text(encoding='utf-8')); assert len(data['assets']) == 10"
 ```
 
 ## Do not forget

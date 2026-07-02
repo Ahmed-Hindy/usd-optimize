@@ -101,6 +101,8 @@ EXTERNAL_ASSET_MANIFEST_CHECK = """
     smoke_count = 0
 
     for asset in manifest.get("assets", []):
+        if not asset.get("smoke", True):
+            continue
         asset_path = assets_dir / asset["relative_path"]
         stage = Usd.Stage.Open(str(asset_path))
         assert stage, f"failed to open external USD asset: {asset_path}"

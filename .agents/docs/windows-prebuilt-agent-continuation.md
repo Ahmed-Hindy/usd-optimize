@@ -390,9 +390,9 @@ Goal: move broader USD asset testing into GitHub CI without committing larger ex
 
 Prepared changes:
 
-- `tools/windows_prebuilt_repro/external_usd_assets.json`: manifest of seven public OpenUSD tutorial assets from the Pixar OpenUSD `release` branch, with raw URLs, relative cache paths, expected prims, and SHA-256 hashes.
+- `tools/windows_prebuilt_repro/external_usd_assets.json`: manifest of ten public OpenUSD tutorial files from the Pixar OpenUSD `release` branch, with raw URLs, relative cache paths, expected prims, SHA-256 hashes, and `"smoke": false` for three Ball/Table sibling dependencies.
 - `tools/windows_prebuilt_repro/download_external_assets.py`: downloads assets into `.cache/usd-assets` and verifies SHA-256 before smoke tests use them.
-- `tools/windows_prebuilt_repro/smoke_package.py`: accepts `--external-asset-manifest` and `--external-assets-dir`; opens every downloaded asset through the packaged runtime; verifies expected prims; defines and deletes a temporary in-memory prim via `deletePrims`.
+- `tools/windows_prebuilt_repro/smoke_package.py`: accepts `--external-asset-manifest` and `--external-assets-dir`; opens every primary smoke asset through the packaged runtime; verifies expected prims; defines and deletes a temporary in-memory prim via `deletePrims`.
 - `.github/workflows/windows-build.yml`: adds `USD_ASSET_CACHE_DIR`, restores an `actions/cache` entry keyed by the manifest hash, downloads assets before package smoke, and passes the manifest/cache directory to the smoke harness.
 
 Asset source and license:
@@ -412,7 +412,7 @@ ast ok
 Expected CI evidence after dispatch:
 
 ```text
-External USD assets ready: 7
+External USD assets ready: 10
 PASSED: external_asset_manifest_smoke
 external asset manifest smoke passed for 7 assets
 ```

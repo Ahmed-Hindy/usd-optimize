@@ -50,11 +50,32 @@
       "expected_prims": ["/Ball"]
     },
     {
+      "name": "end_to_end_ball_shading_variants_dependency",
+      "relative_path": "OpenUSD/extras/usd/tutorials/endToEnd/assets/Ball/Ball.shadingVariants.usda",
+      "url": "https://raw.githubusercontent.com/PixarAnimationStudios/OpenUSD/release/extras/usd/tutorials/endToEnd/assets/Ball/Ball.shadingVariants.usda",
+      "sha256": "cb40cfe3e33bc58fa050d2ee302debdb515787e380198d5cf9c435b8df3b3986",
+      "smoke": false
+    },
+    {
+      "name": "end_to_end_ball_maya_dependency",
+      "relative_path": "OpenUSD/extras/usd/tutorials/endToEnd/assets/Ball/Ball.maya.usd",
+      "url": "https://raw.githubusercontent.com/PixarAnimationStudios/OpenUSD/release/extras/usd/tutorials/endToEnd/assets/Ball/Ball.maya.usd",
+      "sha256": "2fbef763cb2bd0c6af9065510153c32c7f0cc478815571f5b948285657567053",
+      "smoke": false
+    },
+    {
       "name": "end_to_end_table_asset",
       "relative_path": "OpenUSD/extras/usd/tutorials/endToEnd/assets/Table/Table.usd",
       "url": "https://raw.githubusercontent.com/PixarAnimationStudios/OpenUSD/release/extras/usd/tutorials/endToEnd/assets/Table/Table.usd",
       "sha256": "168872a81fece3057a625cbed91244eb9f4977471e8bf810a012be616781d585",
       "expected_prims": ["/Table"]
+    },
+    {
+      "name": "end_to_end_table_maya_dependency",
+      "relative_path": "OpenUSD/extras/usd/tutorials/endToEnd/assets/Table/Table.maya.usd",
+      "url": "https://raw.githubusercontent.com/PixarAnimationStudios/OpenUSD/release/extras/usd/tutorials/endToEnd/assets/Table/Table.maya.usd",
+      "sha256": "85b163db6881c7932909053014b8574aa91321f6833307dae0e8f09fa0493c40",
+      "smoke": false
     }
   ]
 }
