@@ -1,0 +1,155 @@
+name: Windows Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: "Run repo.bat test after building"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      build_package:
+        description: "Create package archives under _build/packages"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      usd_ver:
+        description: "OpenUSD version token"
+        required: true
+        default: "25.11"
+        type: choice
+        options:
+          - "25.11"
+          - "25.05"
+      python_ver:
+        description: "Python version token"
+        required: true
+        default: "3.12"
+        type: choice
+        options:
+          - "3.12"
+          - "3.11"
+          - "3.10"
+
+jobs:
+  windows-build:
+    name: Windows ${{ inputs.usd_ver }} / Python ${{ inputs.python_ver }}
+    runs-on: windows-2022
+    timeout-minutes: 360
+
+    env:
+      PYTHONUTF8: "1"
+      PM_PACKAGES_ROOT: ${{ github.workspace }}\.cache\packman
+      PIP_CACHE_DIR: ${{ github.workspace }}\.cache\pip
+      POETRY_CACHE_DIR: ${{ github.workspace }}\.cache\poetry
+      BUILD_TOKENS: >-
+        --set-token usd_flavor:usd
+        --set-token usd_ver:${{ inputs.usd_ver }}
+        --set-token python_ver:${{ inputs.python_ver }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          lfs: true
+
+      - name: Restore Packman package cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PM_PACKAGES_ROOT }}
+          key: packman-${{ runner.os }}-usd${{ inputs.usd_ver }}-py${{ inputs.python_ver }}-${{ hashFiles('deps/*.packman.xml', 'deps/usd_flavors.json', 'repo.toml', 'tools/packman/config.packman.xml', 'tools/packman/packman', 'tools/packman/packman.cmd') }}
+          restore-keys: |
+            packman-${{ runner.os }}-usd${{ inputs.usd_ver }}-py${{ inputs.python_ver }}-
+            packman-${{ runner.os }}-
+
+      - name: Restore Python package tooling cache
+        if: ${{ inputs.build_package == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.PIP_CACHE_DIR }}
+            ${{ env.POETRY_CACHE_DIR }}
+            _build/host-deps/py_package_venv
+          key: py-package-${{ runner.os }}-py${{ inputs.python_ver }}-${{ hashFiles('tools/pyproject/dev-requirements.txt', 'tools/pyproject/pyproject.toml', 'tools/pyproject/pybuild.py', 'tools/pyproject/pybuild.bat') }}
+          restore-keys: |
+            py-package-${{ runner.os }}-py${{ inputs.python_ver }}-
+            py-package-${{ runner.os }}-
+
+      - name: Show runner/toolchain info
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          git --version
+          cmd /c "where cl || echo cl is not on PATH; repo_build should still find Visual Studio with vswhere"
+          cmd /c "where msbuild || echo msbuild is not on PATH; repo_build should still find Visual Studio with vswhere"
+          Write-Host "PM_PACKAGES_ROOT=$env:PM_PACKAGES_ROOT"
+          Write-Host "PIP_CACHE_DIR=$env:PIP_CACHE_DIR"
+          Write-Host "POETRY_CACHE_DIR=$env:POETRY_CACHE_DIR"
+          Write-Host "BUILD_TOKENS=$env:BUILD_TOKENS"
+
+      - name: Build release
+        shell: cmd
+        run: repo.bat %BUILD_TOKENS% build
+
+      - name: Run tests
+        if: ${{ inputs.run_tests == 'true' }}
+        shell: cmd
+        run: repo.bat %BUILD_TOKENS% test
+
+      - name: Build package archive
+        if: ${{ inputs.build_package == 'true' }}
+        shell: cmd
+        run: repo.bat %BUILD_TOKENS% package
+
+      - name: Build Python wheel
+        if: ${{ inputs.build_package == 'true' }}
+        shell: cmd
+        run: repo.bat %BUILD_TOKENS% py_package
+
+      - name: Smoke-test packaged runtime
+        if: ${{ inputs.build_package == 'true' }}
+        shell: cmd
+        run: .\_build\target-deps\python\python tools\windows_prebuilt_repro\smoke_package.py --packages-dir _build\packages
+
+      - name: List cache and build output sizes
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          foreach ($path in @($env:PM_PACKAGES_ROOT, $env:PIP_CACHE_DIR, $env:POETRY_CACHE_DIR, "_build\packages")) {
+            if (Test-Path $path) {
+              $size = (Get-ChildItem $path -Recurse -File | Measure-Object -Property Length -Sum).Sum
+              Write-Host "$path = $([math]::Round($size / 1GB, 2)) GB"
+            } else {
+              Write-Host "$path = missing"
+            }
+          }
+
+      - name: List build outputs
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          if (Test-Path "_build") {
+            Get-ChildItem "_build" -Recurse -File |
+              Where-Object { $_.FullName -match "packages|windows-x86_64\\release" } |
+              Select-Object FullName, Length |
+              Format-Table -AutoSize
+          }
+
+      - name: Upload package artifacts
+        if: ${{ always() && inputs.build_package == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: usd-optimize-windows-${{ inputs.usd_ver }}-py${{ inputs.python_ver }}
+          path: |
+            _build/packages/*
+          if-no-files-found: warn
+          retention-days: 7
