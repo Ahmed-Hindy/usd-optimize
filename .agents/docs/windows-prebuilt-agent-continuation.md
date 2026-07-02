@@ -409,10 +409,30 @@ manifest ok: 7
 ast ok
 ```
 
-Expected CI evidence after dispatch:
+CI result after dispatch:
+
+Run `28601992947` tested commit `e1f8fca external-usd-asset-ci-smoke` and passed overall in 10m56s. It proved the external asset smoke flow worked, but Ball/Table emitted unresolved-reference warnings for sibling files.
+
+Follow-up commit `ab722d2 complete-external-usd-asset-dependencies` added three dependency files to the manifest and marked them `"smoke": false`, so they are downloaded/hash-verified but not opened as standalone smoke roots.
+
+Run `28603073890` tested commit `ab722d2` and passed overall in 9m44s.
+
+Important final log evidence:
 
 ```text
+Cache restored from key: external-usd-assets-59ab2e004997bc3da6b0201b81c366671ef94a4a55f96b9bdfe987fea094bfb2
 External USD assets ready: 10
-PASSED: external_asset_manifest_smoke
+PASSED: external_fixture_open
+external asset smoke passed: authoring_properties_hello_world (2 prims)
+external asset smoke passed: converting_layer_formats_sphere (1 prims)
+external asset smoke passed: simple_shading (6 prims)
+external asset smoke passed: traversing_stage_hello_world_dependency (2 prims)
+external asset smoke passed: traversing_stage_reference_example (4 prims)
+external asset smoke passed: end_to_end_ball_asset (7 prims)
+external asset smoke passed: end_to_end_table_asset (7 prims)
 external asset manifest smoke passed for 7 assets
+PASSED: external_asset_manifest_smoke
+Packaged wheel installed to _build/packages/usd_optimize-1.0.4-cp312-cp312-win_amd64.whl
 ```
+
+The asset-smoke section no longer reports unresolved Ball/Table reference warnings. The only workflow annotation remains GitHub's Node.js 20 deprecation warning for upstream GitHub actions, not a repo failure.
