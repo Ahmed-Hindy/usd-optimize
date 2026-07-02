@@ -45,6 +45,7 @@ jobs:
 
     env:
       PYTHONUTF8: "1"
+      PM_PYTHON_EXT: python
       PM_PACKAGES_ROOT: ${{ github.workspace }}\.cache\packman
       PIP_CACHE_DIR: ${{ github.workspace }}\.cache\pip
       POETRY_CACHE_DIR: ${{ github.workspace }}\.cache\poetry
@@ -87,8 +88,11 @@ jobs:
         run: |
           $ErrorActionPreference = "Continue"
           git --version
+          python --version
+          cmd /c "where python"
           cmd /c "where cl || echo cl is not on PATH; repo_build should still find Visual Studio with vswhere"
           cmd /c "where msbuild || echo msbuild is not on PATH; repo_build should still find Visual Studio with vswhere"
+          Write-Host "PM_PYTHON_EXT=$env:PM_PYTHON_EXT"
           Write-Host "PM_PACKAGES_ROOT=$env:PM_PACKAGES_ROOT"
           Write-Host "PIP_CACHE_DIR=$env:PIP_CACHE_DIR"
           Write-Host "POETRY_CACHE_DIR=$env:POETRY_CACHE_DIR"
