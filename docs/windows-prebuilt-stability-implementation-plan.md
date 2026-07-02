@@ -9,15 +9,15 @@ docs/windows-prebuilt-bugfix-handoff.md
 .agents/docs/windows-prebuilt-agent-continuation.md
 ```
 
-Current blocker at the time of that handoff:
+Current CI status after the latest handoff update:
 
 ```text
-CI run 28582356556
-Smoke-test packaged runtime: failure
-ModuleNotFoundError: No module named 'usd_optimize.bootstrap'
+CI run 28585222656
+Overall result: success
+Smoke-test packaged runtime: success
 ```
 
-Interpretation: `usd_optimize.bootstrap` exists in source but is not included in the generated prebuilt zip's `python/usd_optimize/` tree. Fix packaging/staging inclusion before investigating DLL loading further.
+The previous missing `usd_optimize.bootstrap` blocker is fixed for the generated Windows zip package. The current next blocker is the non-blocking Python wheel step: `_build/pyproject/omni/scene/optimizer` is missing during wheel packaging. Fix wheel staging next; do not reopen DLL search debugging unless the package smoke starts failing again.
 
 ## Purpose
 

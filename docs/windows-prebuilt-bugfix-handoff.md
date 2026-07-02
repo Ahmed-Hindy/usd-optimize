@@ -461,7 +461,7 @@ Also validated that the smoke preflight reports missing bootstrap/standalone fil
 Local commit created for this patch:
 
 ```text
-2467a13 Package Windows runtime bootstrap module
+82e300a Package Windows runtime bootstrap module
 ```
 
 Push status: staging and commit succeeded, but the DevSpace tool environment blocked `git push` / `git push origin main`. Push this commit before dispatching CI:
@@ -478,9 +478,75 @@ gh workflow run "Windows Build" --repo Ahmed-Hindy/usd-optimize --ref main -f ru
 
 Expected next outcome: `Smoke-test packaged runtime` should get past `usd_optimize.bootstrap` import. If it fails again, treat the new failure as the next real blocker rather than assuming this patch solved all Windows runtime issues.
 
+## 2026-07-02 CI result — bootstrap package smoke fixed, wheel staging still failing
+
+Run `28585222656` tested commit:
+
+```text
+82e300a Package Windows runtime bootstrap module
+```
+
+Result: overall workflow `success` in 9m12s.
+
+Important passing steps:
+
+```text
+Build release: success
+Run tests: success/continued with known decimate failures
+Upload test diagnostics: success
+Build package archive: success
+Smoke-test packaged runtime: success
+Upload package artifacts: success
+```
+
+Smoke evidence from the logs:
+
+```text
+pxr import and in-memory stage creation succeeded
+usd_optimize.core import succeeded
+operation registry contains 47 operations
+public standalone API import succeeded
+standalone JSON execution succeeded
+```
+
+Artifacts uploaded:
+
+```text
+usd-optimize-windows-25.11-py3.12
+usd-optimize-test-diagnostics-25.11-py3.12
+```
+
+Remaining non-blocking failure in the same green workflow:
+
+```text
+Build Python wheel: failed under continue-on-error
+ValueError: _build/pyproject/omni/scene/optimizer does not contain any element
+IndexError: list index out of range in tools/repoman/py_package.py after no wheel was produced
+```
+
+Interpretation: the zip/package runtime blocker is fixed. The next blocker is wheel staging. `tools/repoman/py_package.py` copies only `_build/<platform>/<config>/python/usd_optimize` into `_build/pyproject`, but `tools/pyproject/pyproject.toml` also declares `omni/scene/optimizer`. The wheel staging step must copy the staged `python/omni` compatibility namespace too.
+
+Patch prepared after this run:
+
+- `tools/repoman/py_package.py`: copy `_build/<platform>/<config>/python/omni` into `_build/pyproject/omni` when present.
+
+Local check:
+
+```powershell
+python -m py_compile tools/repoman/py_package.py
+```
+
+Next CI target after committing/pushing the wheel-staging patch:
+
+```powershell
+gh workflow run "Windows Build" --repo Ahmed-Hindy/usd-optimize --ref main -f run_tests=true -f build_package=true -f usd_ver=25.11 -f python_ver=3.12
+```
+
+Expected next result: package smoke should remain green and `Build Python wheel` should create a wheel instead of failing on the missing `omni/scene/optimizer` staging tree.
+
 ## Do not forget
 
 - The successful run `28580744788` proves the zip package can work when the smoke harness manually configures DLL directories.
-- The current failing run `28582356556` proves the newly documented public `usd_optimize.bootstrap` helper is not yet packaged.
-- Fix packaging inclusion before chasing DLL loading again.
-- After `bootstrap.py` is packaged, the smoke test may reveal the next runtime issue. Treat failures in order; do not assume all Windows issues are fixed by making the module importable.
+- Run `28585222656` proves the zip package now stages `usd_optimize.bootstrap` correctly and passes the package smoke matrix.
+- The current next blocker is wheel staging: `_build/pyproject/omni/scene/optimizer` is missing during `repo.bat ... py_package`.
+- Treat failures in order; do not assume all Windows issues are fixed by the zip smoke passing.

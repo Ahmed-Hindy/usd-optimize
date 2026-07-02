@@ -30,7 +30,15 @@ def setup_repo_tool(parser: argparse.ArgumentParser, config: Dict) -> Callable:
         source = omni.repo.man.resolve_tokens("_build/$platform/$config")
         if os.path.exists(stagingDir):
             shutil.rmtree(stagingDir)
-        shutil.copytree(f"{source}/python/usd_optimize", f"{stagingDir}/usd_optimize", ignore=ignore_callable)
+        python_source = f"{source}/python"
+        shutil.copytree(f"{python_source}/usd_optimize", f"{stagingDir}/usd_optimize", ignore=ignore_callable)
+
+        # Stage the deprecated `omni.scene.optimizer` compatibility shim when it exists.
+        # The wheel pyproject still declares this package, so missing staged files make Poetry fail.
+        omni_source = f"{python_source}/omni"
+        if os.path.exists(omni_source):
+            shutil.copytree(omni_source, f"{stagingDir}/omni", ignore=ignore_callable)
+
         # copy the libs on windows since they are needed for the wheel to work, but for Linux auditwheel will handle this
         if omni.repo.man.is_windows():
             shutil.copytree(f"{source}/lib", f"{stagingDir}/usd_optimize.libs", ignore=ignore_callable)

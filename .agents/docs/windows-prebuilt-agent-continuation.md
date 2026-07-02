@@ -222,25 +222,25 @@ pyproject TOML parse OK
 smoke preflight reports missing files and passes once placeholders exist
 ```
 
-## Current local commit / push status
+## Bootstrap package-smoke commit status
 
-Local commit created:
+The bootstrap packaging commit was pushed and tested successfully:
 
 ```text
-2467a13 Package Windows runtime bootstrap module
+82e300a Package Windows runtime bootstrap module
 ```
 
-The DevSpace tool environment allowed staging and committing but blocked `git push` / `git push origin main`. To continue GitHub CI testing, push this commit first:
+## 2026-07-02 CI result for bootstrap packaging patch
 
-```powershell
-git push origin main
+Run `28585222656` tested commit:
+
+```text
+82e300a Package Windows runtime bootstrap module
 ```
 
-Then dispatch the Windows workflow from the pushed `main` branch.
+Result: overall workflow `success` in 9m12s.
 
-## Expected next green state
-
-The next good CI run should show:
+Important passing steps:
 
 ```text
 Build package archive: success
@@ -248,4 +248,37 @@ Smoke-test packaged runtime: success
 Upload package artifacts: success
 ```
 
-Only after that should you investigate the next runtime failure, if one appears.
+Smoke evidence:
+
+```text
+pxr import and in-memory stage creation succeeded
+usd_optimize.core import succeeded
+operation registry contains 47 operations
+public standalone API import succeeded
+standalone JSON execution succeeded
+```
+
+The zip runtime blocker is fixed.
+
+## Current next blocker — Python wheel staging
+
+The same run still had a non-blocking `Build Python wheel` failure:
+
+```text
+ValueError: _build/pyproject/omni/scene/optimizer does not contain any element
+IndexError: list index out of range in tools/repoman/py_package.py after no wheel was produced
+```
+
+Root cause: `tools/repoman/py_package.py` stages only `_build/<platform>/<config>/python/usd_optimize` into `_build/pyproject`, while `tools/pyproject/pyproject.toml` declares the deprecated `omni/scene/optimizer` compatibility shim as a package. The built package tree already has `python/omni/scene/optimizer`; the wheel staging script must copy it.
+
+Patch prepared:
+
+- `tools/repoman/py_package.py`: copy `_build/<platform>/<config>/python/omni` into `_build/pyproject/omni` when the source exists.
+
+Local check passed:
+
+```text
+python -m py_compile tools/repoman/py_package.py
+```
+
+Next CI expectation: package smoke remains green, and `Build Python wheel` should no longer fail on a missing `omni/scene/optimizer` package tree.
