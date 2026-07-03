@@ -504,4 +504,23 @@ matrix schema OK: 6 operations
 generated operation smoke code OK
 ```
 
-Expected CI result after commit/push: `external_asset_operation_matrix_smoke` reports 42 operation checks: six operations across seven primary external assets.
+Commit `618c315 Expand safe operation package smoke matrix` was pushed and tested in run `28666827118`.
+
+Result: overall workflow `success`.
+
+Important final evidence:
+
+```text
+Build release: success
+Run tests: success
+Build package archive: success
+Download external USD assets: success
+Smoke-test packaged runtime: success
+Build Python wheel: success
+running safe operation matrix: 6 operations x 7 assets = 42 checks
+external asset operation matrix smoke passed for 42 operation runs
+PASSED: external_asset_operation_matrix_smoke
+Packaged wheel installed to _build/packages/usd_optimize-1.0.4-cp312-cp312-win_amd64.whl
+```
+
+Current next target: either add one more operation family with custom validation, or move to a copied production-like USD asset test. Do not add destructive/default-unsafe operations to the generic matrix without operation-specific expected-output checks.

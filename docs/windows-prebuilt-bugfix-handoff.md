@@ -843,6 +843,44 @@ python -c "from tools.windows_prebuilt_repro.smoke_package import build_check_co
 
 Expected CI result after commit/push: `external_asset_operation_matrix_smoke` reports 42 operation checks: six operations across seven primary external assets.
 
+Commit:
+
+```text
+618c315 Expand safe operation package smoke matrix
+```
+
+Run `28666827118` tested commit `618c315`.
+
+Result: overall workflow `success`.
+
+Important passing steps:
+
+```text
+Build release: success
+Run tests: success
+Build package archive: success
+Download external USD assets: success
+Smoke-test packaged runtime: success
+Build Python wheel: success
+Upload package artifacts: success
+```
+
+Important smoke evidence:
+
+```text
+running safe operation matrix: 6 operations x 7 assets = 42 checks
+operation smoke start: print_stats on authoring_properties_hello_world [analysis_only, safe_default, requires_output_reopen]
+operation smoke passed: print_stats on authoring_properties_hello_world
+...
+operation smoke start: generate_normals_standard on end_to_end_table_asset [safe_with_params, mesh_only_or_noop, requires_output_reopen]
+operation smoke passed: generate_normals_standard on end_to_end_table_asset
+external asset operation matrix smoke passed for 42 operation runs
+PASSED: external_asset_operation_matrix_smoke
+Packaged wheel installed to _build/packages/usd_optimize-1.0.4-cp312-cp312-win_amd64.whl
+```
+
+This proves the Windows package runtime now executes six conservative operation checks across the seven primary OpenUSD assets and validates exported/reopened outputs in CI.
+
 ## Do not forget
 
 - The clean run `28594618988` proves full Windows Python tests, package archive smoke, external checked-in fixture smoke, and wheel build all pass together.
