@@ -6,7 +6,7 @@
       "description": "Read-only stats collection. Verifies hidden diagnostic operations execute through the packaged runtime.",
       "commands": [
         {"operation": "executionContext", "verbose": false},
-        {"operation": "printStats", "countPrimvars": false, "splitCollocatedPoints": false, "time": false}
+        {"operation": "printStats"}
       ],
       "preserve_prim_count": true,
       "preserve_expected_prims": true

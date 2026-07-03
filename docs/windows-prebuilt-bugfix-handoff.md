@@ -752,7 +752,22 @@ gh workflow run "Windows Build" --repo Ahmed-Hindy/usd-optimize --ref main -f ru
 
 Expected result: previous package smoke checks remain green, plus `external_asset_operation_matrix_smoke` reports 21 operation runs: three safe operations across seven primary external assets.
 
-If this fails, read the failure in this order:
+CI run `28664838966` tested commit `94f22c3 Add safe operation package smoke matrix`.
+
+Result: package import/open smoke remained green, full tests passed, package archive built, external assets downloaded, but `Smoke-test packaged runtime` failed at the new operation matrix step.
+
+Important failure log:
+
+```text
+=== external_asset_operation_matrix_smoke ===
+[ERROR] printStats: Failed to set arguments, cannot execute operation.
+AssertionError: operation matrix command failed: print_stats on authoring_properties_hello_world
+FAILED: external_asset_operation_matrix_smoke exited with code 1
+```
+
+Interpretation: the package runtime is still healthy. The matrix was too explicit for `printStats`; passing `time: false` was invalid because the operation expects its `time` argument as a numeric time value, not a boolean. Patch prepared: call `printStats` with default arguments only.
+
+If this fails again, read the failure in this order:
 
 1. Package import/bootstrap failure: regression in runtime packaging.
 2. Asset open failure: cache/download/resolver issue.

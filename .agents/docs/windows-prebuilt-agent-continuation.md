@@ -457,4 +457,13 @@ generated operation matrix subprocess code compiles
 line length check passed for smoke_package.py
 ```
 
-Next action after commit/push: run the Windows Build workflow with package build enabled. Expected new smoke log: `external_asset_operation_matrix_smoke` passes for 21 operation runs.
+Run `28664838966` tested commit `94f22c3 Add safe operation package smoke matrix`. Build, full tests, package archive, external asset download, and previous package smoke checks passed, but the new matrix failed immediately on `printStats`:
+
+```text
+[ERROR] printStats: Failed to set arguments, cannot execute operation.
+AssertionError: operation matrix command failed: print_stats on authoring_properties_hello_world
+```
+
+Root cause: the matrix passed `time: false`, but `printStats` expects its `time` argument as a numeric time value when provided. Patch prepared: call `printStats` with default arguments only.
+
+Next action after commit/push: rerun the Windows Build workflow with package build enabled. Expected new smoke log: `external_asset_operation_matrix_smoke` gets past `print_stats` and continues through the remaining matrix operations.
