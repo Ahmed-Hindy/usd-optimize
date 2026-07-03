@@ -152,6 +152,7 @@ jobs:
           --external-fixture-usd source\tests\data\external\openusd_helloworld.usda
           --external-asset-manifest tools\windows_prebuilt_repro\external_usd_assets.json
           --external-assets-dir "%USD_ASSET_CACHE_DIR%"
+          --safe-operation-matrix tools\windows_prebuilt_repro\safe_operation_matrix.json
 
       - name: Build Python wheel
         if: ${{ inputs.build_package == 'true' }}

@@ -1,0 +1,35 @@
+{
+  "description": "Small operation smoke matrix for Windows prebuilt package CI. These operations are intentionally conservative: they should execute through the public standalone API, preserve expected prims, export a temporary output layer, and reopen that output layer successfully.",
+  "operations": [
+    {
+      "name": "print_stats",
+      "description": "Read-only stats collection. Verifies hidden diagnostic operations execute through the packaged runtime.",
+      "commands": [
+        {"operation": "executionContext", "verbose": false},
+        {"operation": "printStats", "countPrimvars": false, "splitCollocatedPoints": false, "time": false}
+      ],
+      "preserve_prim_count": true,
+      "preserve_expected_prims": true
+    },
+    {
+      "name": "compute_extents",
+      "description": "Authors mesh extents where applicable. Safe on non-mesh assets and useful after geometry-changing operations.",
+      "commands": [
+        {"operation": "executionContext", "verbose": false},
+        {"operation": "computeExtents"}
+      ],
+      "preserve_prim_count": true,
+      "preserve_expected_prims": true
+    },
+    {
+      "name": "optimize_primvars_index_simplify",
+      "description": "Indexes duplicate primvar values and simplifies uniform primvars without removing material-bound data.",
+      "commands": [
+        {"operation": "executionContext", "verbose": false},
+        {"operation": "optimizePrimvars", "mode": 1, "simplify": true, "removeIfBound": false}
+      ],
+      "preserve_prim_count": true,
+      "preserve_expected_prims": true
+    }
+  ]
+}

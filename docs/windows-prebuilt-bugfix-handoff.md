@@ -717,9 +717,53 @@ Packaged wheel installed to _build/packages/usd_optimize-1.0.4-cp312-cp312-win_a
 
 The asset-smoke section no longer reports unresolved Ball/Table reference warnings. The only workflow annotation remains GitHub's Node.js 20 deprecation warning for upstream GitHub actions, not a repo failure.
 
+## 2026-07-03 Planned CI expansion — safe operation matrix
+
+The next patch moves package validation from pure open/harmless-temp-prim smoke into conservative real operation checks on the downloaded external USD assets.
+
+Files added/changed:
+
+- `tools/windows_prebuilt_repro/safe_operation_matrix.json`: defines the first conservative operation set:
+  - `printStats` as a read-only diagnostic operation.
+  - `computeExtents` as a safe authored mesh operation.
+  - `optimizePrimvars` with `mode=1`, `simplify=true`, and `removeIfBound=false` as a conservative primvar optimization.
+- `tools/windows_prebuilt_repro/smoke_package.py`: accepts `--safe-operation-matrix`, runs every matrix operation against every primary external smoke asset, exports each modified stage to a temporary sibling `.usda`, reopens that output stage, verifies expected prims, and checks prim counts are preserved for these first safe operations.
+- `.github/workflows/windows-build.yml`: passes the safe operation matrix into the existing packaged runtime smoke step.
+
+Why the output file is written next to the source asset:
+
+- Some OpenUSD tutorial assets use sibling relative references.
+- Exporting into a detached temp directory can create false unresolved-reference failures.
+- The harness writes a hidden temporary sibling output, reopens it, then removes it in `finally`.
+
+Local checks before CI dispatch:
+
+```powershell
+python -m py_compile tools/windows_prebuilt_repro/smoke_package.py
+python -c "import json, pathlib; data=json.loads(pathlib.Path('tools/windows_prebuilt_repro/safe_operation_matrix.json').read_text(encoding='utf-8')); assert len(data['operations']) == 3"
+python -c "from tools.windows_prebuilt_repro.smoke_package import build_check_code, EXTERNAL_ASSET_OPERATION_MATRIX_CHECK; compile(build_check_code(EXTERNAL_ASSET_OPERATION_MATRIX_CHECK), '<operation-matrix-smoke>', 'exec')"
+```
+
+Next CI target after commit/push:
+
+```powershell
+gh workflow run "Windows Build" --repo Ahmed-Hindy/usd-optimize --ref main -f run_tests=true -f build_package=true -f usd_ver=25.11 -f python_ver=3.12
+```
+
+Expected result: previous package smoke checks remain green, plus `external_asset_operation_matrix_smoke` reports 21 operation runs: three safe operations across seven primary external assets.
+
+If this fails, read the failure in this order:
+
+1. Package import/bootstrap failure: regression in runtime packaging.
+2. Asset open failure: cache/download/resolver issue.
+3. Operation execution failure: operation API/runtime issue.
+4. Output reopen failure: export/composition issue, especially around relative references.
+5. Prim count or expected-prim assertion: the matrix operation is not as conservative as assumed for that asset.
+
 ## Do not forget
 
 - The clean run `28594618988` proves full Windows Python tests, package archive smoke, external checked-in fixture smoke, and wheel build all pass together.
 - The clean run `28603073890` extends that by proving the packaged runtime opens and executes a harmless operation on seven primary downloaded OpenUSD assets, with three extra dependency files cached for clean composition.
+- The pending operation-matrix patch is broader than the existing external asset smoke because it executes real operations and validates temporary exported outputs.
 - The external asset smoke set is broader than the tiny checked-in fixture, but it is still a smoke layer. It proves packaged runtime behavior across multiple public USD assets; it does not replace destructive testing on copied production assets.
-- Treat failures in order: download/hash failure means asset/cache/source issue; `Usd.Stage.Open` failure means package/USD resolver issue; `deletePrims` failure means operation/runtime integration issue.
+- Treat failures in order: download/hash failure means asset/cache/source issue; `Usd.Stage.Open` failure means package/USD resolver issue; operation failure means packaged operation/runtime integration issue; output reopen failure means export/composition issue.

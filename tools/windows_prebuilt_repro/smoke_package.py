@@ -111,19 +111,92 @@ EXTERNAL_ASSET_MANIFEST_CHECK = """
         for prim_path in asset.get("expected_prims", []):
             assert stage.GetPrimAtPath(prim_path), f"{asset['name']} is missing {prim_path}"
 
-        delete_path = "/__usd_optimize_ci_delete_me"
-        UsdGeom.Xform.Define(stage, delete_path)
+        temp_path = "/__usd_optimize_ci_temp_prim"
+        UsdGeom.Xform.Define(stage, temp_path)
         operations_json = json.dumps([
             {"operation": "executionContext", "verbose": False},
-            {"operation": "deletePrims", "primPaths": [delete_path]},
+            {"operation": "deletePrims", "primPaths": [temp_path]},
         ])
         assert standalone.execute_commands_from_json(stage, operations_json)
-        assert not stage.GetPrimAtPath(delete_path), f"deletePrims did not remove {delete_path}"
+        assert not stage.GetPrimAtPath(temp_path), f"deletePrims did not remove {temp_path}"
         smoke_count += 1
         print(f"external asset smoke passed: {asset['name']} ({len(traversed_prims)} prims)")
 
     assert smoke_count > 0, "external asset manifest did not contain any assets"
     print(f"external asset manifest smoke passed for {smoke_count} assets")
+"""
+
+EXTERNAL_ASSET_OPERATION_MATRIX_CHECK = """
+    import json
+    import os
+    import re
+    from pathlib import Path
+
+    from pxr import Usd
+    from usd_optimize.core.scripts import standalone
+
+    def _safe_name(value):
+        return re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
+
+    def _validate_stage(stage, asset_config, asset_path):
+        assert stage, f"failed to open stage: {asset_path}"
+        prims = list(stage.TraverseAll())
+        assert prims, f"stage contains no traversable prims: {asset_path}"
+        for prim_path in asset_config.get("expected_prims", []):
+            assert stage.GetPrimAtPath(prim_path), f"{asset_config['name']} is missing {prim_path}"
+        return prims
+
+    manifest_path = Path(os.environ["USD_OPTIMIZE_EXTERNAL_ASSET_MANIFEST"])
+    matrix_path = Path(os.environ["USD_OPTIMIZE_SAFE_OPERATION_MATRIX"])
+    assets_dir = Path(os.environ["USD_OPTIMIZE_EXTERNAL_ASSETS_DIR"])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    operation_matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+    operations = operation_matrix.get("operations", [])
+    assert operations, "safe operation matrix does not contain any operations"
+
+    operation_count = 0
+    for asset_config in manifest.get("assets", []):
+        if not asset_config.get("smoke", True):
+            continue
+        asset_path = assets_dir / asset_config["relative_path"]
+        for operation_config in operations:
+            operation_name = operation_config["name"]
+            stage = Usd.Stage.Open(str(asset_path))
+            source_prims = _validate_stage(stage, asset_config, asset_path)
+            source_prim_count = len(source_prims)
+            commands_json = json.dumps(operation_config["commands"])
+            assert standalone.execute_commands_from_json(stage, commands_json), (
+                f"operation matrix command failed: {operation_name} on {asset_config['name']}"
+            )
+
+            output_name = f".{asset_path.stem}.usd_optimize_{_safe_name(operation_name)}.usda"
+            output_path = asset_path.with_name(output_name)
+            try:
+                assert stage.GetRootLayer().Export(str(output_path)), (
+                    f"failed to export operation output: {output_path}"
+                )
+                output_stage = Usd.Stage.Open(str(output_path))
+                output_prims = _validate_stage(output_stage, asset_config, output_path)
+
+                if operation_config.get("preserve_prim_count", True):
+                    assert len(output_prims) == source_prim_count, (
+                        f"{operation_name} changed prim count for {asset_config['name']}: "
+                        f"{source_prim_count} -> {len(output_prims)}"
+                    )
+                if operation_config.get("preserve_expected_prims", True):
+                    for prim_path in asset_config.get("expected_prims", []):
+                        assert output_stage.GetPrimAtPath(prim_path), (
+                            f"{operation_name} output is missing {prim_path} for {asset_config['name']}"
+                        )
+            finally:
+                if output_path.exists():
+                    output_path.unlink()
+
+            operation_count += 1
+            print(f"operation smoke passed: {operation_name} on {asset_config['name']}")
+
+    assert operation_count > 0, "safe operation matrix did not run on any assets"
+    print(f"external asset operation matrix smoke passed for {operation_count} operation runs")
 """
 
 
@@ -153,6 +226,11 @@ def parse_args() -> argparse.Namespace:
         "--external-assets-dir",
         type=Path,
         help="Directory containing downloaded external USD assets from the manifest.",
+    )
+    parser.add_argument(
+        "--safe-operation-matrix",
+        type=Path,
+        help="Optional JSON matrix of conservative operations to run on external USD assets.",
     )
     parser.add_argument(
         "--keep-extracted",
@@ -234,6 +312,7 @@ def make_subprocess_environment(
     external_fixture_usd: Path | None = None,
     external_asset_manifest: Path | None = None,
     external_assets_dir: Path | None = None,
+    safe_operation_matrix: Path | None = None,
 ) -> dict[str, str]:
     """Create an isolated environment for package smoke subprocesses.
 
@@ -242,6 +321,7 @@ def make_subprocess_environment(
         external_fixture_usd: Optional file-backed USD fixture to smoke-test.
         external_asset_manifest: Optional external USD asset manifest.
         external_assets_dir: Optional directory containing downloaded external USD assets.
+        safe_operation_matrix: Optional JSON matrix of conservative operation checks.
 
     Returns:
         Environment variables for a smoke subprocess.
@@ -266,6 +346,8 @@ def make_subprocess_environment(
         environment["USD_OPTIMIZE_EXTERNAL_ASSET_MANIFEST"] = str(external_asset_manifest)
     if external_assets_dir:
         environment["USD_OPTIMIZE_EXTERNAL_ASSETS_DIR"] = str(external_assets_dir)
+    if safe_operation_matrix:
+        environment["USD_OPTIMIZE_SAFE_OPERATION_MATRIX"] = str(safe_operation_matrix)
     return environment
 
 
@@ -345,15 +427,22 @@ def main() -> int:
             args.external_asset_manifest.resolve() if args.external_asset_manifest else None
         )
         external_assets_dir = args.external_assets_dir.resolve() if args.external_assets_dir else None
+        safe_operation_matrix = args.safe_operation_matrix.resolve() if args.safe_operation_matrix else None
         if external_asset_manifest and not external_asset_manifest.is_file():
             print(f"Missing external USD asset manifest: {external_asset_manifest}", flush=True)
             return 1
         if external_asset_manifest and (not external_assets_dir or not external_assets_dir.is_dir()):
             print(f"Missing external USD asset directory: {external_assets_dir}", flush=True)
             return 1
+        if safe_operation_matrix and not safe_operation_matrix.is_file():
+            print(f"Missing safe operation matrix: {safe_operation_matrix}", flush=True)
+            return 1
+        if safe_operation_matrix and not external_asset_manifest:
+            print("Safe operation matrix requires --external-asset-manifest", flush=True)
+            return 1
 
         environment = make_subprocess_environment(
-            package_root, external_fixture_usd, external_asset_manifest, external_assets_dir
+            package_root, external_fixture_usd, external_asset_manifest, external_assets_dir, safe_operation_matrix
         )
         print(f"Package root: {package_root}", flush=True)
         print(f"Python executable: {sys.executable}", flush=True)
@@ -363,12 +452,16 @@ def main() -> int:
         if external_asset_manifest:
             print(f"External USD asset manifest: {external_asset_manifest}", flush=True)
             print(f"External USD assets directory: {external_assets_dir}", flush=True)
+        if safe_operation_matrix:
+            print(f"Safe operation matrix: {safe_operation_matrix}", flush=True)
 
         checks = dict(CHECKS)
         if external_fixture_usd:
             checks["external_fixture_open"] = EXTERNAL_FIXTURE_CHECK
         if external_asset_manifest:
             checks["external_asset_manifest_smoke"] = EXTERNAL_ASSET_MANIFEST_CHECK
+        if safe_operation_matrix:
+            checks["external_asset_operation_matrix_smoke"] = EXTERNAL_ASSET_OPERATION_MATRIX_CHECK
 
         success = True
         for check_name, check_body in checks.items():

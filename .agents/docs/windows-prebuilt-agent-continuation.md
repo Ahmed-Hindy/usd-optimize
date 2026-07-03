@@ -436,3 +436,25 @@ Packaged wheel installed to _build/packages/usd_optimize-1.0.4-cp312-cp312-win_a
 ```
 
 The asset-smoke section no longer reports unresolved Ball/Table reference warnings. The only workflow annotation remains GitHub's Node.js 20 deprecation warning for upstream GitHub actions, not a repo failure.
+
+## 2026-07-03 current patch — safe operation matrix
+
+Goal: move from open-only asset smoke to conservative real operation checks on the downloaded external USD assets.
+
+Prepared changes:
+
+- `tools/windows_prebuilt_repro/safe_operation_matrix.json`: defines three conservative operations: `printStats`, `computeExtents`, and `optimizePrimvars` in indexing/simplify mode with `removeIfBound=false`.
+- `tools/windows_prebuilt_repro/smoke_package.py`: adds `--safe-operation-matrix`; for each primary external smoke asset, runs each operation through `standalone.execute_commands_from_json()`, exports a temporary sibling `.usda`, reopens it, verifies expected prims, and checks prim count preservation.
+- `.github/workflows/windows-build.yml`: passes the matrix into the packaged runtime smoke step.
+- `docs/windows-prebuilt-bugfix-handoff.md`: documents the patch, local checks, and expected CI outcome.
+
+Local checks passed:
+
+```text
+python -m py_compile tools/windows_prebuilt_repro/smoke_package.py
+safe_operation_matrix.json parsed with 3 operations
+generated operation matrix subprocess code compiles
+line length check passed for smoke_package.py
+```
+
+Next action after commit/push: run the Windows Build workflow with package build enabled. Expected new smoke log: `external_asset_operation_matrix_smoke` passes for 21 operation runs.
