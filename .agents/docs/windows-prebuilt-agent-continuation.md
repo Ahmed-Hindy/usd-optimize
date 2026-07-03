@@ -466,4 +466,22 @@ AssertionError: operation matrix command failed: print_stats on authoring_proper
 
 Root cause: the matrix passed `time: false`, but `printStats` expects its `time` argument as a numeric time value when provided. Patch prepared: call `printStats` with default arguments only.
 
-Next action after commit/push: rerun the Windows Build workflow with package build enabled. Expected new smoke log: `external_asset_operation_matrix_smoke` gets past `print_stats` and continues through the remaining matrix operations.
+Follow-up commit `eaad6be Fix printStats package smoke arguments` changed the matrix to call `printStats` with defaults only.
+
+Run `28665543591` tested commit `eaad6be` and passed overall in 9m16s.
+
+Important final evidence:
+
+```text
+Build release: success
+Run tests: success
+Build package archive: success
+Download external USD assets: success
+Smoke-test packaged runtime: success
+Build Python wheel: success
+external asset operation matrix smoke passed for 21 operation runs
+PASSED: external_asset_operation_matrix_smoke
+Packaged wheel installed to _build/packages/usd_optimize-1.0.4-cp312-cp312-win_amd64.whl
+```
+
+Current next target: expand operation coverage carefully, one small operation family at a time. Do not add destructive/default-unsafe operations to the matrix without operation-specific expected-output checks.

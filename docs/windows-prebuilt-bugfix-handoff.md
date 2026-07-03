@@ -767,7 +767,48 @@ FAILED: external_asset_operation_matrix_smoke exited with code 1
 
 Interpretation: the package runtime is still healthy. The matrix was too explicit for `printStats`; passing `time: false` was invalid because the operation expects its `time` argument as a numeric time value, not a boolean. Patch prepared: call `printStats` with default arguments only.
 
-If this fails again, read the failure in this order:
+Follow-up commit:
+
+```text
+eaad6be Fix printStats package smoke arguments
+```
+
+Run `28665543591` tested commit `eaad6be`.
+
+Result: overall workflow `success` in 9m16s.
+
+Important passing steps:
+
+```text
+Build release: success
+Run tests: success
+Build package archive: success
+Download external USD assets: success
+Smoke-test packaged runtime: success
+Build Python wheel: success
+Upload package artifacts: success
+```
+
+Important smoke evidence:
+
+```text
+external asset manifest smoke passed for 7 assets
+PASSED: external_asset_manifest_smoke
+operation smoke passed: print_stats on authoring_properties_hello_world
+operation smoke passed: compute_extents on authoring_properties_hello_world
+operation smoke passed: optimize_primvars_index_simplify on authoring_properties_hello_world
+...
+operation smoke passed: print_stats on end_to_end_table_asset
+operation smoke passed: compute_extents on end_to_end_table_asset
+operation smoke passed: optimize_primvars_index_simplify on end_to_end_table_asset
+external asset operation matrix smoke passed for 21 operation runs
+PASSED: external_asset_operation_matrix_smoke
+Packaged wheel installed to _build/packages/usd_optimize-1.0.4-cp312-cp312-win_amd64.whl
+```
+
+This proves the Windows package runtime now imports, opens public USD assets, executes the standalone API, runs three conservative real operations across seven external assets, exports temporary outputs, reopens those outputs, and builds the wheel in the same workflow.
+
+If a future matrix expansion fails, read the failure in this order:
 
 1. Package import/bootstrap failure: regression in runtime packaging.
 2. Asset open failure: cache/download/resolver issue.
