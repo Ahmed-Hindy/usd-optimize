@@ -1,8 +1,19 @@
 {
   "description": "Small operation smoke matrix for Windows prebuilt package CI. These operations are intentionally conservative: they should execute through the public standalone API, preserve expected prims, export a temporary output layer, and reopen that output layer successfully.",
+  "schema_version": 2,
+  "classification_legend": {
+    "analysis_only": "Reads or reports scene data without intended stage edits.",
+    "safe_default": "Uses operation defaults that are expected to be safe on generic USD assets.",
+    "safe_with_params": "Uses explicit conservative parameters to avoid destructive behavior.",
+    "mesh_only_or_noop": "Affects mesh prims when present and should no-op on non-mesh assets.",
+    "material_aware": "May inspect material bindings or material-driven data.",
+    "time_sample_only_or_noop": "Affects authored time samples when present and should no-op on static assets.",
+    "requires_output_reopen": "Must export and reopen a temporary output layer to catch composition or serialization failures."
+  },
   "operations": [
     {
       "name": "print_stats",
+      "classification": ["analysis_only", "safe_default", "requires_output_reopen"],
       "description": "Read-only stats collection. Verifies hidden diagnostic operations execute through the packaged runtime.",
       "commands": [
         {"operation": "executionContext", "verbose": false},
@@ -13,6 +24,7 @@
     },
     {
       "name": "compute_extents",
+      "classification": ["safe_default", "mesh_only_or_noop", "requires_output_reopen"],
       "description": "Authors mesh extents where applicable. Safe on non-mesh assets and useful after geometry-changing operations.",
       "commands": [
         {"operation": "executionContext", "verbose": false},
@@ -23,10 +35,44 @@
     },
     {
       "name": "optimize_primvars_index_simplify",
+      "classification": ["safe_with_params", "mesh_only_or_noop", "requires_output_reopen"],
       "description": "Indexes duplicate primvar values and simplifies uniform primvars without removing material-bound data.",
       "commands": [
         {"operation": "executionContext", "verbose": false},
         {"operation": "optimizePrimvars", "mode": 1, "simplify": true, "removeIfBound": false}
+      ],
+      "preserve_prim_count": true,
+      "preserve_expected_prims": true
+    },
+    {
+      "name": "optimize_time_samples_lossless",
+      "classification": ["safe_with_params", "time_sample_only_or_noop", "requires_output_reopen"],
+      "description": "Runs time-sample cleanup in strict lossless mode. Static assets should no-op; animated assets should only remove exactly redundant samples.",
+      "commands": [
+        {"operation": "executionContext", "verbose": false},
+        {"operation": "optimizeTimeSamples", "removeInterpolated": false, "epsilonD": 0.0, "epsilonF": 0.0}
+      ],
+      "preserve_prim_count": true,
+      "preserve_expected_prims": true
+    },
+    {
+      "name": "remove_unused_uvs_block",
+      "classification": ["safe_with_params", "material_aware", "mesh_only_or_noop", "requires_output_reopen"],
+      "description": "Detects unused UV primvars but authors block opinions instead of permanently removing attributes.",
+      "commands": [
+        {"operation": "executionContext", "verbose": false},
+        {"operation": "removeUnusedUVs", "mode": 1}
+      ],
+      "preserve_prim_count": true,
+      "preserve_expected_prims": true
+    },
+    {
+      "name": "generate_normals_standard",
+      "classification": ["safe_with_params", "mesh_only_or_noop", "requires_output_reopen"],
+      "description": "Generates or fixes mesh normals with the standard 60-degree sharpness angle while preserving prim topology.",
+      "commands": [
+        {"operation": "executionContext", "verbose": false},
+        {"operation": "generateNormals", "sharpnessAngle": 60.0}
       ],
       "preserve_prim_count": true,
       "preserve_expected_prims": true

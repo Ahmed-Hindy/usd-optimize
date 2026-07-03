@@ -816,10 +816,37 @@ If a future matrix expansion fails, read the failure in this order:
 4. Output reopen failure: export/composition issue, especially around relative references.
 5. Prim count or expected-prim assertion: the matrix operation is not as conservative as assumed for that asset.
 
+## 2026-07-03 Planned CI expansion — operation classification and six-operation matrix
+
+The next local patch expands the successful operation matrix from three operations to six and adds metadata to keep future CI expansion disciplined.
+
+Files changed:
+
+- `tools/windows_prebuilt_repro/safe_operation_matrix.json`:
+  - Adds `schema_version: 2`.
+  - Adds `classification_legend` so each operation declares why it is safe enough for generic package smoke.
+  - Keeps the proven operations: `printStats`, `computeExtents`, and `optimizePrimvars` in conservative mode.
+  - Adds `optimizeTimeSamples` in lossless/static-safe mode.
+  - Adds `removeUnusedUVs` in block mode, so it authors block opinions instead of permanently removing UV attributes.
+  - Adds `generateNormals` with the standard 60-degree sharpness angle.
+- `tools/windows_prebuilt_repro/smoke_package.py`:
+  - Prints a concise matrix summary before running operation checks.
+  - Prints the operation classification at the start of each operation smoke run.
+
+Local checks before CI dispatch:
+
+```powershell
+python -m py_compile tools/windows_prebuilt_repro/smoke_package.py
+python -c "import json, pathlib; data=json.loads(pathlib.Path('tools/windows_prebuilt_repro/safe_operation_matrix.json').read_text(encoding='utf-8')); assert data['schema_version'] == 2; assert len(data['operations']) == 6; assert all(op.get('classification') for op in data['operations'])"
+python -c "from tools.windows_prebuilt_repro.smoke_package import build_check_code, EXTERNAL_ASSET_OPERATION_MATRIX_CHECK; compile(build_check_code(EXTERNAL_ASSET_OPERATION_MATRIX_CHECK), '<operation-matrix-smoke>', 'exec')"
+```
+
+Expected CI result after commit/push: `external_asset_operation_matrix_smoke` reports 42 operation checks: six operations across seven primary external assets.
+
 ## Do not forget
 
 - The clean run `28594618988` proves full Windows Python tests, package archive smoke, external checked-in fixture smoke, and wheel build all pass together.
 - The clean run `28603073890` extends that by proving the packaged runtime opens and executes a harmless operation on seven primary downloaded OpenUSD assets, with three extra dependency files cached for clean composition.
-- The pending operation-matrix patch is broader than the existing external asset smoke because it executes real operations and validates temporary exported outputs.
+- The clean run `28665543591` proves the packaged runtime runs three conservative real operations across seven external assets, exports temporary outputs, reopens those outputs, and builds the wheel in one workflow.
 - The external asset smoke set is broader than the tiny checked-in fixture, but it is still a smoke layer. It proves packaged runtime behavior across multiple public USD assets; it does not replace destructive testing on copied production assets.
 - Treat failures in order: download/hash failure means asset/cache/source issue; `Usd.Stage.Open` failure means package/USD resolver issue; operation failure means packaged operation/runtime integration issue; output reopen failure means export/composition issue.

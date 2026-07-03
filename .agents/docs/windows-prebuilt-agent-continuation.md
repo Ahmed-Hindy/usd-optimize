@@ -484,4 +484,24 @@ PASSED: external_asset_operation_matrix_smoke
 Packaged wheel installed to _build/packages/usd_optimize-1.0.4-cp312-cp312-win_amd64.whl
 ```
 
-Current next target: expand operation coverage carefully, one small operation family at a time. Do not add destructive/default-unsafe operations to the matrix without operation-specific expected-output checks.
+Current local patch expands operation coverage carefully without adding destructive/default-unsafe operations.
+
+Prepared changes:
+
+- `tools/windows_prebuilt_repro/safe_operation_matrix.json` now uses `schema_version: 2`, includes a `classification_legend`, and requires every operation to declare a classification.
+- The matrix keeps the three proven operations and adds three conservative checks:
+  - `optimizeTimeSamples` in strict lossless mode: `removeInterpolated=false`, `epsilonD=0.0`, `epsilonF=0.0`.
+  - `removeUnusedUVs` in block mode: `mode=1`.
+  - `generateNormals` with `sharpnessAngle=60.0`.
+- `tools/windows_prebuilt_repro/smoke_package.py` now prints the matrix size before running and prints operation classifications at operation start.
+- `docs/windows-prebuilt-bugfix-handoff.md` documents the local patch and removes stale wording that said the successful matrix work was still pending.
+
+Local checks passed:
+
+```text
+python -m py_compile tools/windows_prebuilt_repro/smoke_package.py
+matrix schema OK: 6 operations
+generated operation smoke code OK
+```
+
+Expected CI result after commit/push: `external_asset_operation_matrix_smoke` reports 42 operation checks: six operations across seven primary external assets.

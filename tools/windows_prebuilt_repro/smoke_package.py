@@ -152,15 +152,24 @@ EXTERNAL_ASSET_OPERATION_MATRIX_CHECK = """
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     operation_matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
     operations = operation_matrix.get("operations", [])
+    smoke_assets = [
+        asset_config for asset_config in manifest.get("assets", []) if asset_config.get("smoke", True)
+    ]
     assert operations, "safe operation matrix does not contain any operations"
+    assert smoke_assets, "external asset manifest did not contain any smoke assets"
+    print(
+        "running safe operation matrix: "
+        f"{len(operations)} operations x {len(smoke_assets)} assets = "
+        f"{len(operations) * len(smoke_assets)} checks"
+    )
 
     operation_count = 0
-    for asset_config in manifest.get("assets", []):
-        if not asset_config.get("smoke", True):
-            continue
+    for asset_config in smoke_assets:
         asset_path = assets_dir / asset_config["relative_path"]
         for operation_config in operations:
             operation_name = operation_config["name"]
+            classification = ", ".join(operation_config.get("classification", []))
+            print(f"operation smoke start: {operation_name} on {asset_config['name']} [{classification}]")
             stage = Usd.Stage.Open(str(asset_path))
             source_prims = _validate_stage(stage, asset_config, asset_path)
             source_prim_count = len(source_prims)
