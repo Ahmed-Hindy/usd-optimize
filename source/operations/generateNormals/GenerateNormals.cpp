@@ -7,12 +7,12 @@
 // Usd Optimize Core
 #include <usd_optimize/core/Core.h>
 #include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/JsonUtils.h>
 #include <usd_optimize/core/Utils.h>
 
 // OmniMeshOps
 #include <OmniMeshOps/Normals.h>
-#include <OmniMeshOps/usd/Attribute.h>
-#include <OmniMeshOps/usd/Mesh.h>
+#include <OmniMeshOps/UsdIO.h>
 
 // Carbonite
 #include <carb/profiler/Profile.h>
@@ -40,7 +40,7 @@ namespace usd_optimize
 constexpr const char* s_categoryGenerateNormals = "NORMALS";
 
 GenerateNormalsOperation::GenerateNormalsOperation()
-    : OmniOperation("generateNormals", "Generate Normals", "This operation generates normals for meshes.")
+    : OmniOperation("generateNormals", "Generate Normals", "Generate normals for meshes.")
     , m_existingNormals(ExistingNormals::eFix)
     , m_sharpnessAngle(60.0f)
     , m_binding(Binding::eAuto)
@@ -114,7 +114,7 @@ bool GenerateNormalsOperation::getSupportsAnalysis() const
 
 ProcessedData* GenerateNormalsOperation::processMesh(const UsdPrim& prim, tbb::task_group_context&)
 {
-    using namespace omo::usd;
+    using namespace omo;
 
     ProcessedData* result = nullptr;
     UsdGeomMesh usd_mesh(prim);
@@ -142,7 +142,7 @@ ProcessedData* GenerateNormalsOperation::processMesh(const UsdPrim& prim, tbb::t
         {
             try
             {
-                HostMeshData mesh_data(usd_mesh);
+                auto mesh_data = importMeshData(usd_mesh);
                 auto normals_attr = mesh_data.getAttribute(normals_attr_name);
                 double tolerance = 1e-4;
                 if (auto [res, message] =
@@ -151,6 +151,7 @@ ProcessedData* GenerateNormalsOperation::processMesh(const UsdPrim& prim, tbb::t
                 {
                     USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
                     ++m_report.totalNonUnitLengthStrict;
+                    m_report.nonUnitLengthStrictPaths.push_back(prim);
                 }
             }
             catch (const std::exception&)
@@ -162,7 +163,7 @@ ProcessedData* GenerateNormalsOperation::processMesh(const UsdPrim& prim, tbb::t
             return new ProcessedHostMeshData{ {}, prim, false /* don't write */ };
         }
 
-        HostMesh host_mesh(usd_mesh);
+        auto host_mesh = importMesh(usd_mesh);
 
         bool useGpu =
             ((m_binding == Binding::eAuto || m_binding == Binding::ePerCorner ?
@@ -314,6 +315,9 @@ OperationResult GenerateNormalsOperation::recordAnalysis()
     // Construct analysis result
     JsObject analysis_result;
     analysis_result["totalNonUnitLengthStrict"] = JsValue(m_report.totalNonUnitLengthStrict);
+    // Per-prim paths backing the count (verbose reporting). Additive key so
+    // existing consumers of the count are unaffected.
+    analysis_result["nonUnitLengthStrictPaths"] = _toJson(m_report.nonUnitLengthStrictPaths);
 
     JsObject resultJson;
     resultJson["analysis"] = analysis_result;

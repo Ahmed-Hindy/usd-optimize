@@ -25,6 +25,9 @@ public:
     /// Constructor
     FindOccludedMeshesOperation();
 
+    /// Get the long-form documentation for this plugin
+    std::string getDocumentation() const override;
+
     /// Get the author of this plugin
     std::string getAuthor() const override;
 

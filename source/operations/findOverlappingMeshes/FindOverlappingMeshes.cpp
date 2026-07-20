@@ -57,6 +57,10 @@ void FindOverlappingMeshes::shutdown()
     // later, during static destruction, possibly after the driver has torn
     // down) has nothing CUDA-touching left to do.
     m_clashDetector.reset();
+    // Allow re-registration if the operation is reused after this shutdown
+    // (e.g. processStage() recreates the ClashDetector before static
+    // destruction); otherwise the new detector would have no cleanup callback.
+    m_shutdownCallbackRegistered = false;
 }
 
 FindOverlappingMeshes::~FindOverlappingMeshes()
@@ -101,6 +105,20 @@ size_t FindOverlappingMeshes::processStage(const ClashDetectorParameters& parame
         if (!m_clashDetector)
         {
             m_clashDetector = std::make_unique<MeshTools::ClashDetector>();
+
+            // Now that CUDA buffers exist, arrange for them to be released at
+            // process shutdown while the CUDA driver is still alive. Done here,
+            // on first real use, rather than in the operation constructor: the
+            // constructor runs at plugin registration (e.g. during stub
+            // generation / module import), and registering there would lock the
+            // core's shutdown-callback mutex across the plugin/core DLL boundary
+            // before anything needs cleaning up.
+            if (!m_shutdownCallbackRegistered)
+            {
+                UsdOptimizeCore::getInstance().registerShutdownCallback([]()
+                                                                        { FindOverlappingMeshes::get().shutdown(); });
+                m_shutdownCallbackRegistered = true;
+            }
         }
         m_clashDetector->detectClashes(m_clashDetectorParameters, m_meshDescriptors.data(), int(m_meshDescriptors.size()));
 

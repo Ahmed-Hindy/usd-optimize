@@ -19,10 +19,19 @@ from unittest import TestCase
 from unittest.mock import MagicMock
 
 from pxr import Usd
-from usd_optimize.validators import OccludedMeshesChecker, SmallMeshChecker
+from usd_optimize.validators import (
+    EmptyLeafChecker,
+    NonManifoldChecker,
+    NormalsChecker,
+    OccludedMeshesChecker,
+    PrimitiveFitChecker,
+    SmallMeshChecker,
+    set_verbose,
+)
 from usd_optimize.validators.base_usd_optimize_checker import (
     BaseUsdOptimizeChecker,
     Parameter,
+    _AssetValidatorParameter,
     _parameter_type,
 )
 from usd_validation_nvidia import ParameterMapping, ParameterType, ValidationEngine
@@ -85,11 +94,16 @@ class TestParameterDefinitions(TestCase):
         self.assertEqual(defs["MY_THRESHOLD"].type, ParameterType.FLOAT)
         self.assertEqual(defs["ENABLED"].type, ParameterType.BOOL)
 
-    def test_rule_without_parameters_advertises_nothing(self):
+    def test_rule_without_parameters_advertises_only_verbose(self):
         class _NoParamsRule(BaseUsdOptimizeChecker):
             OPERATION_NAME = "noParams"
 
-        self.assertEqual(_NoParamsRule.get_parameter_definitions(), [])
+        # The global VERBOSE toggle is always advertised, even for rules that
+        # declare no PARAMETERS of their own.
+        defs = {d.display_name: d for d in _NoParamsRule.get_parameter_definitions()}
+        self.assertEqual(set(defs), {"VERBOSE", "_NoParamsRule.VERBOSE"})
+        self.assertEqual(defs["VERBOSE"].type, ParameterType.BOOL)
+        self.assertEqual(defs["VERBOSE"].assigned_value, False)
 
 
 class TestEffectiveArgs(TestCase):
@@ -173,7 +187,7 @@ class TestRealCheckerIntegration(TestCase):
         defs = {d.display_name: d for d in SmallMeshChecker.get_parameter_definitions()}
         self.assertIn("SIZE_THRESHOLD", defs)
         self.assertIn("SmallMeshChecker.SIZE_THRESHOLD", defs)
-        self.assertEqual(defs["SIZE_THRESHOLD"].assigned_value, 0.001)
+        self.assertAlmostEqual(defs["SIZE_THRESHOLD"].assigned_value, 0.001)
         self.assertEqual(defs["SIZE_THRESHOLD"].type, ParameterType.FLOAT)
 
     def test_small_mesh_checker_threshold_flows_to_op_arg(self):
@@ -214,7 +228,7 @@ class TestRealCheckerIntegration(TestCase):
             with self.subTest(parameter=name):
                 self.assertIn(name, defs)
                 self.assertIn(f"OccludedMeshesChecker.{name}", defs)
-                self.assertEqual(defs[name].assigned_value, expected_default)
+                self.assertAlmostEqual(defs[name].assigned_value, expected_default)
                 self.assertEqual(defs[name].type, expected_type)
 
     def test_occluded_meshes_checker_overrides_flow_to_op_args(self):
@@ -233,3 +247,173 @@ class TestRealCheckerIntegration(TestCase):
         self.assertEqual(args["clustered"], True)  # untouched default
         self.assertEqual(args["minimumGapSize"], 0.5)
         self.assertEqual(args["maximumGridResolution"], 1000.0)
+
+
+def _per_prim_messages(mock_add_warning, summary_substrings):
+    """Return messages emitted that are not one of the aggregate summaries.
+
+    ``summary_substrings`` lists fragments that identify the rule's aggregate
+    summary issue(s); everything else is a verbose per-prim row.
+    """
+    out = []
+    for call in mock_add_warning.call_args_list:
+        message = call.kwargs.get("message", "")
+        if any(sub in message for sub in summary_substrings):
+            continue
+        out.append(message)
+    return out
+
+
+class TestVerboseReporting(TestCase):
+    """Validate the optional verbose per-prim emission plumbing.
+
+    Uses synthetic analysis payloads (with the additive ``*Paths`` keys) and a
+    mocked ``_AddWarning`` so the tests don't depend on real assets or the exact
+    prim paths inside them; the C++ path collection is covered separately.
+    """
+
+    def tearDown(self):
+        # Never leak the global toggle into other tests.
+        set_verbose(False)
+
+    def _run_check(self, rule, analysis_data):
+        rule._AddWarning = MagicMock()
+        rule._AddInfo = MagicMock()
+        rule.suggested_operations = []
+        stage = Usd.Stage.CreateInMemory()
+        rule._CheckStage(stage, analysis_data)
+        return rule._AddWarning
+
+    def test_verbose_param_advertised_as_bool(self):
+        defs = {d.display_name: d for d in NonManifoldChecker.get_parameter_definitions()}
+        self.assertIn("VERBOSE", defs)
+        self.assertIn("NonManifoldChecker.VERBOSE", defs)
+        self.assertEqual(defs["VERBOSE"].type, ParameterType.BOOL)
+
+    def test_disabled_by_default_emits_only_summary(self):
+        rule = NonManifoldChecker()
+        add_warning = self._run_check(
+            rule,
+            {"meshesThatAreNonManifolds": 2, "meshesThatAreNonManifoldsPaths": ["/A", "/B"]},
+        )
+        per_prim = _per_prim_messages(add_warning, ["nonManifold mesh"])
+        self.assertEqual(per_prim, [])
+
+    def test_class_flag_enables_per_prim(self):
+        rule = NonManifoldChecker()
+        rule.VERBOSE = True
+        add_warning = self._run_check(
+            rule,
+            {"meshesThatAreNonManifolds": 2, "meshesThatAreNonManifoldsPaths": ["/A", "/B"]},
+        )
+        per_prim = _per_prim_messages(add_warning, ["nonManifold mesh"])
+        self.assertEqual(per_prim, ["NonManifold mesh found", "NonManifold mesh found"])
+
+    def test_engine_parameter_enables_per_prim(self):
+        # No class-level flag set; the engine parameter alone drives verbosity.
+        rule = NonManifoldChecker(parameters=_make_mapping({"VERBOSE": True}))
+        add_warning = self._run_check(
+            rule,
+            {"meshesThatAreNonManifolds": 1, "meshesThatAreNonManifoldsPaths": ["/A"]},
+        )
+        per_prim = _per_prim_messages(add_warning, ["nonManifold mesh"])
+        self.assertEqual(per_prim, ["NonManifold mesh found"])
+
+    def test_qualified_engine_parameter_enables_per_prim(self):
+        rule = NonManifoldChecker(parameters=_make_mapping({"NonManifoldChecker.VERBOSE": True}))
+        add_warning = self._run_check(
+            rule,
+            {"meshesThatAreNonManifolds": 1, "meshesThatAreNonManifoldsPaths": ["/A"]},
+        )
+        self.assertEqual(_per_prim_messages(add_warning, ["nonManifold mesh"]), ["NonManifold mesh found"])
+
+    def test_qualified_parameter_overrides_unqualified(self):
+        # Global VERBOSE=False but per-rule override True: qualified form wins,
+        # matching _effective_args precedence.
+        rule = NonManifoldChecker(parameters=_make_mapping({"VERBOSE": False, "NonManifoldChecker.VERBOSE": True}))
+        add_warning = self._run_check(
+            rule,
+            {"meshesThatAreNonManifolds": 1, "meshesThatAreNonManifoldsPaths": ["/A"]},
+        )
+        self.assertEqual(_per_prim_messages(add_warning, ["nonManifold mesh"]), ["NonManifold mesh found"])
+
+    def test_qualified_parameter_can_disable_when_global_enabled(self):
+        # The reverse: global VERBOSE=True, per-rule override False -> off.
+        rule = NonManifoldChecker(parameters=_make_mapping({"VERBOSE": True, "NonManifoldChecker.VERBOSE": False}))
+        add_warning = self._run_check(
+            rule,
+            {"meshesThatAreNonManifolds": 1, "meshesThatAreNonManifoldsPaths": ["/A"]},
+        )
+        self.assertEqual(_per_prim_messages(add_warning, ["nonManifold mesh"]), [])
+
+    def test_occluded_meshes_verbose_lists_each_prim(self):
+        rule = OccludedMeshesChecker()
+        rule.VERBOSE = True
+        add_warning = self._run_check(rule, {"occludedMeshes": ["/A", "/B", "/C"]})
+        per_prim = _per_prim_messages(add_warning, ["occluded mesh"])
+        self.assertEqual(per_prim, ["Occluded mesh found"] * 3)
+
+    def test_empty_leaf_verbose_lists_each_prim(self):
+        rule = EmptyLeafChecker()
+        rule.VERBOSE = True
+        add_warning = self._run_check(rule, ["/A", "/B"])
+        per_prim = _per_prim_messages(add_warning, ["empty leaf"])
+        self.assertEqual(per_prim, ["Empty leaf primitive found"] * 2)
+
+    def test_normals_verbose_lists_each_prim(self):
+        rule = NormalsChecker()
+        rule.VERBOSE = True
+        add_warning = self._run_check(
+            rule,
+            {"totalNonUnitLengthStrict": 2, "nonUnitLengthStrictPaths": ["/A", "/B"]},
+        )
+        per_prim = _per_prim_messages(add_warning, ["meshes with normals", "mesh with normals"])
+        self.assertEqual(per_prim, ["Mesh with normals that are not of length 1 found"] * 2)
+
+    def test_primitive_fit_verbose_lists_each_prim(self):
+        rule = PrimitiveFitChecker()
+        rule.VERBOSE = True
+        analysis_data = {
+            "totalMeshCount": 2,
+            "composedCount": 0,
+            "totalFaceCount": 20,
+            "totalVertexCount": 16,
+            "primitives": {
+                "sphere": {
+                    "meshCount": 2,
+                    "faceCount": 20,
+                    "vertexCount": 16,
+                    "nonconstPrimvarMeshCount": 0,
+                    "nonconstPrimvarFaceCount": 0,
+                    "nonconstPrimvarVertexCount": 0,
+                    "meshPaths": ["/A", "/B"],
+                    "nonconstPrimvarMeshPaths": [],
+                },
+            },
+        }
+        add_warning = self._run_check(rule, analysis_data)
+        per_prim = _per_prim_messages(add_warning, ["Found "])
+        self.assertEqual(per_prim, ["Mesh can be replaced by a sphere GPrim"] * 2)
+
+    def test_set_verbose_toggles_class_flag(self):
+        # Establish a known baseline so the test is independent of any ambient
+        # env-driven (USD_OPTIMIZE_VALIDATOR_VERBOSE) or leaked process state.
+        set_verbose(False)
+        self.assertFalse(BaseUsdOptimizeChecker.VERBOSE)
+        set_verbose(True)
+        self.assertTrue(BaseUsdOptimizeChecker.VERBOSE)
+        set_verbose(False)
+        self.assertFalse(BaseUsdOptimizeChecker.VERBOSE)
+
+    def test_injected_default_param_does_not_mask_class_flag(self):
+        # Simulate the engine injecting the advertised VERBOSE default spec
+        # (an _AssetValidatorParameter) into the mapping. It must NOT be treated
+        # as a user override, so a runtime set_verbose()/class flag still wins.
+        mapping = ParameterMapping([_AssetValidatorParameter("VERBOSE", ParameterType.BOOL, False)])
+        rule = NonManifoldChecker(parameters=mapping)
+        rule.VERBOSE = True
+        add_warning = self._run_check(
+            rule,
+            {"meshesThatAreNonManifolds": 1, "meshesThatAreNonManifoldsPaths": ["/A"]},
+        )
+        self.assertEqual(_per_prim_messages(add_warning, ["nonManifold mesh"]), ["NonManifold mesh found"])

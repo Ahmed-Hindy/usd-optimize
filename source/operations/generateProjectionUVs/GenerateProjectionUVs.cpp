@@ -8,6 +8,7 @@
 #include <usd_optimize/core/Core.h>
 #include <usd_optimize/core/ResolveSdfPaths.h>
 #include <usd_optimize/core/Utils.h>
+#include <usd_optimize/core/geometry/MeshValidation.h>
 
 // USD
 #include <pxr/base/gf/transform.h>
@@ -57,7 +58,9 @@ struct SdfPathHashFunctor
 
 
 GenerateProjectionUVsOperation::GenerateProjectionUVsOperation()
-    : Operation("generateProjectionUVs", "Generate Projection UVs", "Generate Projection UVs")
+    : Operation("generateProjectionUVs",
+                "Generate Projection UVs",
+                "Generate *texture coordinates* for meshes using various projection methods.")
 {
 
     addArgument("paths",
@@ -340,6 +343,18 @@ static void _generateProjectionUVs(const std::vector<UsdPrim>& prims,
                     !mesh.GetFaceVertexIndicesAttr().Get(&face_vertex_indices))
                 {
                     continue; // LCOV_EXCL_LINE
+                }
+
+                // Malformed topology (out-of-range indices, count/index mismatch, non-finite points)
+                // would drive out-of-bounds reads when indexing points/face-vertices below. Skip such
+                // meshes instead of crashing; they are left without generated UVs.
+                std::string invalidReason;
+                if (!validateMeshTopology(points, face_vertex_counts, face_vertex_indices, &invalidReason))
+                {
+                    USD_OPTIMIZE_LOG_WARN("Skipping mesh '%s' with invalid topology: %s",
+                                          prim.GetPath().GetAsString().c_str(),
+                                          invalidReason.c_str());
+                    continue;
                 }
 
                 // Compute the scale vector of the local to world transform matrix. We multiply local positions by these

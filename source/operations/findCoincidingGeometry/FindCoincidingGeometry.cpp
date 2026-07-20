@@ -43,7 +43,7 @@ constexpr const char* s_categoryCoinciding = "COINCIDING";
 FindCoincidingGeometryOperation::FindCoincidingGeometryOperation()
     : Operation("findCoincidingGeometry",
                 "Find Coincident Geometry",
-                "Find geometry that occupies the same positional space in a scene.")
+                "Identify geometry that share the same location based on a tolerance metric.")
 {
 
     addArgument("primPaths", "Prims To Consider", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_paths)

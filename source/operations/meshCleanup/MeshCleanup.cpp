@@ -4,12 +4,13 @@
 #include "MeshCleanup.h"
 
 // OmniMeshOps
-#include <OmniMeshOps/Coorient.h>
-#include <OmniMeshOps/Manifold.h>
+#include <OmniMeshOps/Cleanup.h>
+#include <OmniMeshOps/Normals.h>
 #include <OmniMeshOps/Reverse.h>
-#include <OmniMeshOps/ValidateMeshData.h>
-#include <OmniMeshOps/usd/Mesh.h>
-#include <OmniMeshOps/usd/MeshData.h>
+#include <OmniMeshOps/UsdIO.h>
+
+// USD
+#include <pxr/base/gf/range3f.h>
 
 // Usd Optimize Core
 #include <usd_optimize/core/Core.h>
@@ -31,11 +32,7 @@ namespace usd_optimize
 constexpr const char* s_categoryMeshCleanup = "MESHCLEANUP";
 
 MeshCleanupOperation::MeshCleanupOperation()
-    : OmniOperation("meshCleanup",
-                    "Mesh Cleanup",
-                    "This operation applies various cleanups to a mesh, e.g merge vertices that are closer to one "
-                    "another than a given tolerance, removing degenerate faces, making the resulting mesh be manifold "
-                    "and/or removing any isolated vertices.")
+    : OmniOperation("meshCleanup", "Mesh Cleanup", "Applies various cleanups to meshes.")
     , m_mergeVertices(true)
     , m_tolerance(0)
     , m_makeManifold(false)
@@ -110,6 +107,61 @@ MeshCleanupOperation::MeshCleanupOperation()
 }
 
 
+std::string MeshCleanupOperation::getDocumentation() const
+{
+    return R"DOC(Applies various cleanups to a mesh: merge vertices that are closer to one another than a
+given tolerance, remove degenerate faces, make the result manifold, and/or remove isolated vertices. Each
+cleanup is an independent toggle, so a config can run just the passes it needs.
+
+How the flags interact
+----------------------
+
+The merge sub-flags (``mergeBoundaries``, ``mergeNeighbors``, ``contractDegenerateEdges``) only take
+effect when ``mergeVertices`` is enabled; they refine *which* coincident vertices are merged. The
+cleanups run in a fixed order (merge, then degenerate/duplicate face removal, then optional manifold and
+isolated-vertex passes), so enabling several at once is the normal case.
+
+When to enable coorientFaces and makeManifold
+---------------------------------------------
+
+``coorientFaces`` (default ``false``) reverses the winding of a minority of faces to enforce consistent
+orientation at shared edges; enable it when a mesh renders with flipped or black faces from inconsistent
+winding. ``makeManifold`` (default ``false``) forces a manifold result and is the heaviest pass; enable
+it only when a downstream consumer (a renderer, or a boolean/level-set operation) requires manifold
+input, since it can alter topology.
+
+Tolerance and units
+-------------------
+
+``tolerance`` is the maximum distance, in **stage units**, between two vertices for them to be merged. The
+default ``0`` merges only exactly coincident vertices. A non-zero tolerance depends on scene scale, so
+scale it with the stage's ``metersPerUnit`` (a value sensible in a centimetre scene is 100x too large in
+a metre scene).
+
+Recommended pipelines
+---------------------
+
+A common data-quality baseline is ``generateNormals`` -> ``meshCleanup`` -> ``computeExtents``. Run
+``meshCleanup`` before ``decimateMeshes`` so decimation operates on clean topology.
+
+Starting configurations
+-----------------------
+
+Standard cleanup (defaults):
+
+.. code-block:: json
+
+    [{"operation": "meshCleanup", "mergeVertices": true, "removeDegenerateFaces": true, "removeIsolatedVertices": true}]
+
+Full repair (manifold, consistent winding):
+
+.. code-block:: json
+
+    [{"operation": "meshCleanup", "mergeVertices": true, "removeDegenerateFaces": true, "coorientFaces": true, "makeManifold": true}]
+)DOC";
+}
+
+
 std::string MeshCleanupOperation::getAuthor() const
 {
     return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
@@ -140,62 +192,155 @@ bool MeshCleanupOperation::getSupportsAnalysis() const
 }
 
 
+namespace
+{
+
+// Whether the input mesh's normals attribute (if any) and face winding disagree on the manifold's orientation. Run
+// independently of the cleanup defect set; cleanup's coorient step only enforces *consistent* winding among
+// neighbouring faces and is free to pick either global sign.
+bool windingsDisagreeWithNormals(const omo::HostMeshData& mesh_data, const UsdGeomMesh& usd_mesh, std::string* message)
+{
+    auto normals_attr = mesh_data.getAttribute(omo::Role::Normal);
+    auto usd_orientation_attr = usd_mesh.GetOrientationAttr();
+    PXR_NS::TfToken usd_orientation = PXR_NS::UsdGeomTokens->rightHanded;
+    usd_orientation_attr.Get(&usd_orientation);
+    auto vr = omo::checkNormalsConsistentWithWinding(mesh_data,
+                                                     normals_attr,
+                                                     usd_orientation == PXR_NS::UsdGeomTokens->rightHanded ?
+                                                         omo::Orientation::RightHanded :
+                                                         omo::Orientation::LeftHanded);
+    if (!vr && message)
+    {
+        *message = vr.message;
+    }
+    return !vr;
+}
+
+
+// Whether every point of the mesh is coincident (the mesh collapses to a single point, i.e. a
+// zero-size bounding box). omo::checkClean() performs an out-of-bounds heap write on such fully
+// degenerate meshes; see processMesh().
+bool isZeroExtentMesh(const UsdGeomMesh& usd_mesh)
+{
+    PXR_NS::VtVec3fArray points;
+    if (!usd_mesh.GetPointsAttr().Get(&points) || points.empty())
+    {
+        return true;
+    }
+
+    // Zero-extent iff every point equals the first; bail on the first that differs. Exact equality
+    // is intentional -- only fully point-collapsed meshes trigger the OOB, so don't widen to epsilon.
+    const PXR_NS::GfVec3f& first = points[0];
+    for (const PXR_NS::GfVec3f& point : points)
+    {
+        if (point != first)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+
 ProcessedData* MeshCleanupOperation::processMesh(const UsdPrim& prim, tbb::task_group_context&)
 {
-    using namespace omo::usd;
+    using namespace omo;
     UsdGeomMesh usd_mesh(prim);
 
     try
     {
+        omo::CleanupOptions options{ omo::noDefects, m_tolerance };
+        if (m_mergeVertices)
+        {
+            if (m_mergeNeighbors)
+            {
+                options.fixes += omo::Defect::CoincidentNeighborVertices;
+            }
+            if (m_mergeBoundaries)
+            {
+                options.fixes += omo::Defect::CoincidentBoundaryVertices;
+            }
+        }
+        if (m_contractDegenerateEdges)
+        {
+            options.fixes += omo::Defect::DegenerateEdges;
+        }
+        if (m_removeDegenerateFaces)
+        {
+            options.fixes += omo::Defect::DegenerateFaces;
+        }
+        if (m_removeIsolatedVertices)
+        {
+            options.fixes += omo::Defect::IsolatedVertices;
+        }
+        if (m_removeDuplicateFaces)
+        {
+            options.fixes += omo::Defect::DuplicateFaces;
+        }
+        if (m_coorientFaces)
+        {
+            options.fixes += omo::Defect::InconsistentlyOrientedFaces;
+        }
+        if (m_makeManifold)
+        {
+            options.fixes += omo::Defect::Nonmanifold;
+        }
+
+        // omo::checkClean() (analysis mode) does an out-of-bounds heap write on zero-extent meshes;
+        // two or more surface it as an intermittent SIGSEGV. Cleanup handles them fine, so skip them
+        // only in analysis -- before importMeshData, to avoid importing a mesh we won't check.
+        if (getContext()->analysisMode && isZeroExtentMesh(usd_mesh))
+        {
+            USD_OPTIMIZE_LOG_VERBOSE("%s: skipping analysis of zero-extent (degenerate) mesh",
+                                     prim.GetPath().GetAsString().c_str());
+            return new ProcessedHostMeshData{ {}, prim, false /* don't write */ };
+        }
+
+        auto mesh_data = omo::importMeshData(usd_mesh, { omo::noDefects });
+
         if (getContext()->analysisMode)
         {
-            HostMeshData mesh_data(usd_mesh);
-            if (auto [res, message] = omo::checkManifold(mesh_data); !res)
+            auto vr = omo::checkClean(mesh_data, options);
+            if (!vr)
             {
-                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
-                m_report.meshesThatAreNonManifolds++;
-            }
-            if (auto [res, message] =
-                    omo::checkNoMergeableCoincidentVertices(mesh_data,
-                                                            m_tolerance,
-                                                            omo::meshdata::MergeNeighbors{ m_mergeNeighbors },
-                                                            omo::meshdata::MergeBoundaries{ m_mergeBoundaries });
-                !res)
-            {
-                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
-                m_report.meshesWithMergeableVertices++;
-            }
-            if (auto [res, message] = omo::checkNoDegenerateEdges(mesh_data); !res)
-            {
-                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
-                m_report.meshesWithDegenerateEdges++;
-            }
-            if (auto [res, message] = omo::checkNoDegenerateFaces(mesh_data); !res)
-            {
-                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
-                m_report.meshesWithDegenerateFaces++;
-            }
-            if (auto [res, message] = omo::checkNoIsolatedVertices(mesh_data); !res)
-            {
-                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
-                m_report.meshesWithIsolatedVertices++;
-            }
-            if (auto [res, message] = omo::checkNoDuplicateFaces(mesh_data); !res)
-            {
-                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
-                m_report.meshesWithDuplicateFaces++;
+                USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), vr.message.c_str());
             }
 
-            auto normals_attr = mesh_data.getAttribute(omo::Role::Normal);
-            auto usd_orientation_attr = usd_mesh.GetOrientationAttr();
-            PXR_NS::TfToken usd_orientation = PXR_NS::UsdGeomTokens->rightHanded;
-            usd_orientation_attr.Get(&usd_orientation);
-            if (auto [res, message] = omo::checkNormalsConsistentWithWinding(
-                    mesh_data,
-                    normals_attr,
-                    usd_orientation == PXR_NS::UsdGeomTokens->rightHanded ? omo::Orientation::RightHanded :
-                                                                            omo::Orientation::LeftHanded);
-                !res)
+            if (vr.presentDefects.contains(omo::Defect::Nonmanifold))
+            {
+                m_report.meshesThatAreNonManifolds++;
+                m_report.meshesThatAreNonManifoldsPaths.push_back(prim);
+            }
+            if (vr.presentDefects.intersects(omo::coincidentVertexDefects))
+            {
+                m_report.meshesWithMergeableVertices++;
+                m_report.meshesWithMergeableVerticesPaths.push_back(prim);
+            }
+            if (vr.presentDefects.contains(omo::Defect::DegenerateEdges))
+            {
+                m_report.meshesWithDegenerateEdges++;
+                m_report.meshesWithDegenerateEdgesPaths.push_back(prim);
+            }
+            if (vr.presentDefects.contains(omo::Defect::DegenerateFaces))
+            {
+                m_report.meshesWithDegenerateFaces++;
+                m_report.meshesWithDegenerateFacesPaths.push_back(prim);
+            }
+            if (vr.presentDefects.contains(omo::Defect::IsolatedVertices))
+            {
+                m_report.meshesWithIsolatedVertices++;
+                m_report.meshesWithIsolatedVerticesPaths.push_back(prim);
+            }
+            if (vr.presentDefects.contains(omo::Defect::DuplicateFaces))
+            {
+                m_report.meshesWithDuplicateFaces++;
+                m_report.meshesWithDuplicateFacesPaths.push_back(prim);
+            }
+
+            std::string message;
+            if (windingsDisagreeWithNormals(mesh_data, usd_mesh, &message))
             {
                 USD_OPTIMIZE_LOG_VERBOSE("%s: %s", prim.GetPath().GetAsString().c_str(), message.c_str());
                 m_report.meshesWithInconsistentWindings.push_back(prim);
@@ -204,69 +349,22 @@ ProcessedData* MeshCleanupOperation::processMesh(const UsdPrim& prim, tbb::task_
             return new ProcessedHostMeshData{ {}, prim, false /* don't write */ };
         }
 
-        omo::MeshConstructionOptions mesh_options{ omo::Defect::None };
+        mesh_data = omo::cleanup(mesh_data, options);
 
-        if (m_contractDegenerateEdges)
+        // Cleanup's coorient step only enforces winding consistency among neighbouring faces; the global sign is
+        // arbitrary. Match it to the input normals here so downstream consumers don't see the mesh flip.
+        if (m_coorientFaces && windingsDisagreeWithNormals(mesh_data, usd_mesh, nullptr))
         {
-            mesh_options.fixes |= omo::Defect::DegenerateEdges;
+            mesh_data = omo::reverse(mesh_data);
         }
 
-        if (m_removeDegenerateFaces)
-        {
-            mesh_options.fixes |= omo::Defect::DegenerateFaces;
-        }
-
-        if (m_mergeVertices)
-        {
-            mesh_options.fixes |= omo::Defect::CoincidentVertices;
-            mesh_options.mergeVerticesTolerance = m_tolerance;
-            mesh_options.mergeBoundaries = { m_mergeBoundaries };
-            mesh_options.mergeNeighbors = { m_mergeNeighbors };
-        }
-
-        if (m_removeIsolatedVertices)
-        {
-            mesh_options.fixes |= omo::Defect::IsolatedVertices;
-        }
-
-        if (m_removeDuplicateFaces)
-        {
-            mesh_options.fixes |= omo::Defect::DuplicateFaces;
-        }
-
-        HostMeshData mesh_data{ usd_mesh, mesh_options };
-        if (m_coorientFaces)
-        {
-            mesh_data = omo::coorient(mesh_data);
-
-            auto normals_attr = mesh_data.getAttribute(omo::Role::Normal);
-            auto usd_orientation_attr = usd_mesh.GetOrientationAttr();
-            PXR_NS::TfToken usd_orientation = PXR_NS::UsdGeomTokens->rightHanded;
-            usd_orientation_attr.Get(&usd_orientation);
-            if (auto [res, message] = omo::checkNormalsConsistentWithWinding(
-                    mesh_data,
-                    normals_attr,
-                    usd_orientation == PXR_NS::UsdGeomTokens->rightHanded ? omo::Orientation::RightHanded :
-                                                                            omo::Orientation::LeftHanded);
-                !res)
-            {
-                mesh_data = omo::reverse(mesh_data);
-            }
-        }
-
-        HostMesh mesh(mesh_data);
-        if (m_makeManifold)
-        {
-            mesh = manifold(mesh);
-        }
-
-        return new ProcessedHostMesh{ mesh, prim };
+        return new ProcessedHostMeshData{ mesh_data, prim };
     }
     catch (const std::exception& e)
     {
         std::string errorMsg = prim.GetPath().GetAsString() + ": " + std::string(e.what());
         USD_OPTIMIZE_LOG_ERROR(errorMsg.c_str());
-        return new ProcessedHostMesh{ {}, prim, false /* don't write, leave mesh unchanged */ };
+        return new ProcessedHostMeshData{ {}, prim, false /* don't write, leave mesh unchanged */ };
     }
 }
 
@@ -309,6 +407,16 @@ OperationResult MeshCleanupOperation::recordAnalysis()
     analysis_result["meshesWithIsolatedVertices"] = JsValue(m_report.meshesWithIsolatedVertices);
     analysis_result["meshesWithDuplicateFaces"] = JsValue(m_report.meshesWithDuplicateFaces);
     analysis_result["meshesWithInconsistentWindings"] = _toJson(m_report.meshesWithInconsistentWindings);
+
+    // Per-prim path lists backing the counts above (verbose reporting). Kept as
+    // additive keys alongside the integer counts so existing consumers are
+    // unaffected.
+    analysis_result["meshesThatAreNonManifoldsPaths"] = _toJson(m_report.meshesThatAreNonManifoldsPaths);
+    analysis_result["meshesWithMergeableVerticesPaths"] = _toJson(m_report.meshesWithMergeableVerticesPaths);
+    analysis_result["meshesWithDegenerateEdgesPaths"] = _toJson(m_report.meshesWithDegenerateEdgesPaths);
+    analysis_result["meshesWithDegenerateFacesPaths"] = _toJson(m_report.meshesWithDegenerateFacesPaths);
+    analysis_result["meshesWithIsolatedVerticesPaths"] = _toJson(m_report.meshesWithIsolatedVerticesPaths);
+    analysis_result["meshesWithDuplicateFacesPaths"] = _toJson(m_report.meshesWithDuplicateFacesPaths);
 
     JsObject resultJson;
     resultJson["analysis"] = analysis_result;

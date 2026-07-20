@@ -38,7 +38,8 @@ class EmptyLeafChecker(BaseUsdOptimizeChecker):
         Process the Usd Optimize analysis of empty leaves and log warnings/suggestions.
         """
 
-        leaves: int = len(analysis_data)
+        leaf_paths: list = list(analysis_data)
+        leaves: int = len(leaf_paths)
         suffix: str = "" if leaves == 1 else "s"
         message: str = f"Stage contains {leaves} empty leaf primitive{suffix}"
 
@@ -49,3 +50,6 @@ class EmptyLeafChecker(BaseUsdOptimizeChecker):
                 message="Remove empty leaf primitives with Usd Optimize", callable=self._remove_leaves, at=None
             ),
         )
+
+        # In verbose mode, list each empty leaf prim individually.
+        self._AddVerbosePrimWarnings(usdStage, leaf_paths, "Empty leaf primitive found")

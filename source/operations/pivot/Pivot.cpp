@@ -412,10 +412,7 @@ constexpr const char* s_category = "PIVOT";
 
 
 PivotOperation::PivotOperation()
-    : Operation("pivot",
-                "Compute Pivot",
-                "Compute Pivot will place the parent transform at the center of the bounding box of the target "
-                "prim, think of this as creating a center pivot in other DCC tools.")
+    : Operation("pivot", "Compute Pivot", "Center mesh at centroid in canonical orientation.")
 {
 
     addArgument("meshPrimPaths",
@@ -436,6 +433,18 @@ PivotOperation::PivotOperation()
 
     addArgument("method", "Method", kDisplayTypeEnum, "Method of determining the new pivot", m_method)
         .setEnumValues<Method>({ { Method::eWeighted, "Weighted" }, { Method::eCenter, "Bounding Box Center" } });
+}
+
+
+std::string PivotOperation::getDocumentation() const
+{
+    return "Compute Pivot will place the parent transform at the center of the "
+           "bounding box of the target mesh, think of this as creating a "
+           "center pivot in other DCC tools.\nThis makes it easier to interact "
+           "with objects in the scene because the transform manipulator is "
+           "centered on the object.\n\nSome tools generate scenes where the "
+           "transform is at the origin, meaning it is far from the actual "
+           "vertices, making it hard to move a mesh precisely.";
 }
 
 

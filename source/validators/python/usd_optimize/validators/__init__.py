@@ -4,6 +4,7 @@
 
 from usd_validation_nvidia import CategoryRuleRegistry, register_rule
 
+from .base_usd_optimize_checker import set_verbose
 from .coinciding_geometry_checker import CoincidingGeometryChecker
 from .colocated_vertices_checker import ColocatedVerticesChecker
 from .duplicate_face_checker import DuplicateFaceChecker
@@ -116,4 +117,5 @@ __all__ = [
     "UsdOptimizeValidatorPlugin",
     "register_all",
     "unregister_all",
+    "set_verbose",
 ]

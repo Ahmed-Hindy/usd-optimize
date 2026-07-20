@@ -19,6 +19,21 @@ class DuplicateFaceChecker(BaseUsdOptimizeChecker):
 
     OPERATION_NAME: str = "meshCleanup"
 
+    # Analysis must request only the duplicate-face fix: the gated checkClean reports a defect only if its fix is
+    # enabled, and isolating it stops sibling fixes (e.g. degenerate-face removal) from masking the duplicates before
+    # the duplicate check runs. Mirrors _mesh_fix_duplicate_faces.
+    OPERATION_ARGS = {
+        "mergeVertices": False,
+        "tolerance": 0.0,
+        "contractDegenerateEdges": False,
+        "removeDegenerateFaces": False,
+        "makeManifold": False,
+        "removeIsolatedVertices": False,
+        "mergeBoundaries": False,
+        "mergeNeighbors": False,
+        "removeDuplicateFaces": True,
+    }
+
     @classmethod
     def _mesh_fix_duplicate_faces(cls, usdStage: Usd.Stage, prim: Usd.Prim) -> None:
         """
@@ -65,4 +80,11 @@ class DuplicateFaceChecker(BaseUsdOptimizeChecker):
                     message="Fix duplicate faces using Usd Optimize",
                     callable=partial(self._mesh_fix_duplicate_faces),
                 ),
+            )
+
+            # In verbose mode, list each mesh with duplicate faces individually.
+            self._AddVerbosePrimWarnings(
+                usdStage,
+                analysis_data.get("meshesWithDuplicateFacesPaths", []),
+                "Mesh with duplicate faces found",
             )

@@ -221,7 +221,9 @@ static bool computeUVs(const UsdGeomMesh& mesh,
 }
 
 AtlasUVsOperation::AtlasUVsOperation()
-    : Operation("generateAtlasUVs", "Auto UV Unwrap", "Generates texture(UV) coordinates using AutoUV unwrap")
+    : Operation("generateAtlasUVs",
+                "Auto UV Unwrap",
+                "Generate *texture coordinates* for meshes using unwrap methods with low distortion.")
     , m_distortionThreshold(3.0)
     , m_enableAtlasPacking(true)
     , m_useWorldSpaceScales(true)
@@ -273,6 +275,54 @@ AtlasUVsOperation::AtlasUVsOperation()
                 kDisplayTypeBool,
                 "Overwrite existing UVs on the meshes selected for processing",
                 m_overwriteExisting);
+}
+
+
+std::string AtlasUVsOperation::getDocumentation() const
+{
+    return R"DOC(This operation generates texture (UV) coordinates for mesh prims with lower distortion
+than projection-based methods, writing them as the face-varying ``st`` primvar. It segments each mesh
+into patches, flattens them to 2D, and packs the patches into a single atlas.
+
+Tuning
+------
+
+``distortionThreshold`` (default ``3``) is the primary dial: it bounds how much stretch a patch may have
+before it is cut. Lower values produce more, smaller patches (more seams, less distortion); higher values
+produce fewer patches (fewer seams, more distortion). The value is clamped to a minimum of ``1.05``.
+
+``enableAtlasPacking`` (default ``true``) packs all patches into one atlas; disable it to leave patches
+unpacked. ``overwriteExisting`` (default ``true``) regenerates UVs even where an ``st`` primvar already
+exists; set it ``false`` to preserve authored UVs.
+
+World-space scaling
+-------------------
+
+When ``useWorldSpaceScales`` is ``true`` (default), texel density is derived from world-space size using
+``scaleFactor`` and ``scaleUnits`` so UV scale is consistent across meshes of different sizes. These
+scale inputs are in stage units and should track ``metersPerUnit``.
+
+Notes
+-----
+
+UVs are written as face-varying ``st``. Meshes with time-varying topology, instance proxies, or
+unauthored topology are skipped. An empty ``paths`` processes all meshes.
+
+Starting configurations
+-----------------------
+
+Default unwrap:
+
+.. code-block:: json
+
+    [{"operation": "generateAtlasUVs", "distortionThreshold": 3.0}]
+
+Low-distortion (more seams):
+
+.. code-block:: json
+
+    [{"operation": "generateAtlasUVs", "distortionThreshold": 1.5}]
+)DOC";
 }
 
 

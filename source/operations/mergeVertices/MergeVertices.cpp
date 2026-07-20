@@ -5,7 +5,7 @@
 
 // OmniMeshOps
 #include <OmniMeshOps/Manifold.h>
-#include <OmniMeshOps/usd/Mesh.h>
+#include <OmniMeshOps/UsdIO.h>
 
 // Usd Optimize Core
 #include <usd_optimize/core/Core.h>
@@ -96,25 +96,27 @@ bool MergeVerticesOperation::getVisible() const
 ProcessedData* MergeVerticesOperation::processMesh(const UsdPrim& prim, tbb::task_group_context&)
 {
 
-    using namespace omo::usd;
+    using namespace omo;
 
     UsdGeomMesh usdMesh(prim);
-    omo::MeshConstructionOptions meshOptions{ omo::Defect::DegenerateEdges | omo::Defect::DegenerateFaces };
+    omo::CleanupOptions meshOptions{ omo::EnumSet{ omo::Defect::DegenerateEdges, omo::Defect::DegenerateFaces } };
 
     if (m_tolerance >= 0)
     {
-        meshOptions.fixes |= omo::Defect::CoincidentVertices;
-        meshOptions.mergeVerticesTolerance = m_tolerance;
-        meshOptions.mergeBoundaries = { m_mergeBoundaries };
-        meshOptions.mergeNeighbors = { true };
+        meshOptions.fixes += omo::Defect::CoincidentNeighborVertices;
+        if (m_mergeBoundaries)
+        {
+            meshOptions.fixes += omo::Defect::CoincidentBoundaryVertices;
+        }
+        meshOptions.vertexMergeTolerance = m_tolerance;
     }
 
     if (m_removeIsolatedVertices)
     {
-        meshOptions.fixes |= omo::Defect::IsolatedVertices;
+        meshOptions.fixes += omo::Defect::IsolatedVertices;
     }
 
-    HostMesh mesh(usdMesh, meshOptions);
+    auto mesh = importMesh(usdMesh, meshOptions);
     if (m_makeManifold)
     {
         mesh = manifold(mesh);

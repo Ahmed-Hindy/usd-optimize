@@ -9,7 +9,7 @@ from pxr import Usd
 from usd_optimize.core import analysis
 from usd_validation_nvidia import Suggestion, capabilities, register_requirements
 
-from .base_usd_optimize_checker import BaseUsdOptimizeChecker, Parameter
+from .base_usd_optimize_checker import BaseUsdOptimizeChecker, Parameter, ParameterFromOpArg
 
 # Usd Optimize Constants
 MODE_HIDE = 3
@@ -19,22 +19,15 @@ MODE_HIDE = 3
 class OccludedMeshesChecker(BaseUsdOptimizeChecker):
     """
     Uses Usd Optimize to analyze a scene checking for occluded meshes.
-
-    Parameters:
-        USE_GPU: Enable GPU-accelerated occlusion detection. Default: False.
-        CHECK_TRANSPARENCY: Consider material transparency when detecting occlusion. Default: True.
-        CLUSTERED: Split the stage into clusters of meshes with overlapping bounding boxes and check visibility per cluster, improving both accuracy and performance by reducing the number of meshes compared at the same time. Default: True.
-        MINIMUM_GAP_SIZE: The minimum gap size for the background grid spacing. Gaps smaller than this are considered closed. Default: 0.01.
-        MAXIMUM_GRID_RESOLUTION: The maximum number of cells along the longest axis of the visibility grid. Default: 500.0.
     """
 
     OPERATION_NAME: str = "findOccludedMeshes"
     PARAMETERS: ClassVar[Mapping[str, Parameter]] = {
-        "USE_GPU": Parameter(default=False, op_arg="useGpu"),
-        "CHECK_TRANSPARENCY": Parameter(default=True, op_arg="checkTransparency"),
-        "CLUSTERED": Parameter(default=True, op_arg="clustered"),
-        "MINIMUM_GAP_SIZE": Parameter(default=0.01, op_arg="minimumGapSize"),
-        "MAXIMUM_GRID_RESOLUTION": Parameter(default=500.0, op_arg="maximumGridResolution"),
+        "USE_GPU": ParameterFromOpArg("useGpu", default=False),
+        "CHECK_TRANSPARENCY": ParameterFromOpArg("checkTransparency", default=True),
+        "CLUSTERED": ParameterFromOpArg("clustered"),
+        "MINIMUM_GAP_SIZE": ParameterFromOpArg("minimumGapSize"),
+        "MAXIMUM_GRID_RESOLUTION": ParameterFromOpArg("maximumGridResolution"),
     }
 
     @classmethod
@@ -105,3 +98,6 @@ class OccludedMeshesChecker(BaseUsdOptimizeChecker):
                     ),
                 ),
             )
+
+            # In verbose mode, list each occluded mesh individually.
+            self._AddVerbosePrimWarnings(usdStage, occluded_mesh_paths, "Occluded mesh found")

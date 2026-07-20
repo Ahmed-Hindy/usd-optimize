@@ -23,14 +23,14 @@ output is a buildable, testable plugin with all the wiring in place.
 - **Step 2** — create the premake file.
 - **Step 3** — create the Python test file.
 - **Step 4** — create the operation guide.
-- **Step 5** — update the operation index.
+- **Step 5** — regenerate the docs (auto-generated; no index to edit).
 - **Step 6** — (optional) create a validator wrapper.
 - **Step 7** — build and verify.
 - **Naming conventions** — key, class name, file names.
 
 Companion docs: `PLUGINS.md` (full plugin authoring reference),
-`.agents/operations/_template.md` (guide template),
-`.agents/skills/validators/SKILL.md` (validator authoring recipe).
+`docs/cli.rst` (how the operation is run once built),
+`.agents/skills/new-validator/SKILL.md` (validator authoring recipe).
 
 ---
 
@@ -64,7 +64,7 @@ derive the key, display name, and description before proceeding.
 | Source directory | `source/operations/<key>/` | `source/operations/removeOverlaps/` |
 | C++ file | `<FileBase>.cpp` | `RemoveOverlaps.cpp` |
 | Test file | `test_operation_<snake_case>.py` | `test_operation_remove_overlaps.py` |
-| Operation guide | `.agents/operations/<key>.md` | `.agents/operations/removeOverlaps.md` |
+| Operation docs | `getDocumentation()` in `<FileBase>.cpp` → generated `docs/operations/<key>.rst` | `docs/operations/removeOverlaps.rst` |
 | Report category (`<CATEGORY>`) | `UPPER_SNAKE_CASE` short identifier | `REMOVE_OVERLAPS` |
 | Validator class | `UsdOptimize` + `PascalCase` + `Checker` | `UsdOptimizeRemoveOverlapsChecker` |
 
@@ -99,6 +99,13 @@ public:
         // Example:
         // addArgument("threshold", "Threshold", kDisplayTypeFloat,
         //             "Distance threshold in stage units", m_threshold);
+    }
+
+    std::string getDocumentation() const override
+    {
+        return R"DOC(
+Full documentation of what the operation does and when to use it.
+)DOC";
     }
 
     std::string getAuthor() const override
@@ -230,55 +237,60 @@ the operation.
 For operations that need fixture files, place them in
 `source/tests/data` and load with `self._open_stage("fixture.usda")`.
 
-## Step 4 — Create the operation guide
+## Step 4 — Document the operation
 
-Copy `.agents/operations/_template.md` to `.agents/operations/<key>.md`
-and fill in the header:
+Operation docs are **generated from the C++**, so there is no separate Markdown
+guide to maintain. The per-argument table in `docs/operations/<key>.rst` is
+produced automatically from your `addArgument()` declarations (name, type,
+default, description) — so write clear `description` strings there.
 
-```markdown
-# <Display Name>
+For the long-form overview and tuning guidance, override `getDocumentation()`
+to return reStructuredText. `docs_prebuild.py` inserts it between the title and
+the auto-generated "Arguments" section:
 
-**Key:** `<key>`
-**Source:** `source/operations/<key>/<FileBase>.cpp`
+```cpp
+std::string <ClassName>::getDocumentation() const
+{
+    return R"DOC(One-paragraph overview of what the operation does and when to use it.
+
+Tuning
+------
+
+How the key parameters interact, scale/units notes (state metersPerUnit
+conversions factually), important non-obvious defaults, and recommended pipelines.
+
+Starting configurations
+-----------------------
+
+.. code-block:: json
+
+    [{"operation": "<key>", "<arg>": <val>}]
+)DOC";
+}
 ```
 
-Fill in the Parameters table from the `addArgument()` calls. Leave the
-Overview, Tuning Order, Visual Diagnosis, Starting Configs, and Known
-Limitations sections with &lt;!-- TODO(developer) --&gt; markers (HTML
-comment, literal text `TODO(developer)` between the comment delimiters)
-if the operation logic isn't implemented yet.
+Use `-` underlines for section headers (same level as the auto-generated
+"Arguments" section). See an existing operation like `decimateMeshes` or
+`meshCleanup` for the established style. If the logic isn't implemented yet,
+return a short description and fill in tuning guidance later.
 
-Alternatively, use the `tune-parameters` skill's **Guide Authoring Mode**
-(`/tune-parameters create a guide for <key>`) to auto-generate the guide
-from the C++ source.
+## Step 5 — Regenerate the docs
 
-## Step 5 — Update the operation index
+The operation list (`docs/operations.rst` toctree + summary table) and each
+per-operation `docs/operations/<key>.rst` are all auto-generated — there is no
+index to hand-edit. Regenerate them after building:
 
-Add a row to `.agents/operations/INDEX.md` in the appropriate position
-(sorted by argument count descending):
-
-```markdown
-| <Display Name> | `<key>` | <arg_count> |
+```bash
+./repo.sh docs_gen --autogen_only
 ```
+
+Confirm `docs/operations/<key>.rst` now exists and contains your
+`getDocumentation()` text plus the argument table.
 
 ## Step 6 — (Optional) Create a validator wrapper
 
 If the operation supports analysis mode and a validator is requested,
-follow the recipe in `.agents/skills/validators/SKILL.md` §
-"Adding a new performance validator":
-
-1. Create `source/core/python/usd_optimize/validators/<snake_case>.py`
-   subclassing `UsdOptimizeRuleBase`.
-2. Set `OPERATION_NAME = "<key>"` and `DEFAULT_ARGS = {<default_args>}`.
-3. Override `_translate(stage, analysis)` to convert the analysis JSON
-   into `_AddWarning` / `_AddFailedCheck` calls.
-4. Set `REQUIRES_MESH = False` if the operation targets hierarchy /
-   materials / animation rather than meshes.
-5. Re-export from `validators/__init__.py`.
-6. Add it (with its category) to the `_RULE_CATEGORIES` tuple in
-   `validators/__init__.py`.
-7. Add a test in `source/tests/test.python/test_validators_<snake_case>.py`.
-8. Update `test_validators_smoke.py` `EXPECTED_RULES` tuple.
+follow the full recipe in `.agents/skills/new-validator/SKILL.md`.
 
 ## Step 7 — Build and verify
 
@@ -306,17 +318,17 @@ python3 -c "from usd_optimize.core import UsdOptimizeCore; print('<key>' in UsdO
 
 - `PLUGINS.md` — full plugin authoring guide (arguments, display types,
   enums, groups, analysis mode, registration).
-- `.agents/operations/_template.md` — operation guide template.
-- `.agents/operations/INVOCATION.md` — how to call operations from Python.
-- `.agents/skills/validators/SKILL.md` — validator infrastructure reference.
-- `.agents/skills/tune-parameters/SKILL.md` — guide authoring mode for
-  auto-generating the `.agents/operations/<key>.md` from C++ source.
+- `docs/operations/` — the generated per-operation references (your
+  `getDocumentation()` output lands here).
+- `docs/cli.rst` — how operations are run via the `usdOptimize` CLI.
+- `.agents/skills/run-validators/SKILL.md` — validator infrastructure, programmatic API, CLI gotchas.
+- `.agents/skills/new-validator/SKILL.md` — validator authoring recipe.
 
 ## Purpose
 
 Stand up a complete, buildable, testable operation plugin from
 scratch — the C++ source, premake build entry, Python binding test,
-operation guide, optional validator wrapper, and the index update.
+`getDocumentation()` docs, and an optional validator wrapper.
 The output compiles, registers, and runs after `./repo.sh build` even
 before any operation logic is implemented (the stub `executeImpl`
 returns success).
@@ -330,7 +342,7 @@ returns success).
   flag. The skill prompts for any missing inputs before generating
   files.
 - Write access to the source tree: `source/operations/`,
-  `source/tests/test.python/`, `.agents/operations/`.
+  `source/tests/test.python/`, and `docs/operations/` (regenerated).
 
 ## Limitations
 

@@ -38,7 +38,10 @@ constexpr const char* s_categoryFindOccludedMeshes = "FIND_OCCLUDED_MESHES";
 
 
 FindOccludedMeshesOperation::FindOccludedMeshesOperation()
-    : Operation("findOccludedMeshes", "Find Occluded Meshes", "This operation finds meshes that are occluded by others.")
+    : Operation(
+          "findOccludedMeshes",
+          "Find Occluded Meshes",
+          "Finds meshes that are globally occluded meaning they are occluded from any camera that does not cross meshes in the scene.")
 {
 
     addArgument("paths",
@@ -92,6 +95,53 @@ FindOccludedMeshesOperation::FindOccludedMeshesOperation()
     // Keep the argument hidden in case we need to override.
     addArgument("useGpu", "Use GPU", kDisplayTypeBool, "Choose whether to use GPU or CPU algorithm", m_useGpu)
         .setVisible(false);
+}
+
+
+std::string FindOccludedMeshesOperation::getDocumentation() const
+{
+    return R"DOC(Analyses a scene to find meshes that are globally occluded: meshes not visible from any
+camera that does not have to cross other geometry to see them (for example, geometry sealed inside a
+closed enclosure). It is an analysis operation that flags candidates to be deactivated, hidden, or
+deleted; the bias is conservative, so a mesh is only reported when it is confidently hidden.
+
+How it works
+------------
+
+The scene is rasterized into a voxel grid and visibility is flood-filled from the exterior. A mesh is
+considered occluded when no exterior path reaches it. The check runs on GPU when ``useGpu`` is enabled
+(falling back to CPU if CUDA is unavailable) and on CPU otherwise; the GPU path is generally faster on
+large scenes.
+
+Tuning
+------
+
+- ``maximumGridResolution`` caps the number of cells along the longest axis. Higher values detect smaller
+  openings but cost cubically more memory and time (500 suits a powerful GPU; use less for CPU).
+- ``minimumGapSize`` is the smallest opening, in **stage units**, treated as a gap. Effective grid
+  spacing is ``max(minimumGapSize, maxDim / maximumGridResolution)``. Smaller values produce a finer grid
+  that finds smaller openings and flags fewer meshes as occluded. It acts as a tolerance for how sealed
+  an enclosure must be (e.g. 3.5 means ignore any opening smaller than 3.5 stage units). Scale it with
+  ``metersPerUnit``.
+- ``clustered`` splits the stage into clusters of meshes with overlapping bounds and checks each cluster
+  separately, improving both accuracy and performance.
+- ``checkTransparency`` excludes meshes with opacity < 1.0 from occlusion testing.
+
+Starting configurations
+-----------------------
+
+Standard analysis (defaults):
+
+.. code-block:: json
+
+    [{"operation": "findOccludedMeshes", "clustered": true, "checkTransparency": true}]
+
+Conservative (finer grid, smaller gaps detected):
+
+.. code-block:: json
+
+    [{"operation": "findOccludedMeshes", "minimumGapSize": 0.01, "maximumGridResolution": 500}]
+)DOC";
 }
 
 
@@ -171,6 +221,32 @@ OperationResult FindOccludedMeshesOperation::executeImpl()
 
     auto stage = GetStage(getUsdStage(), primsToProcess, m_checkTransparency);
 
+    // Zero-extent meshes (all points coincident) form zero-size clusters whose grid resolution
+    // degenerates to 0, aborting the MeshTools CPU voxelizer with std::length_error.
+    // They can neither occlude nor be meaningfully occlusion-tested, so drop them up front.
+    std::vector<std::shared_ptr<Mesh>> keptMeshes;
+    for (const auto& mesh : stage->meshes())
+    {
+        const Vec3 dims = mesh->getAABB().getDimensions();
+        if (std::max({ dims.x, dims.y, dims.z }) > 0.0f)
+        {
+            keptMeshes.push_back(mesh);
+        }
+        else
+        {
+            USD_OPTIMIZE_LOG_WARN("Skipping zero-extent (degenerate) mesh '%s'", mesh->path().c_str());
+        }
+    }
+    if (keptMeshes.size() != stage->meshes().size())
+    {
+        auto filteredStage = std::make_shared<Stage>();
+        if (!keptMeshes.empty())
+        {
+            filteredStage->init(keptMeshes);
+        }
+        stage = filteredStage;
+    }
+
     if (stage->meshes().empty())
     {
         USD_OPTIMIZE_LOG_INFO("No prims to process");
@@ -208,15 +284,30 @@ OperationResult FindOccludedMeshesOperation::executeImpl()
         }
     }
 
-    if (m_useGpu && isCudaAvailable())
+    // Fail the operation instead of aborting the process if the checker throws on input the
+    // voxelizer cannot handle.
+    try
     {
-        VisCheckerGPU visChecker;
-        OK = visChecker.check(*stage, params);
+        if (m_useGpu && isCudaAvailable())
+        {
+            VisCheckerGPU visChecker;
+            OK = visChecker.check(*stage, params);
+        }
+        else
+        {
+            VisCheckerCPU visChecker;
+            OK = visChecker.check(*stage, params);
+        }
     }
-    else
+    catch (const std::exception& e)
     {
-        VisCheckerCPU visChecker;
-        OK = visChecker.check(*stage, params);
+        USD_OPTIMIZE_LOG_ERROR("Visibility check failed: %s", e.what());
+        OK = false;
+    }
+    catch (...)
+    {
+        USD_OPTIMIZE_LOG_ERROR("Visibility check failed with an unknown exception");
+        OK = false;
     }
 
     if (!OK)

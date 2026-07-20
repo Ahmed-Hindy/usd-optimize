@@ -273,11 +273,16 @@ local python_lib_paths = {
     "lib",
     "extraLibs",
     "../../target-deps/usd/$CONFIG/lib",
+    -- Only needed for USD 25.05: that Windows package keeps its third-party
+    -- runtime DLLs (TBB, Imath, OpenEXR, ...) in usd/bin rather than usd/lib,
+    -- so usd_tf.dll can't resolve tbb.dll without it. No-op on 25.11. (The cpp
+    -- test runner's extra_env_paths above already includes bin.)
+    "../../target-deps/usd/$CONFIG/bin",
 }
 
 local python_py_paths = {
     "python",
-    "../../target-deps/usd/release/lib/python",
+    "../../target-deps/usd/$CONFIG/lib/python",
 }
 
 create_python_test_runner("test.python", "release", python_lib_paths, python_py_paths)

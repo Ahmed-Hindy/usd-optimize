@@ -223,18 +223,19 @@ When using `pythonScript` from the Kit UI's code editor, encoding is transparent
 
 ## End-to-end runner
 
-For end-to-end mode (input USD + output USD + an Usd Optimize runtime), the standard runner is `usd_optimize.core.scripts.standalone.execute_commands_from_json`:
+For end-to-end mode (input USD + output USD + an Usd Optimize runtime), the standard runner is `UsdOptimizeCore.executeConfig`:
 
 ```python
-import json
 from pxr import Usd
-from usd_optimize.core.scripts.standalone import execute_commands_from_json
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
 
 stage = Usd.Stage.Open(INPUT_USD)
 config = [...]   # the assembled list from "Putting it together" above
 
-ok = execute_commands_from_json(stage, json.dumps(config))
-if not ok:
+context = ExecutionContext()
+context.set_stage(stage)
+results = UsdOptimizeCore.getInstance().executeConfig(context, config)
+if not all(ok for ok, _err, _out in results):
     raise RuntimeError("pipeline failed -- check Usd Optimize log")
 
 stage.Export(OUTPUT_USD)   # writes a new file; INPUT_USD is left untouched
@@ -245,4 +246,4 @@ Two important properties:
 - The runner mutates the stage in memory. As long as you don't call `stage.Save()` or `stage.GetEditTarget().GetLayer().Save()`, the input USD on disk is untouched. `stage.Export(OUTPUT_USD)` writes the modified stage to a new file.
 - `pythonScript` script bodies passed inside the config must be base64-encoded (see encoding commands above).
 
-The Python environment for `execute_commands_from_json` requires Usd Optimize on `PYTHONPATH` and its native libs on `PATH` — defer to `.agents/skills/build/SKILL.md` for a source-tree build, or to a prebuilt-package install skill / repo install docs for a packaged runtime. Do not duplicate environment setup here.
+The Python environment for `executeConfig` requires Usd Optimize on `PYTHONPATH` and its native libs on `PATH` — defer to `.agents/skills/build/SKILL.md` for a source-tree build, or to a prebuilt-package install skill / repo install docs for a packaged runtime. Do not duplicate environment setup here.

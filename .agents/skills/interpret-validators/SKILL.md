@@ -1,6 +1,6 @@
 ---
 name: interpret-validators
-description: Read saved validator artifacts and present a tier-classified report with per-rule prim lists and fix recommendations. Use when interpreting a saved run.
+description: Read saved validator artifacts and triage the issues that --fix could not auto-resolve, with per-rule prim lists and fix recommendations. Use after run-validators to decide what to do about remaining issues.
 version: "1.0.0"
 allowed-tools: Bash, Read
 metadata:
@@ -27,9 +27,16 @@ metadata:
 > default Windows shell). For cmd.exe, replace `$Var` with `%VAR%` and
 > backtick line continuations with `^`.
 
-Companion to `run-validators`. Reads the CSV/JSON artifacts that the validator
-driver produces, presents a structured report, and answers follow-up questions
-without re-running.
+Companion to `run-validators`. Reads the CSV/JSON/summary artifacts the
+validator driver produces, presents a structured report, and answers follow-up
+questions without re-running.
+
+**Auto-fix happens first.** `run-validators --fix` already applies every fix
+the validators can apply automatically. This skill's job is to triage what is
+**left** — the issues `IssueFixer` could not resolve. Those are the ones that
+need a human decision (which prims, how aggressive, an accepted trade-off)
+before an operation or preset config can address them. If a run produced no
+`--fix` pass, treat every reported issue as un-fixed and triage the whole set.
 
 The CSV is the source of truth — it contains issues from **both** rule
 families:
@@ -39,14 +46,15 @@ families:
 - **Usd Optimize** — `UsdOptimize*Checker` rules from this repo. Each wraps an analysis-mode
   operation in `source/operations/`.
 
-For the CSV schema, the entry-point allow-list, and other infrastructure details,
-see the `validators` skill.
+For the CSV schema and other infrastructure details, see `run-validators`.
+Operation arguments and tuning guidance for any fix op live in
+`docs/operations/<key>.rst`.
 
 ---
 
 ## What this skill covers
 
-Each section below is load-bearing — read past Step 4 before concluding info is missing. Search for keywords like `family`, `base`, `Usd Optimize`, `REQUIRES_MESH`, `Tier`, `T1`, `T2`, `T3`, `headline takeaway`, `findings`, `Rule reference` to jump.
+Each section below is load-bearing — read past Step 4 before concluding info is missing. Search for keywords like `family`, `base`, `Usd Optimize`, `unfixed`, `Tier`, `T1`, `T2`, `T3`, `headline takeaway`, `findings`, `Rule reference` to jump.
 
 - **Usage** — what arguments are accepted, what follow-up questions it answers.
 - **Step 1** — resolve the input (asset / CSV / summary JSON), including branching
@@ -63,12 +71,13 @@ Each section below is load-bearing — read past Step 4 before concluding info i
 - **Error handling** — what to say when artifacts are missing/corrupt.
 
 Companion skills:
-- `run-validators` — produces the artifacts this skill reads.
-- `validators` — reference doc for the underlying infrastructure.
+- `run-validators` — produces the artifacts this skill reads; also covers the auto-fix model and validator infrastructure.
 - `run-operations` — runs the fix ops this skill recommends in Step 5.
 - `tune-parameters` — interactive parameter iteration when defaults don't fully resolve a T2 rule.
 
-For multi-op chains organized by bottleneck (memory, load time, mesh count, data quality), see `.agents/operations/PIPELINES.md`. For the canonical Python invocation reference, see `.agents/operations/INVOCATION.md`.
+For ready-made multi-op stacks see `config_presets/` (run via the CLI per
+`run-operations`); for which operation addresses which goal see
+`docs/choosing-operations.rst`.
 
 ---
 
@@ -81,7 +90,7 @@ saved artifact:
 |---|---|
 | `<path/to/asset.usd>` | Asset mode. Looks up saved artifacts for this asset. |
 | `<path/to/issues.csv>` | Direct CSV mode. |
-| `<path/to/summary.json>` | Summary mode. Prefer sibling `issues.csv`: when present, run Step 3 on the CSV. When the CSV sibling is missing (or unreadable), use **partial-report derivation** below if `findings` is populated. |
+| `<path/to/results.json>` | JSON mode. Prefer sibling `issues.csv`: when present, run Step 3 on the CSV. When the CSV sibling is missing (or unreadable), use **partial-report derivation** below if `findings` is populated. |
 
 ### Partial-report summary mode (missing `issues.csv`)
 
@@ -113,37 +122,19 @@ Use this only for logging/context; both feed the **same derivation** afterwards.
 **Envelope A — Standalone analysis-mode (`run-validators` Python/API fallback):**
 
 - Identified by `validator_path`, typically `"standalone-analysis-mode"`,
-  alongside top-level `findings`. This artifact usually omits Kit timing fields.
-
-**Envelope B — Kit/driver summary envelope with embedded `findings`:**
-
-- Fingerprint Kit-style `--summary` output (for example JSON from the repo
-  driver's `perf_validators.py`): top-level keys such as **`asset`**,
-  **`validate_secs`**, **`open_secs`**, **`total`**, **`by_rule`** (Usd Optimize-filtered
-  counts — see §Step 3 note on `summary.json`), and **`by_severity`**.
-- **Combined case:** envelope B keys **plus** a top-level **`findings`** object
-  (same layout expected by `interpret-validators` as standalone: derive from
-  `findings[<op>].output.analysis`).
-- **`issues.csv` missing:** even though `total`/`by_rule` summarize Usd Optimize rules,
-  you still take this partial-report path so prim-level failure narratives match
-  the analysis payloads instead of pretending CSV-backed detail exists.
+  alongside top-level `findings`. This artifact usually omits timing fields.
 
 #### Shared derivation (`findings` → Step 4)
 
-For envelopes A and B, perform **identical** processing:
+For this envelope, perform:
 
 1. For each `<operation_key>` in `findings`, read **`findings[op].output.analysis`**
    and map emitted rule-like entries onto the summarizer-aligned columns using
-   the corresponding `.agents/operations/<key>.md` **Analysis Mode** section as
-   the schema reference (same field paths as standalone — do not diverge logic
-   per envelope).
+   the operation's analysis output as the schema reference (the operation is
+   documented in `docs/operations/<key>.rst`; same field paths as standalone —
+   do not diverge logic per envelope).
 
-2. If two shapes appear in one file (`validator_path` **and** Kit timing keys),
-   still unify on this single derivation over `findings`; use Kit fields only
-   for the Step 4 **header's** timing lines (`validate_secs` / `open_secs`) when
-   present.
-
-3. Render **Step 4** — header + summary table + failure details — in the normal
+2. Render **Step 4** — header + summary table + failure details — in the normal
    format (`family`, severity columns, expandable failure blocks). Omit rules with
    zero issues as usual once derived.
 
@@ -156,9 +147,9 @@ For envelopes A and B, perform **identical** processing:
 
    > `(standalone fallback — base usd_validation_nvidia rules not covered)`
 
-   — for **either** envelope when CSV-derived detail is unavailable, because
-   row-level/base rule coverage depends on CSV + full usd-validation-nvidia emission
-   and this branch does not recreate base plugin issues.
+   — when CSV-derived detail is unavailable, because row-level/base rule
+   coverage depends on CSV + full usd-validation-nvidia emission and this
+   branch does not recreate base plugin issues.
 
 Adapt the Step 4 **Header** source line when CSV is absent (e.g. cite
 `summary.json` / artifact dir replay instead of CSV path).
@@ -202,11 +193,11 @@ If the selected Usd Optimize environment provides the optional artifact resolver
 
 ```bash
 # POSIX
-python3 tools/perf_validators/resolve_artifacts.py "<asset>"
+python3 tools/validators/resolve_artifacts.py "<asset>"
 ```
 ```powershell
 # Windows (PowerShell)
-py -3 tools\perf_validators\resolve_artifacts.py "<asset>"
+py -3 tools\validators\resolve_artifacts.py "<asset>"
 ```
 
 When used, it returns the same JSON shape on all OSes. Parse the `state` field:
@@ -248,7 +239,7 @@ present, then parse its compact JSON. **For the initial report, always pass
 hundreds of unique-message failures) doesn't flood context. Re-run uncapped
 for the "show all <Rule> failures" follow-up.
 
-If `tools/perf_validators/summarize_csv.py` is missing, build a temporary
+If `tools/validators/summarize_csv.py` is missing, build a temporary
 stdlib-only fallback summarizer beside the artifact (for example
 `<artifact_dir>/_summarize_validator_csv.py`) and run that instead of reading
 the CSV. The fallback script is a local run artifact, not repository content,
@@ -263,7 +254,7 @@ unless the user explicitly asks to add tooling. It must:
   defensively because usd-validation-nvidia column names vary by version.
 - Optionally add sibling metadata keys `report_path`, `report_bytes`, and
   `truncated` (boolean) — these are **not** emitted by repo
-  `tools/perf_validators/summarize_csv.py`, only useful for the ephemeral
+  `tools/validators/summarize_csv.py`, only useful for the ephemeral
   fallback when you want explicit provenance/size/truncation in the JSON blob.
 - Cap examples to 10 locations per failure group for the initial report.
 
@@ -273,11 +264,11 @@ paste the full artifact.
 
 ```bash
 # POSIX — initial report
-python3 tools/perf_validators/summarize_csv.py "<csv_path>" --max-failures-per-rule 10
+python3 tools/validators/summarize_csv.py "<csv_path>" --max-failures-per-rule 10
 ```
 ```powershell
 # Windows (PowerShell) — initial report
-py -3 tools\perf_validators\summarize_csv.py "<csv_path>" --max-failures-per-rule 10
+py -3 tools\validators\summarize_csv.py "<csv_path>" --max-failures-per-rule 10
 ```
 
 The output is a single JSON object. **Always** emit the three core sections below
@@ -330,11 +321,8 @@ Notes on what the summarizer does for you:
 - **Sort order** — `rules` is sorted by max severity weight (failure > error
   > warning > info) then by issue count descending.
 
-If a `summary.json` is also available alongside the CSV, read its
-`validate_secs` / `open_secs` for the report header. Note: `summary.json`'s
-`total` / `by_rule` are filtered to Usd Optimize rules only (`perf_validators.py` filters
-before writing summary). Always derive the real totals from the summarizer's
-`totals` section, not from `summary.json`.
+Always derive the real totals from the summarizer's `totals` section, not
+from any companion JSON output file.
 
 ## Step 4 — Present the report
 
@@ -428,11 +416,10 @@ issues. This converts the long table into a clear next step. Examples:
 > clear most of them.
 
 > All 198 issues are base usd-validation-nvidia rules; 0 Usd Optimize issues
-> fired because the asset has no `UsdGeomMesh` prims (mesh-only Usd Optimize rules
-> short-circuit via `REQUIRES_MESH` — see `validators/SKILL.md`
-> §Performance behavior). Six Usd Optimize hierarchy / materials / animation rules
-> still ran and passed. The fix path is upstream (CAD export, references)
-> rather than Usd Optimize.
+> fired because the asset has no `UsdGeomMesh` prims (mesh-only rules find
+> nothing on a references-only stage). The Usd Optimize hierarchy / materials /
+> animation rules still ran and passed. The fix path is upstream (CAD export,
+> references) rather than Usd Optimize.
 
 ### Footer
 
@@ -517,7 +504,7 @@ Usd Optimize-only filters) from the parsed JSON in context.
 - A Python interpreter for the helper scripts (`resolve_artifacts.py`,
   `summarize_csv.py`) — pure stdlib, so any Python 3 works (no `pxr`
   required).
-- The repo's `tools/perf_validators/` directory accessible from the
+- The repo's `tools/validators/` directory accessible from the
   current working directory.
 
 ## Limitations
@@ -543,7 +530,7 @@ failure modes. Additional meta-troubleshooting:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Summary numbers don't match `summary.json` totals | `summary.json` is Usd Optimize-filtered; the CSV is unfiltered. | Always derive totals from `summarize_csv.py` against the CSV — never read `summary.json.total` directly. |
+| Summary numbers don't match JSON output totals | JSON output may be filtered or structured differently than the CSV. | Always derive totals from `summarize_csv.py` against the CSV. |
 | "Show all <Rule>" output truncates again | Forgot to drop `--max-failures-per-rule` on the re-run. | Omit the flag; alternatively pass `--limit 0`. |
 | Rule appears in CSV but not in the Step 4 table | Rule emitted only `info` / `warning` rows (no `failure`) and the user asked for failures only. | Re-render the table without severity filter; or use `--locations` to enumerate. |
 | Fix tier shows `?` for a rule | Rule isn't in `references/rule-reference.md`. | Treat as T3 / manual and surface the CSV `Suggestion` column verbatim. Don't guess. |

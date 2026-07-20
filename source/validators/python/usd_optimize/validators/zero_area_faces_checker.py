@@ -15,7 +15,9 @@ from .base_usd_optimize_checker import BaseUsdOptimizeChecker
 @register_requirements(capabilities.GeometryRequirements.VG_019, override=True)
 class ZeroAreaFacesChecker(BaseUsdOptimizeChecker):
     """
-    Check mesh prims for any zero area faces, returns all prims that have zero area faces as single warning with an option to fix using the scene optimizer operation.
+    Check mesh prims for any zero area faces, returns all prims that have zero
+    area faces as single warning with an option to fix using the scene optimizer
+    operation.
     """
 
     OPERATION_NAME: str = "meshCleanup"
@@ -68,4 +70,11 @@ class ZeroAreaFacesChecker(BaseUsdOptimizeChecker):
                     message="Fix zero area faces meshes using Usd Optimize",
                     callable=partial(self._mesh_remove_zero_area_faces),
                 ),
+            )
+
+            # In verbose mode, list each mesh with zero area faces individually.
+            self._AddVerbosePrimWarnings(
+                usdStage,
+                analysis_data.get("meshesWithDegenerateFacesPaths", []),
+                "Mesh with zero area faces found",
             )

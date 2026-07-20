@@ -24,6 +24,7 @@
 
 // C++
 #include <chrono>
+#include <limits>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -469,9 +470,19 @@ bool Operation::populateExecutionArguments(const JsObject& args)
         const Argument* argDescription = getArgument(it.first);
         if (argDescription == nullptr)
         {
-            // Skip unknown args.
-            // This could be the operation name or "notes" or random stuff. For now this is not a warning,
-            // just skip.
+            // "operation" (the op key that rides along in command JSON) and "notes" are reserved
+            // metadata, not arguments -- skip them silently. Any other unrecognized key is almost
+            // always a typo'd argument name, which would otherwise be dropped silently and let the
+            // op run with the default (wrong output that looks successful). Warn loudly so the
+            // misconfiguration is discoverable, but continue for backward compatibility.
+            if (it.first != "operation" && it.first != "notes")
+            {
+                USD_OPTIMIZE_LOG_WARN(
+                    "Unknown argument '%s' for operation '%s' -- ignoring it; the operation will run with the "
+                    "default. Check for a typo in the argument name.",
+                    it.first.c_str(),
+                    pImpl->m_name.c_str());
+            }
             continue;
         }
 
@@ -495,6 +506,30 @@ bool Operation::populateExecutionArguments(const JsObject& args)
                           defaultValue.GetTypeName().c_str());
 
             return false;
+        }
+
+        // For arguments that opt into strict range checking, reject out-of-range values with a
+        // clean failure instead of silently clamping them (which can turn e.g. reductionFactor=150
+        // into a no-op "reduce to 100%" that still reports success). Clamping remains the default
+        // for every other bounded argument.
+        if (argDescription->getRejectOutOfRange() && (value.IsInt() || value.IsReal()))
+        {
+            const double numeric = value.IsInt() ? static_cast<double>(value.GetInt()) : value.GetReal();
+            const bool belowMin = argDescription->hasMin() && numeric < static_cast<double>(argDescription->getMin());
+            const bool aboveMax = argDescription->hasMax() && numeric > static_cast<double>(argDescription->getMax());
+            if (belowMin || aboveMax)
+            {
+                // Report an unbounded side as -/+inf rather than substituting the value, so a
+                // single-sided bound never prints a backwards-looking range like "[150, 100]".
+                USD_OPTIMIZE_LOG_ERROR("Argument '%s' value %g is out of range [%g, %g].",
+                                       it.first.c_str(),
+                                       numeric,
+                                       argDescription->hasMin() ? static_cast<double>(argDescription->getMin()) :
+                                                                  -std::numeric_limits<double>::infinity(),
+                                       argDescription->hasMax() ? static_cast<double>(argDescription->getMax()) :
+                                                                  std::numeric_limits<double>::infinity());
+                return false;
+            }
         }
 
         if (!setArg(value, argDescription))
@@ -638,15 +673,31 @@ OperationResult Operation::execute(ExecutionContext* context, const JsObject& ar
     auto timeStart = std::chrono::system_clock::now();
 
     // Call the internal execute function, as long as there was no error to this point.
+    // Operations delegate to native mesh libraries that can throw on degenerate or non-finite
+    // input; an exception escaping here would cross the public/C API boundary and abort the caller
+    // (or a whole batch run). Convert any exception into a failed OperationResult instead.
     if (result.success)
     {
-        if (pImpl->m_context->analysisMode)
+        try
         {
-            result = executeAnalysisImpl();
+            if (pImpl->m_context->analysisMode)
+            {
+                result = executeAnalysisImpl();
+            }
+            else
+            {
+                result = executeImpl();
+            }
         }
-        else
+        catch (const std::exception& e)
         {
-            result = executeImpl();
+            USD_OPTIMIZE_LOG_ERROR("Operation %s threw an exception: %s", pImpl->m_name.c_str(), e.what());
+            result = { false, getCStr(std::string("Operation threw an exception: ") + e.what()), nullptr };
+        }
+        catch (...)
+        {
+            USD_OPTIMIZE_LOG_ERROR("Operation %s threw an unknown exception", pImpl->m_name.c_str());
+            result = { false, getCStr(std::string("Operation threw an unknown exception")), nullptr };
         }
     }
 
@@ -694,6 +745,11 @@ std::string Operation::getDescription() const
     return pImpl->m_description;
 }
 
+
+std::string Operation::getDocumentation() const
+{
+    return pImpl->m_description;
+}
 
 bool Operation::getVisible() const
 {

@@ -59,28 +59,36 @@ To consume a published binary drop (headers, prebuilt libraries, and Python bind
 | Component | Version |
 | --- | --- |
 | OpenUSD | 25.11 |
-| Python | 3.10 / 3.11 / 3.12 (3.12 default for `./repo.sh build`) |
+| Python | 3.12 |
 | C++ standard | C++17 |
 
 OpenUSD and Python are fetched automatically via Packman during `./repo.sh build` — no manual install required. The C++ toolchain must still be installed as described under [Requirements](#requirements).
 
-The **`usd-optimize` wheel** produced by `./repo.sh py_package` declares a specific Python **minor** in its tags (see `requires-python` in `tools/pyproject/pyproject.toml` and the `cp3xx` segment in the wheel filename). Set **`PYTHON_BIN`** to a matching interpreter (e.g. `python3.12` for a `cp312` wheel, or `python3.10` / `python3.11` after rebuilding with `--set-token python_ver:…` — see [Building Usd Versions](#building-usd-versions)) and use **`"$PYTHON_BIN" -m pip`** for install and for any **`python -m …`** invocations below.
+The **`usd-optimize` wheel** produced by `./repo.sh py_package` declares a specific Python **minor** in its tags (see `requires-python` in `tools/pyproject/pyproject.toml` and the `cp3xx` segment in the wheel filename). It is a `cp312` wheel, so set **`PYTHON_BIN`** to a `python3.12` interpreter and use **`"$PYTHON_BIN" -m pip`** for install and for any **`python -m …`** invocations below.
+
+The wheel is always built against **USD 25.05** — matching the `usd-exchange` / `usd-validation-nvidia` runtime it binds from PyPI — regardless of the repository default USD version (which remains 25.11). The pinned version lives in `tools/pyproject/wheel_usd_versions.json`, and `./repo.sh py_package` fails fast if the build tree targets another version. Build and smoke-test it locally with:
+
+```bash
+./repo.sh --set-token usd_ver:25.05 build && ./repo.sh py_package --test
+```
+
+`--test` installs the freshly built wheel into a throwaway virtualenv and runs an import + operation smoke test.
 
 ## Building Usd Versions
 
-Multiple flavors of Usd/Python for building against are supported and are defined in deps/usd_flavors.json
-To build against different versions to the default, the build command can be called with additional tokens to set the usd flavor, version, and python version:
+Two USD versions are supported: **25.11** (the default for `./repo.sh build`) and **25.05**. The supported flavors are defined in deps/usd_flavors.json.
+To build against a version other than the default, the build command can be called with additional tokens to set the usd flavor and version:
 
 ```bash
-./repo.sh --set-token usd_flavor:usd --set-token usd_ver:25.11 --set-token python_ver:3.10 build -r
+./repo.sh --set-token usd_flavor:usd --set-token usd_ver:25.05 build -r
 ```
 
-This builds against usd-25.11 and python 3.10
+This builds against usd-25.05. All supported flavors use Python 3.12.
 
 Note: when changing the build flavors its best practice to start with a clean build:
 
 ```bash
-./repo.sh --clean
+./repo.sh build --rebuild
 ```
 
 ## Requirements
@@ -130,6 +138,8 @@ Note: when changing the build flavors its best practice to start with a clean bu
 All other build-time dependencies (USD, Python, third-party libraries, **premake**, etc.) are pulled automatically via Packman when you run `./repo.sh build`. See [Supported Versions](#supported-versions) for the specific versions.
 
 ## Operations
+
+> **Note:** `Python Script`, `Delete Hidden Prims`, and `Remove Untyped Prims` are Python-plugin operations. They run via the `usd-optimize` Python wheel/bindings, but not from the standalone `usdOptimize` CLI (which does not host a Python interpreter).
 
 | Operation | Description |
 | --- | --- |
@@ -203,7 +213,7 @@ for issue in results.issues():
 
 ### CLI use
 
-**From a source checkout**, prefer **`tools/perf_validators/run.sh`** (see the **`run-validators`** skill): it aligns `PYTHONPATH` and loader paths with the `./repo.sh build` tree, calls `register_all()` directly (no wheel entry-point plumbing), and avoids several footguns documented below.
+**From a source checkout**, prefer **`tools/validators/run.sh`** (see the **`run-validators`** skill): it aligns `PYTHONPATH` and loader paths with the `./repo.sh build` tree, calls `register_all()` directly (no wheel entry-point plumbing), and avoids several footguns documented below.
 
 **Raw `nvidia_usd_validate`** is still useful for pipelines that rely on upstream's CLI behavior after a **`pip install`**.
 
@@ -232,7 +242,7 @@ export PYTHONPATH="$USD_OPTIMIZE_ROOT/python:$PWD/_build/target-deps/usd/release
 export LD_LIBRARY_PATH="$USD_OPTIMIZE_ROOT/lib:$USD_OPTIMIZE_ROOT/extraLibs:${LD_LIBRARY_PATH:-}"
 ```
 
-Repair still reduces **loader** coupling for bundled Usd Optimize bits; **`PYTHONPATH` alignment is separate** — see `.agents/skills/validators/SKILL.md` § *CLI invocation*. Unrepaired wheels need dev-tree loader paths plus all core `.so`s from `_build/` (that skill spells out the unrepaired-path matrix).
+Repair still reduces **loader** coupling for bundled Usd Optimize bits; **`PYTHONPATH` alignment is separate** — see `.agents/skills/run-validators/SKILL.md` § *CLI invocation*. Unrepaired wheels need dev-tree loader paths plus all core `.so`s from `_build/` (that skill spells out the unrepaired-path matrix).
 
 **Plugins auto-load once installed:** the `usd-validation-nvidia` `PluginManager` automatically instantiates **all** plugins it discovers via `importlib.metadata`—there is no allow-list env var to set. As soon as the `usd-optimize` wheel is installed (so its `registrant` entry-point is visible to `importlib.metadata`), its rules load automatically.
 
@@ -251,7 +261,7 @@ nvidia_usd_validate "$ASSET" --csv-output issues.csv       # flat per-issue rows
 nvidia_usd_validate -c Performance "$ASSET"              # only Usd Optimize's Performance rules
 ```
 
-For the full runbook (file logging, adding new validators, `register_all()` vs entry-point semantics), see `.agents/skills/validators/SKILL.md`.
+For the full runbook (file logging, adding new validators, `register_all()` vs entry-point semantics), see `.agents/skills/run-validators/SKILL.md`.
 
 ## Documentation
 

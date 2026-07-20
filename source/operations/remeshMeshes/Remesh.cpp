@@ -12,7 +12,7 @@
 // OmniMesh
 #include <OmniMeshOps/Remesh.h>
 #include <OmniMeshOps/ScopedCudaContext.h>
-#include <OmniMeshOps/usd/Mesh.h>
+#include <OmniMeshOps/UsdIO.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -27,7 +27,7 @@ namespace usd_optimize
 constexpr const char* s_categoryRemesh = "REMESH";
 
 RemeshOperation::RemeshOperation()
-    : OmniOperation("remeshMeshes", "Remesh Meshes", "Remesh an input ``UsdGeom`` mesh primitive type.")
+    : OmniOperation("remeshMeshes", "Remesh Meshes", "Remesh existing mesh prims to user defined tolerance.")
     , m_gradation(0)
     , m_maxError(0.1)
     , m_gpu_vertexcount_threshold(500000)
@@ -63,6 +63,14 @@ RemeshOperation::RemeshOperation()
 RemeshOperation::~RemeshOperation(){};
 
 
+std::string RemeshOperation::getDocumentation() const
+{
+    return "This operation will remesh input mesh prims to a defined tolerance "
+           "to create a new mesh topology. Input mesh and normals will guide "
+           "the maximum error and size of the triangles to match input volume.";
+}
+
+
 std::string RemeshOperation::getAuthor() const
 {
     return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
@@ -96,9 +104,51 @@ ProcessedData* RemeshOperation::processMesh(const UsdPrim& prim, tbb::task_group
     try
     {
         UsdGeomMesh usdMesh(prim);
-        usd::HostMesh inputMesh(
-            usdMesh,
-            { omo::Defect::CoincidentVertices | omo::Defect::DegenerateEdges | omo::Defect::DegenerateFaces });
+
+        // Validate topology and geometry before handing the mesh to the native remesher. Malformed
+        // topology (out-of-range indices, count/index mismatch) or non-finite (NaN/Inf) coordinates
+        // make it flood assertion failures and return garbage while still reporting success -- skip
+        // such meshes instead.
+        VtVec3fArray points;
+        usdMesh.GetPointsAttr().Get(&points);
+        VtIntArray faceVertexIndices;
+        usdMesh.GetFaceVertexIndicesAttr().Get(&faceVertexIndices);
+        VtIntArray faceVertexCounts;
+        usdMesh.GetFaceVertexCountsAttr().Get(&faceVertexCounts);
+
+        std::string topologyMsg;
+        if (!usdMesh.ValidateTopology(faceVertexIndices.AsConst(), faceVertexCounts.AsConst(), points.size(), &topologyMsg))
+        {
+            USD_OPTIMIZE_LOG_WARN("Prim: %s has invalid topology:\n %s",
+                                  prim.GetPath().GetAsString().c_str(),
+                                  topologyMsg.c_str());
+            return nullptr;
+        }
+
+        if (!arePointsFinite(points))
+        {
+            USD_OPTIMIZE_LOG_WARN("Prim: %s has non-finite point coordinates; skipping.",
+                                  prim.GetPath().GetAsString().c_str());
+            return nullptr;
+        }
+
+        VtVec3fArray normals;
+        if (usdMesh.GetNormalsAttr().Get(&normals) && !arePointsFinite(normals))
+        {
+            USD_OPTIMIZE_LOG_WARN("Prim: %s has non-finite normals; skipping.", prim.GetPath().GetAsString().c_str());
+            return nullptr;
+        }
+
+        // A non-finite world transform (e.g. a NaN in a parent xform) resolves to non-finite
+        // world-space geometry even though the authored local points are finite; remesh otherwise
+        // bakes an all-NaN transform onto the output and still reports success.
+        if (!isTransformFinite(usdMesh.ComputeLocalToWorldTransform(UsdTimeCode::Default())))
+        {
+            USD_OPTIMIZE_LOG_WARN("Prim: %s has a non-finite transform; skipping.", prim.GetPath().GetAsString().c_str());
+            return nullptr;
+        }
+
+        auto inputMesh = importMesh(usdMesh, { omo::manifestDefects + omo::Defect::CoincidentBoundaryVertices });
 
         auto use_gpu = inputMesh.vertexCount() > m_gpu_vertexcount_threshold && isCudaAvailable();
         if (!use_gpu)

@@ -498,7 +498,7 @@ class Test_Checkers(TestCase, ValidationTestCaseMixin):
         )
 
     # This only tests the checker logic itself, not the parameter override pipeline.
-    async def test_small_mesh_checker_default_threshold(self):
+    def test_small_mesh_checker_default_threshold(self):
         """Default SIZE_THRESHOLD of 0.001 catches only the smallest cube (size 0.0005)"""
         self.assertRule(
             asset=_get_test_data_file_path("smallMeshCubes.usda"),

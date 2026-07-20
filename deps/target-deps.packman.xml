@@ -22,20 +22,26 @@
     <package name="doctest" version="2.4.5+nv1-3" />
   </dependency>
 
-  <dependency name="omnimesh_ops_usd" linkPath="../_build/target-deps/omnimesh_ops_usd/${config}">
-    <package name="omnimesh_ops_usd" version="110.0.3+release.2764.7bb5da99.gl.${platform_target_abi}.${config}" />
-  </dependency>
+  <!-- omnimesh_ops_usd, autouv-core, and shrinkwrap_openvdb build against a specific
+       USD version, so their package versions are sourced from
+       usd-lib-deps.generated.packman.xml (run "repo usd" to regenerate). Versions per
+       USD version are defined in deps/usd-lib-deps.json. The generated file carries
+       only the versions; the linkPath for each library is declared once below and
+       merged in by dependency name. -->
+  <import path="../deps/usd-lib-deps.generated.packman.xml">
+    <filter include="omnimesh_ops_usd" />
+    <filter include="autouv-core" />
+    <filter include="shrinkwrap_openvdb" />
+  </import>
+  <dependency name="omnimesh_ops_usd" linkPath="../_build/target-deps/omnimesh_ops_usd/${config}" />
+  <dependency name="autouv-core" linkPath="../_build/target-deps/autouv-core" />
+  <dependency name="shrinkwrap_openvdb" linkPath="../_build/target-deps/shrinkwrap_openvdb/${config}" />
+
   <dependency name="mesh_tools" linkPath="../_build/target-deps/mesh_tools/${config}">
-    <package name="mesh_tools" version="110.0.15+main.1687.d5bba94c.gl.${platform_target_abi}.${config}" platforms="windows-x86_64 manylinux_2_35_x86_64 manylinux_2_35_aarch64" />
-  </dependency>
-  <dependency name="autouv-core" linkPath="../_build/target-deps/autouv-core">
-    <package name="autouv-core" version="1.0.2+main.64.67ed9ccb.gl.${platform_target_abi}" />
+    <package name="mesh_tools_lib" version="1.0.0.1ed0a585.${platform_target_abi}.${config}" platforms="windows-x86_64 manylinux_2_35_x86_64 manylinux_2_35_aarch64" />
   </dependency>
   <dependency name="cuda" linkPath="../_build/target-deps/cuda">
     <package name="cuda" version="12.4.1-5-${platform_target_abi}-release" platforms="linux-x86_64 manylinux_2_35_x86_64 linux-aarch64 manylinux_2_35_aarch64" />
-  </dependency>
-  <dependency name="shrinkwrap_openvdb" linkPath="../_build/target-deps/shrinkwrap_openvdb/${config}">
-    <package name="shrinkwrap_openvdb" version="13.0.1+mr7.32.cd71db74.gl.${platform_target_abi}.${config}" />
   </dependency>
 
 </project>

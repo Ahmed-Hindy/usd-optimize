@@ -1,0 +1,7 @@
+[
+    {"operation": "computeExtents"},
+    {"operation": "pruneLeaves"},
+    {"operation": "deduplicateGeometry", "considerInstanceability": true},
+    {"operation": "optimizeMaterials"},
+    {"operation": "optimizeTimeSamples"}
+]

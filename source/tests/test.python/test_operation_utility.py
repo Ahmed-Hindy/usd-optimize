@@ -5,7 +5,6 @@
 
 from pxr import UsdShade
 
-from .scripts import standalone
 from .test_utils import Test_Operation, _get_context
 
 FUNC_DEINSTANCE = 0
@@ -62,7 +61,7 @@ class Test_Operation_Utility_Function(Test_Operation):
             {"operation": "utilityFunction",
             "paths": [],
             "function": 0}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        status = self._execute_json_string(stage, json)
         self.assertTrue(status)
 
         count_after = _count_instanced(stage)

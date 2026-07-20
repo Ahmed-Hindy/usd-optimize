@@ -40,7 +40,7 @@ Companion skills: `build` (build from source instead), `validators` (run-time va
 | Directory | Contents |
 | --- | --- |
 | `include/` | C++ public headers |
-| `lib/` | Compiled core and plugin libraries (Windows: `*.dll` + `*.lib`; Linux: `*.so`) plus `operation_mapping.json` (small deprecated-name alias table for `map_config()`, not the operation catalog) |
+| `lib/` | Compiled core and plugin libraries (Windows: `*.dll` + `*.lib`; Linux: `*.so`) plus `operation_mapping.json` (small deprecated-name alias table for `mapConfig()`, not the operation catalog) |
 | `python/` | `usd_optimize.*` Python bindings; bundled tests under `python/tests/test.python/` |
 | `usdpy/` | OpenUSD Python runtime (`pxr.*`) — the package brings its own USD |
 | `extraLibs/` | Third-party runtime libraries (Alembic, MaterialX, OpenSubdiv, TBB). **Windows** releases also ship the matching CPython runtime DLL (e.g. `python312.dll` for `py_3.12`). **Linux** releases do **not** bundle `libpython3.X.so.1.0` — it must come from the interpreter install (see Linux guide). |
@@ -60,9 +60,7 @@ No Python interpreter is bundled — the consumer supplies one.
 A short script that proves the bindings load and an op runs against an in-memory stage. Save as `smoke_check.py` and run with the matching Python:
 
 ```python
-import json
 from usd_optimize.core import ExecutionContext, UsdOptimizeCore
-from usd_optimize.core.scripts import standalone
 from pxr import Usd, UsdGeom
 
 core = UsdOptimizeCore.getInstance()
@@ -72,10 +70,12 @@ stage = Usd.Stage.CreateInMemory()
 UsdGeom.Xform.Define(stage, "/World")
 UsdGeom.Cube.Define(stage, "/World/c1")
 UsdGeom.Cube.Define(stage, "/World/c2")
-ok = standalone.execute_commands_from_json(stage, json.dumps([
+ctx = ExecutionContext()
+ctx.set_stage(stage)
+results = core.executeConfig(ctx, [
     {"operation": "deletePrims", "primPaths": ["/World/c1"]},
-]))
-assert ok and sum(1 for _ in stage.TraverseAll()) == 2
+])
+assert all(ok for ok, _err, _out in results) and sum(1 for _ in stage.TraverseAll()) == 2
 print("OK")
 ```
 
@@ -88,13 +88,13 @@ If this prints `OK` the drop is healthy. Any positive op-registry count confirms
 
 ## Public API surface
 
-The supported entry point for standalone consumers is `usd_optimize.core.scripts.standalone`:
+The supported entry point for standalone consumers is the `UsdOptimizeCore` singleton in `usd_optimize.core` (canonical examples: `docs/overview.rst`):
 
-- `execute_commands_from_json(stage, filepath_or_json)` — runs a JSON list of `{"operation": …, …}` descriptors against a `Usd.Stage`. Returns `bool` (overall success).
-- `map_config(config)` — applies the operation/argument renames in `lib/operation_mapping.json` so older configs keep working.
-- `get_output_paths(operation)` / `get_output_path_arrays(operation)` — return `[]` in standalone mode (only meaningful inside Kit).
+- `executeConfig(context, config)` — runs a list of `{"operation": …, …}` descriptor dicts against the stage bound to the `ExecutionContext`. Returns one `(success, error, output)` tuple per operation. Takes a Python list — for JSON input, pass `json.loads(text)` / `json.load(f)`, not the path or raw text.
+- `executeOperation(name, context, args)` — runs a single operation; returns one `(success, error, output)` tuple.
+- `mapConfig(config_json)` — applies the operation/argument renames in `lib/operation_mapping.json` (JSON string in, JSON string out) so older configs keep working.
 
-Operation keys accepted by `execute_commands_from_json` are the strings from `UsdOptimizeCore.getInstance().getOperations()` at runtime (count varies by build). Bundled tests under `python/tests/test.python/` illustrate descriptor JSON for many operations. `lib/operation_mapping.json` is only a small backward-compatibility alias table for `map_config()`, not the full operation list.
+Operation keys accepted by `executeConfig` are the strings from `UsdOptimizeCore.getInstance().getOperations()` at runtime (count varies by build). Bundled tests under `python/tests/test.python/` illustrate descriptor JSON for many operations. `lib/operation_mapping.json` is only a small backward-compatibility alias table for `mapConfig()`, not the full operation list.
 
 ## Purpose
 
@@ -112,9 +112,10 @@ The following are intentionally out of scope:
 
 - **Source rebuilds.** A drop has no `repo.sh` / `repo.bat` and no
   compiler toolchain. Use the `build` skill against a checkout instead.
-- **Dev driver scripts.** `tools/perf_validators/run.sh`,
-  `tools/perf_operations/run.sh`, and similar require a source tree
-  with `_build/<platform>/<config>/`; they will not work against a drop.
+- **Dev driver scripts.** `tools/validators/run.sh` and similar
+  require a source tree with `_build/<platform>/<config>/`; they will not
+  work against a drop. (A drop ships its own `bin/usdOptimize` CLI for
+  running operations.)
 - **Most bundled tests.** `run_discover.py` needs every `test_*.py` to
   import cleanly first; missing **`usd-validation-nvidia`** breaks the
   `test_validators_*.py` set immediately. Any import failure prevents the

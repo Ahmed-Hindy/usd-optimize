@@ -9,8 +9,7 @@
 
 // OmniMeshOps
 #include <OmniMeshOps/Manifold.h>
-#include <OmniMeshOps/usd/Mesh.h>
-
+#include <OmniMeshOps/UsdIO.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -24,7 +23,7 @@ namespace usd_optimize
 constexpr const char* s_categoryManifold = "MANIFOLD";
 
 ManifoldOperation::ManifoldOperation()
-    : OmniOperation("manifoldMeshes", "Manifold Meshes", "This operation makes meshes into manifold meshes.")
+    : OmniOperation("manifoldMeshes", "Manifold Meshes", "Makes mesh Manifold.")
 {
 
     addArgument("paths", "Meshes To Process", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_meshPrimPaths)
@@ -58,16 +57,16 @@ std::string ManifoldOperation::getDisplayGroup() const
 
 ProcessedData* ManifoldOperation::processMesh(const UsdPrim& prim, tbb::task_group_context&)
 {
-    using namespace omo::usd;
+    using namespace omo;
 
     ProcessedData* result = nullptr;
 
     try
     {
         UsdGeomMesh usdMesh(prim);
-        HostMesh mesh(usdMesh, { omo::Defect::None });
+        auto mesh = importMesh(usdMesh, { omo::noDefects });
 
-        size_t srcVertexVount = mesh.vertexCount();
+        size_t srcVertexCount = mesh.vertexCount();
 
         mesh = manifold(mesh);
 
@@ -75,7 +74,7 @@ ProcessedData* ManifoldOperation::processMesh(const UsdPrim& prim, tbb::task_gro
         // The host<->device mesh copying took longer than the manifold operation itself.
         result = new ProcessedHostMesh(mesh, prim);
 
-        USD_OPTIMIZE_LOG_VERBOSE("%s: %u -> %u vertices", prim.GetName().GetText(), srcVertexVount, mesh.vertexCount());
+        USD_OPTIMIZE_LOG_VERBOSE("%s: %u -> %u vertices", prim.GetName().GetText(), srcVertexCount, mesh.vertexCount());
     }
     catch (const std::exception& e)
     {

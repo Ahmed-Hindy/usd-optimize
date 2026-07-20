@@ -3,7 +3,68 @@
 #
 
 
+import glob
 import os
+
+# Handles returned by os.add_dll_directory. Kept at module scope so the directories
+# remain on the DLL search path for the lifetime of the process.
+_dll_directories = []
+
+
+def _setup_windows_dll_dirs():
+    """Prepare the native libraries so the extension module AND the operation
+    plugins (dlopen'd later by the C++ core) can be loaded.
+
+    Two problems have to be solved on Windows:
+
+    1. The extension module and plugins need their dependency directories on the
+       loader search path. We add them via ``os.add_dll_directory`` (persistently
+       — see ``_dll_directories``).
+    2. ``os.add_dll_directory`` only affects loads that opt into
+       ``LOAD_LIBRARY_SEARCH_USER_DIRS``. The C++ core dlopen's each plugin with a
+       plain ``LoadLibrary``, whose dependency resolution ignores those dirs. So we
+       also *preload* the first-party libraries from ``usd_optimize.libs``: once a
+       DLL of a given basename is resident, every later ``LoadLibrary`` reuses it by
+       name regardless of search flags, so a plugin's first-party dependencies
+       (``usd_optimize.core.dll`` etc., shipped unmangled — the wheel is not
+       delvewheel-repaired) resolve even though its own dependency directory is
+       not searched.
+    """
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    # Candidate directories holding the native libraries, covering two layouts:
+    #   * build tree: <config>/python/usd_optimize/impl/core with lib/ and
+    #     extraLibs/ as siblings of python/ (four parents up).
+    #   * installed wheel: site-packages/usd_optimize/impl/core with the libs
+    #     bundled in site-packages/usd_optimize.libs (three parents up).
+    # On Windows the USD DLLs are excluded from our wheel and supplied by the
+    # usd-exchange dependency, whose libraries live in the sibling
+    # site-packages/usd_exchange.libs — add it so the USD imports resolve.
+    # Only directories that actually exist are added — os.add_dll_directory
+    # raises FileNotFoundError on a missing path.
+    wheel_libs = os.path.abspath(os.path.join(script_dir, "../../../usd_optimize.libs"))
+    candidate_dirs = [
+        os.path.abspath(os.path.join(script_dir, "../../../../lib")),
+        os.path.abspath(os.path.join(script_dir, "../../../../extraLibs")),
+        wheel_libs,
+        os.path.abspath(os.path.join(script_dir, "../../../usd_exchange.libs")),
+    ]
+    for candidate in candidate_dirs:
+        if os.path.isdir(candidate):
+            _dll_directories.append(os.add_dll_directory(candidate))
+
+    # Preload the first-party shared libraries (installed-wheel layout only) so they
+    # are resident before the C++ core dlopen's the operation plugins that depend on
+    # them. Best-effort: ctypes honours the directories added above to resolve each
+    # library's own dependencies (USD from usd_exchange.libs, etc.).
+    if os.path.isdir(wheel_libs):
+        import ctypes
+
+        for dll in glob.glob(os.path.join(wheel_libs, "*.dll")):
+            try:
+                ctypes.WinDLL(dll)
+            except OSError:
+                pass
+
 
 # try import the core implementation, if we're in a extension then we won't need to add the dll directories since
 # they will already be set up, otherwise we need to add them here so the import can find the required dlls
@@ -14,18 +75,12 @@ try:
     from ._usd_optimize_impl_core import _ExecutionContextImpl
 except ImportError as error:
     if hasattr(os, "add_dll_directory"):
-        script_dir = os.path.dirname(os.path.realpath(__file__))
-        # __file__ → <build>/python/usd_optimize/impl/core/__init__.py — four
-        # parents up reaches the platform/config root that holds lib/ and
-        # extraLibs/ as siblings of python/. (The old layout had two extra
-        # namespace dirs — omni/scene/optimizer/ — and used six `..`s.)
-        lib_dir = os.path.abspath(os.path.join(script_dir, "../../../../lib"))
-        extralibs_dir = os.path.abspath(os.path.join(script_dir, "../../../../extraLibs"))
-        with os.add_dll_directory(lib_dir), os.add_dll_directory(extralibs_dir):
-            from pxr import Usd, UsdUtils
+        _setup_windows_dll_dirs()
 
-            from ._usd_optimize_impl_core import *
-            from ._usd_optimize_impl_core import _ExecutionContextImpl
+        from pxr import Usd, UsdUtils
+
+        from ._usd_optimize_impl_core import *
+        from ._usd_optimize_impl_core import _ExecutionContextImpl
     else:
         raise error
 

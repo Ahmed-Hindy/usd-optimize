@@ -11,7 +11,7 @@ from .base_usd_optimize_checker import BaseUsdOptimizeChecker
 @register_requirements(capabilities.GeometryRequirements.VG_006)
 class FindOverlappingMeshesChecker(BaseUsdOptimizeChecker):
     """
-    Check stage for overlapping meshes.
+    Reports meshes that overlap one another in the scene.
     """
 
     OPERATION_NAME: str = "findOverlappingMeshes"

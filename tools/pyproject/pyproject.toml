@@ -2,7 +2,10 @@
 name = "usd-optimize"
 version = "0.0.0" # injected at package time
 description = "Tool to optimize the state of a Usd scene for performance."
-# TODO: readme, license, license files
+# README.md and LICENSE are staged next to this file at package time (see py_package.py).
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "usd-exchange",
@@ -38,7 +41,10 @@ packages = [
     { include="usd_optimize.libs/operation_mapping.json" }
 ]
 include = [
-    { path="lib", format="wheel" },
+    # Windows only: the first-party dependency DLLs staged next to the operation
+    # plugins by py_package.py. On Linux this matches nothing — auditwheel vendors
+    # the equivalent .so files into usd_optimize.libs when it repairs the wheel.
+    { path="usd_optimize.libs/*.dll", format="wheel" },
 ]
 exclude = [
 ]

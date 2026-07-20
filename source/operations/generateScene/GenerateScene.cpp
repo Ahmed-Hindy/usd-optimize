@@ -567,6 +567,11 @@ void GenerateSceneOperation::generateMeshes(std::vector<VirtualMesh>& refMeshes,
         {
             for (VirtualMesh& cluster : clusterGroup)
             {
+                // skip empty clusters - they never became a superset and would author a malformed empty-type prim
+                if (cluster.getSupersetChildren().empty())
+                {
+                    continue;
+                }
                 _assignRandomMaterial(cluster, materialPaths, m_random);
                 cluster.createInLayer(stage, editLayer);
             }

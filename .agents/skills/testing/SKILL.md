@@ -24,7 +24,7 @@ Search this doc for keywords like `pytest`, `doctest`, `python`, `coverage`, `gc
 - **Test Locations** — where each suite's tests live in the tree.
 - **Code Coverage (Linux only)** — gcov collection workflow.
 
-Companion skills: `build` (must run before tests), `validators` (validator-specific tests under `test_validators_*`).
+Companion skills: `build` (must run before tests), `new-validator` (authoring validator rules and their `test_validators_*` tests) and `run-validators` (running the performance validators against a USD asset).
 
 > The repo ships two equivalent entry scripts: `./repo.sh` for Linux/bash-compatible shells and `repo.bat` for Windows `cmd.exe`/PowerShell. They accept the same arguments — every example below shows both. Pick whichever matches the active shell.
 

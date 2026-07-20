@@ -1,9 +1,9 @@
 Usd Optimize Python API
 ==========================
 
-Usd Optimize Python Bindings
+Core
 -------------------------------
-.. automodule:: usd_optimize.core.scripts.standalone
-    :platform: Windows-x86_64, Linux-x86_64
+.. automodule:: usd_optimize.core
+    :platform: Windows-x86_64, Linux-x86_64, Linux-aarch64
     :members:
     :imported-members:

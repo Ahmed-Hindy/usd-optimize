@@ -430,11 +430,7 @@ void SplitMeshesOperation::splitMeshes(const std::vector<UsdPrim>& prims, Operat
 
 
 SplitMeshesOperation::SplitMeshesOperation()
-    : Operation("splitMeshes",
-                "Split Meshes",
-                "This operation determines whether meshes in a stage contain multiple disjoint mesh descriptions, "
-                "specifically parts of a mesh that don't share any vertices. These can then be replaced with multiple "
-                "mesh prims that contain just their part of the geometry.")
+    : Operation("splitMeshes", "Split Meshes", "Split disjoint meshes into multiple mesh prims.")
 {
 
     addArgument("paths", "Meshes to split", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_paths)
@@ -474,6 +470,31 @@ SplitMeshesOperation::SplitMeshesOperation()
 
     addArgument("multiCluster", "Multi Cluster", kDisplayTypeText, "Multiple cluster configuration settings", m_multiCluster)
         .setVisible(false);
+}
+
+
+std::string SplitMeshesOperation::getDocumentation() const
+{
+    return R"DOC(This operation finds meshes that contain multiple disjoint pieces (parts that share no
+vertices) and replaces them with separate mesh prims, one per connected piece. It is the inverse of
+:doc:`Merge Static Meshes<merge>` and is useful for debugging, isolating spatial outliers, and letting a
+renderer cull pieces independently.
+
+Starting configurations
+-----------------------
+
+Split disjoint pieces into separate prims:
+
+.. code-block:: json
+
+    [{"operation": "splitMeshes", "splitOn": 0}]
+
+Split and re-cluster spatially by vertex count:
+
+.. code-block:: json
+
+    [{"operation": "splitMeshes", "spatialMode": 2, "spatialVertexCount": 50000}]
+)DOC";
 }
 
 

@@ -9,14 +9,22 @@ description: "Cross-skill index: when to use each skill, composition, and cross-
 # Usd Optimize skills index
 
 Each `<name>/SKILL.md` is a self-contained workflow doc. **Always read past
-the first ~50 lines** — load-bearing details (REQUIRES_MESH, base-rule
-handling, pipeline order, etc.) often live in later sections. Each skill
-opens with a "What this skill covers" block listing every section, so a
+the first ~50 lines** — load-bearing details often live in later sections. Each
+skill opens with a "What this skill covers" block listing every section, so a
 single-block scan tells you what's where without reading the body.
 
 Claude Code invokes a skill via the `/<name>` slash command or the `Skill`
-tool. Other agents read `.agents/skills/<name>/SKILL.md` and follow it
-directly.
+tool. Other agents read `.agents/skills/<name>/SKILL.md` and follow it directly.
+
+**Sources of truth (not skills — link to these, don't duplicate them):**
+
+- `docs/operations/<key>.rst` — per-operation reference (overview, tuning
+  guidance, argument table), generated from each operation's C++
+  `getDocumentation()` and `addArgument()` declarations.
+- `docs/cli.rst` — the `usdOptimize` CLI (how operations are run).
+- `docs/choosing-operations.rst` — which operation addresses which goal.
+- `docs/performance-validators.rst` — the validator rule list and what each checks.
+- `config_presets/*.json` — ready-made operation stacks run via the CLI.
 
 ## When to use which skill
 
@@ -25,69 +33,80 @@ directly.
 | [`build`](build/SKILL.md) | Building Usd Optimize from source via `repo.sh`. Required before running validators / operations against a dev tree. |
 | [`prebuilt-package`](prebuilt-package/SKILL.md) | Installing a published binary drop (no source, no `repo.sh`). |
 | [`testing`](testing/SKILL.md) | Running the `cpp` / `python` test suites. |
-| [`validators`](validators/SKILL.md) | **Reference doc** for validator infrastructure — programmatic API, REQUIRES_MESH cache, entry-point allow-list, CLI gotchas, `libusd` alignment. Read when the day-to-day skills (`run-validators` / `interpret-validators`) point you here. |
-| [`run-validators`](run-validators/SKILL.md) | Validating a USD asset. Drives `tools/perf_validators/run.{sh,bat}`, writes artifacts to a stable per-asset dir. |
-| [`interpret-validators`](interpret-validators/SKILL.md) | Reading saved validator artifacts and presenting a structured report. Tier-classifies every rule (T1 = run op, T2 = run + tune, T3 = manual) and answers follow-up questions ("Which prims are affected by X?", "How do I fix Y?", "Show me only base rules"). |
-| [`run-operations`](run-operations/SKILL.md) | Running a chain of optimization operations on a USD asset and saving the result. Drives `tools/perf_operations/run.{sh,bat}`. Closes the loop after `interpret-validators` recommends fixes. |
-| [`tune-parameters`](tune-parameters/SKILL.md) | Interactive parameter tuning for a single operation. Loads `.agents/operations/<key>.md` and iterates with the user. Also has a guide-authoring mode for developers. |
+| [`run-validators`](run-validators/SKILL.md) | Validating a USD asset (read-only by default); pass `--fix` to auto-apply fixable issues in place (on a copy if you want to keep the original). Drives `tools/validators/run.{sh,bat}`, writes a per-issue CSV. Also covers the auto-fix model, programmatic API, `nvidia_usd_validate` CLI, and adding new validators. |
+| [`interpret-validators`](interpret-validators/SKILL.md) | Triaging the issues `--fix` could **not** auto-resolve. Tier-classifies the remaining rules, lists affected prims, and recommends the operation + parameters that need a user decision. |
+| [`config-presets`](config-presets/SKILL.md) | Choosing and running a ready-made preset operation stack from `config_presets/`. Use when you want a known-good starting point for a common optimization goal. |
+| [`run-operations`](run-operations/SKILL.md) | Running operations on a USD asset with the `usdOptimize` CLI — inline ops, a preset config, or a custom JSON config. Closes the loop after `interpret-validators` flags a manual fix. |
+| [`tune-parameters`](tune-parameters/SKILL.md) | **[EXPERIMENTAL]** Interactive parameter tuning for a single operation. Reads `docs/operations/<key>.rst` and iterates with the user; also has an improve-the-docs mode for extending an operation's `getDocumentation()`. |
 | [`create-proxy`](create-proxy/SKILL.md) | Creating a USD proxy mesh sibling for a source prim hierarchy (LOD stand-in). |
-| [`deduplicate-hierarchies`](deduplicate-hierarchies/SKILL.md) | Collapsing duplicate prim hierarchies (whole subtrees) into instanceable internal references. Drives the `deduplicateHierarchies` C++ operation, which defaults to `Structural Hash` matching (safe on any asset) and also supports a faster `Display Name` mode for CAD-imported scenes with reliable names. |
-| [`inspect-asset`](inspect-asset/SKILL.md) | Quick non-destructive USD stage inspection — stage metadata, prim/mesh/vertex/material counts, bounding box, animation presence. Use before any optimization workflow or when the user asks "what's in this file?". |
-| [`compare-stages`](compare-stages/SKILL.md) | Structured diff between two USD stages (e.g. before/after optimization). Reports file size, prim count, mesh count, vertex count, material count deltas, and optionally validator summary diffs. |
-| [`debug-operation`](debug-operation/SKILL.md) | Troubleshoot a failing or unexpected operation — log reading, argument key verification, verbose/analysis mode, and common failure patterns by operation family. |
-| [`new-operation`](new-operation/SKILL.md) | Scaffold a new operation plugin end-to-end: C++ source, premake, test file, operation guide, INDEX.md update, and optional validator wrapper. |
+| [`deduplicate-hierarchies`](deduplicate-hierarchies/SKILL.md) | Collapsing duplicate prim hierarchies (whole subtrees) into instanceable internal references. Drives the `deduplicateHierarchies` operation via the CLI. |
+| [`inspect-asset`](inspect-asset/SKILL.md) | Quick non-destructive USD stage inspection — metadata, prim/mesh/vertex/material counts, bounding box, animation presence. Use before any optimization workflow. |
+| [`compare-stages`](compare-stages/SKILL.md) | Structured diff between two USD stages (e.g. before/after optimization) — file size, prim/mesh/vertex/material deltas, optional validator-summary diffs. |
+| [`debug-operation`](debug-operation/SKILL.md) | Troubleshooting a failing or no-op operation — CLI verbose/analysis flags, argument-key verification, failure patterns by family. |
+| [`new-operation`](new-operation/SKILL.md) | Scaffolding a new operation plugin: C++ source, premake, test, `getDocumentation()` docs, optional validator wrapper. |
+| [`new-validator`](new-validator/SKILL.md) | Adding a new performance-validator rule that wraps a Usd Optimize analysis-mode operation. |
+| [`writing-skills`](writing-skills/SKILL.md) | **Meta-skill** for authoring or revising a skill so it matches house conventions and is registered in this index. |
 
 ## End-to-end optimization loop
 
-The validator / operation skills are designed to compose:
+The validator / operation skills compose. Validation is read-only; `--fix` is
+opt-in and applies **in place**. This loop `--fix`es a **copy** so the original
+`<asset>` stays intact for the before/after diff — fix `<asset>` directly if you
+don't need it preserved:
 
 ```
-/inspect-asset <asset>                       — quick stage overview (optional)
+/inspect-asset <asset>                          — quick stage overview (optional)
    ↓
-/run-validators <asset>
-   ↓ writes CSV/JSON/log artifacts
-/interpret-validators <asset>
-   ↓ tier-classified report + per-rule fix recommendations
-[pick a pipeline from .agents/operations/PIPELINES.md
- or build a custom op list per the report]
+/run-validators <asset>                         — validate (read-only); writes a per-issue CSV
+   ↓ opt into --fix to repair (modifies the target IN PLACE):
+   ↓   cp <asset> <fixed.usd>  →  /run-validators <fixed.usd> --fix   (copy keeps <asset> for the diff)
+/interpret-validators <fixed.usd>               — triage ONLY the issues --fix could not resolve
+   ↓ for each: the op + parameters that need a user decision
+/run-operations <fixed.usd> -c config_presets/<name>.json   (or a custom JSON config / inline -o)
+   ↓ writes optimized.usd via the usdOptimize CLI
+/compare-stages <asset> optimized.usd           — structured before/after diff
    ↓
-/run-operations <asset> --pipeline <name>   (or --config '<json>')
-   ↓ saves <asset>.optimized.usdc
-/compare-stages <asset> <asset>.optimized.usdc  — structured before/after diff
-   ↓
-/run-validators <asset>.optimized.usdc       — verify the rules dropped
+/run-validators optimized.usd                   — verify the targeted rules dropped
 ```
 
-If an operation fails or does nothing, use `/debug-operation` to triage.
+When the user opts into `--fix`, most issues are resolved by that step;
+`interpret-validators` and `run-operations` only handle what needs human
+judgment (which prims, how aggressive, an accepted trade-off). If an operation
+fails or does nothing, use `/debug-operation`.
 
-For the canonical Python invocation reference (used inside several skill
-prompts), see [`.agents/operations/INVOCATION.md`](../operations/INVOCATION.md).
-For curated op chains by bottleneck, see [`.agents/operations/PIPELINES.md`](../operations/PIPELINES.md).
-For per-operation parameter guides, see [`.agents/operations/`](../operations/).
+For the CLI flags, see `docs/cli.rst`. For preset stacks, see
+`config_presets/`. For per-operation parameters and tuning guidance, see
+`docs/operations/<key>.rst`.
 
 ## Cross-references at a glance
 
-- **`run-validators` → `validators`** for REQUIRES_MESH details, programmatic API, CLI gotchas.
-- **`interpret-validators` → `validators`** for CSV schema, family classification.
-- **`interpret-validators` → `tune-parameters`** when a T2 rule needs iteration.
-- **`interpret-validators` → `run-operations`** when the user asks "apply the recommended fixes".
-- **`interpret-validators` → `.agents/operations/INVOCATION.md`** for the canonical Python invocation snippet (replaces the older hallucinated `UsdOptimize.run_operation` signature).
-- **`run-operations` → `.agents/operations/PIPELINES.md`** for named-pipeline definitions.
-- **`run-operations` → `.agents/operations/INVOCATION.md`** for the Python API surface.
-- **`tune-parameters` → `.agents/operations/<key>.md`** as the per-operation source of truth.
-- **`tune-parameters` → `run-operations`** to execute a tuned config.
+- **`run-validators` → `interpret-validators`** for the issues `--fix` left unresolved.
+- **`interpret-validators` → `run-operations`** when an unfixed issue needs a manual operation.
+- **`interpret-validators` / `run-operations` → `docs/operations/<key>.rst`** for op arguments and tuning guidance.
+- **`run-operations` → `config-presets`** for ready-made operation stacks; **→ `docs/cli.rst`** for the CLI surface.
+- **`config-presets` → `run-operations`** for CLI flags, error handling, and destructive-op confirmations; **→ `tune-parameters`** for iterating a single operation's parameters.
+- **`tune-parameters` → `docs/operations/<key>.rst`** as the per-operation source of truth; **→ `run-operations`** to execute a tuned config.
 - **`build` ↔ `prebuilt-package`** — pick exactly one source for the runtime.
 - **`testing` → `build`** — tests run against a built tree.
-- **`create-proxy` → `.agents/operations/`** for the underlying operations it composes (`merge`, `decimateMeshes`, `pivot`, etc.).
-- **`deduplicate-hierarchies` → `.agents/operations/deduplicateHierarchies.md`** for the C++ operation's parameters, correctness assumption, and starting configs.
-- **`deduplicate-hierarchies` → `.agents/operations/PIPELINES.md` (`hierarchy-dedup` pipeline)** for the recommended two-step pairing with `deduplicateGeometry`.
-- **`inspect-asset`** — standalone; used before `run-validators`, `run-operations`, or `tune-parameters` to gather stage context.
-- **`compare-stages`** — uses `run-validators` artifacts for validator diffs; pairs with `run-operations` for before/after comparison.
-- **`debug-operation` → `run-operations`** for the errors table; → `tune-parameters` when the op runs but output quality needs iteration.
-- **`new-operation` → `PLUGINS.md`** for the full plugin API; → `validators` for the validator wrapper recipe; → `tune-parameters` (guide authoring mode) for auto-generating the operation guide.
+- **`create-proxy` / `deduplicate-hierarchies` → `docs/operations/`** for the operations they compose.
+- **`inspect-asset`** — standalone; used before `run-validators` / `run-operations` / `tune-parameters`.
+- **`compare-stages`** — uses `run-validators` summaries for validator diffs; pairs with `run-operations`.
+- **`debug-operation` → `run-operations`** (errors) and **→ `tune-parameters`** (output-quality iteration).
+- **`new-operation` → `PLUGINS.md`** (plugin API), **→ `getDocumentation()`** for op docs, **→ `new-validator`** for the validator wrapper recipe.
+- **`new-validator` → `new-operation`** (create the backing operation), **→ `run-validators`** (validator infrastructure and programmatic API).
+- **`writing-skills` → this `README.md`** — every new skill must add a row here and any cross-reference bullets.
 
 ## Philosophy
 
-- **Skills are workflows, not references.** A workflow tells you what to do step-by-step. The reference docs are `.agents/operations/<key>.md` (per-op tuning) and `.agents/operations/INVOCATION.md` / `PIPELINES.md` (cross-cutting).
-- **Skills cite each other deliberately.** When `run-validators` says "see `validators/SKILL.md` for X", that's because the canonical answer is there. Follow the pointer.
-- **Long skills are long for a reason.** `interpret-validators` is ~480 lines because it covers asset mode + CSV mode + summary mode + 7 follow-up questions + a 30-rule reference table for both rule families. The "What this skill covers" block at the top tells you where each topic lives.
+- **Skills are workflows, not references.** A workflow tells you what to do
+  step-by-step. The references are the `docs/` files and `config_presets/`
+  listed at the top — link to them, don't copy them.
+- **Operation facts live in the C++.** Per-operation docs are generated from
+  `getDocumentation()` + `addArgument()` into `docs/operations/*.rst`. To change
+  what the docs say, change the operation source and regenerate
+  (`./repo.sh docs_gen --autogen_only`).
+- **Repair is opt-in.** `run-validators` is read-only by default; add `--fix`
+  when repairs are requested — it fixes in place (on a copy if the original must
+  be kept). The manual skills handle only what needs a human decision.
+- **Skills cite each other deliberately.** When one skill points at another (or
+  at a `docs/` reference), that's because the canonical answer lives there.

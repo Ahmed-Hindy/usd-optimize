@@ -27,6 +27,9 @@ public:
 
     ~DecimateOperation() override;
 
+    /// Get the documentation string for this plugin.
+    std::string getDocumentation() const override;
+
     /// Get the author of this operation
     std::string getAuthor() const override;
 

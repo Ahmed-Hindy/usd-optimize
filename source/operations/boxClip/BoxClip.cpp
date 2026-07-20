@@ -5,7 +5,7 @@
 
 // OmniMeshOps
 #include <OmniMeshOps/Slice.h>
-#include <OmniMeshOps/usd/MeshData.h>
+#include <OmniMeshOps/UsdIO.h>
 
 // Usd Optimize Core
 #include <usd_optimize/core/Core.h>
@@ -44,7 +44,7 @@ namespace usd_optimize
 constexpr const char* s_categoryBoxClip = "BOXCLIP";
 
 BoxClipOperation::BoxClipOperation()
-    : OmniOperation("boxClip", "Box Clip", "This operation clips meshes by a provided box.")
+    : OmniOperation("boxClip", "Box Clip", "Clips mesh prims to the provided world-space axis-aligned bounding-box.")
     , m_min({ 0, 0, 0 })
     , m_max({ 0, 0, 0 })
     , m_clipBoxDef(ClipBoxDefinition::eByPrim)
@@ -128,6 +128,44 @@ BoxClipOperation::BoxClipOperation()
         { ClipMode::eOutsideKeep, "Keep if fully outside clip box + keep if partially outside" },
         { ClipMode::eOutsideDiscard, "Keep if fully outside clip box + discard if partially outside" },
     });
+}
+
+
+std::string BoxClipOperation::getDocumentation() const
+{
+    return R"DOC(Clips meshes to a user-defined world-space axis-aligned box, like a 3D cookie cutter. It
+keeps, cuts, or discards geometry depending on whether it falls inside, outside, or straddles the box.
+
+Defining the box
+----------------
+
+``clipBoxDef`` selects how the box is specified: ``1`` (*Prim*, the default) uses the world-space
+bounding box of the prim at ``clipBoxPrimPath``; ``0`` (*Corners of Box*) uses the explicit
+``minX/minY/minZ`` and ``maxX/maxY/maxZ`` corners. The corner values are in **stage units** and must be
+authored at the scene's scale (track ``metersPerUnit``). The default corner box is degenerate (all
+zeros), so *Corners of Box* mode does nothing until real extents are supplied, and each min must be less
+than its corresponding max.
+
+Recommended pipelines
+---------------------
+
+After cutting with mode ``1``, run a ``meshCleanup`` pass to tidy the new cut edges.
+
+Starting configurations
+-----------------------
+
+Trim to a prim's bounds, cutting straddling geometry:
+
+.. code-block:: json
+
+    [{"operation": "boxClip", "clipBoxDef": 1, "clipBoxPrimPath": "/World/ClipVolume", "clipMode": 1}]
+
+Trim to explicit corners:
+
+.. code-block:: json
+
+    [{"operation": "boxClip", "clipBoxDef": 0, "minX": -100.0, "minY": -100.0, "minZ": -100.0, "maxX": 100.0, "maxY": 100.0, "maxZ": 100.0, "clipMode": 1}]
+)DOC";
 }
 
 
@@ -475,7 +513,7 @@ ProcessedData* BoxClipOperation::processMesh(const UsdPrim& prim, tbb::task_grou
             }
 
             // Clip the mesh
-            omo::usd::HostMeshData mesh(usd_mesh);
+            auto mesh = omo::importMeshData(usd_mesh);
             omo::HostMeshData clipped_mesh;
             try
             {

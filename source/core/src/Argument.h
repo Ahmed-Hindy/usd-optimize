@@ -124,6 +124,17 @@ public:
     /// Set the maximum value for this Argument.
     Argument& setMax(float maxValue);
 
+    /// Returns whether out-of-range values should be rejected instead of clamped.
+    bool getRejectOutOfRange() const;
+
+    /// Control how values outside [min, max] are handled.
+    ///
+    /// By default an out-of-range value is silently clamped into range. When this is set, such a
+    /// value is instead rejected: setting arguments fails and the operation returns a failed
+    /// OperationResult, so a caller cannot mistake e.g. reductionFactor=150 (clamped to a no-op
+    /// "reduce to 100%") for a successful reduction. Only meaningful together with setMin/setMax.
+    Argument& setRejectOutOfRange(bool value);
+
     /// Returns whether this Argument has a step value.
     ///
     /// Step can be used to configure stepping in a UI slider.

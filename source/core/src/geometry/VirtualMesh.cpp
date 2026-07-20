@@ -1280,7 +1280,7 @@ public:
     bool m_active;
 
     // prim data
-    SdfSpecifier m_specifier;
+    SdfSpecifier m_specifier = SdfSpecifierDef;
     TfToken m_typeName;
 
     // shared data about the prim

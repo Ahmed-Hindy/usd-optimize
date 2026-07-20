@@ -1,0 +1,11 @@
+[
+    {"operation": "generateNormals"},
+    {
+        "operation": "meshCleanup",
+        "mergeVertices": true,
+        "removeDegenerateFaces": true,
+        "coorientFaces": true,
+        "makeManifold": true
+    },
+    {"operation": "computeExtents"}
+]

@@ -11,7 +11,7 @@ from .base_usd_optimize_checker import BaseUsdOptimizeChecker
 @register_requirements(capabilities.HierarchyRequirements.HI_011)
 class FlatHierarchiesChecker(BaseUsdOptimizeChecker):
     """
-    Finds prims that have 500 or more children.
+    Reports prims with a large number of children (a flat hierarchy).
     """
 
     MAX_CHILDREN: int = 500

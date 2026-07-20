@@ -23,6 +23,9 @@ class MeshCleanupOperation : public OmniOperation
 public:
     MeshCleanupOperation();
 
+    /// Get the documentation string for this plugin.
+    std::string getDocumentation() const override;
+
     /// Get the author of this plugin
     std::string getAuthor() const override;
 
@@ -67,6 +70,16 @@ private:
             meshesWithDegenerateFaces = 0;
             meshesWithIsolatedVertices = 0;
             meshesWithDuplicateFaces = 0;
+            meshesThatAreNonManifoldsPaths.clear();
+            meshesWithMergeableVerticesPaths.clear();
+            meshesWithDegenerateEdgesPaths.clear();
+            meshesWithDegenerateFacesPaths.clear();
+            meshesWithIsolatedVerticesPaths.clear();
+            meshesWithDuplicateFacesPaths.clear();
+            // NOTE: predates the verbose-paths work above; it was previously not
+            // reset here, so reusing a Report could accumulate stale winding
+            // paths across runs. Cleared here for consistency with the rest.
+            meshesWithInconsistentWindings.clear();
         }
 
         std::atomic<size_t> meshesThatAreNonManifolds;
@@ -75,6 +88,15 @@ private:
         std::atomic<size_t> meshesWithDegenerateFaces;
         std::atomic<size_t> meshesWithIsolatedVertices;
         std::atomic<size_t> meshesWithDuplicateFaces;
+        // Per-prim paths backing the counters above, collected so analysis can
+        // report which prims triggered each defect (verbose reporting). Always
+        // populated; consumers choose whether to surface them.
+        tbb::concurrent_vector<PXR_NS::UsdPrim> meshesThatAreNonManifoldsPaths;
+        tbb::concurrent_vector<PXR_NS::UsdPrim> meshesWithMergeableVerticesPaths;
+        tbb::concurrent_vector<PXR_NS::UsdPrim> meshesWithDegenerateEdgesPaths;
+        tbb::concurrent_vector<PXR_NS::UsdPrim> meshesWithDegenerateFacesPaths;
+        tbb::concurrent_vector<PXR_NS::UsdPrim> meshesWithIsolatedVerticesPaths;
+        tbb::concurrent_vector<PXR_NS::UsdPrim> meshesWithDuplicateFacesPaths;
         tbb::concurrent_vector<PXR_NS::UsdPrim> meshesWithInconsistentWindings;
     };
 

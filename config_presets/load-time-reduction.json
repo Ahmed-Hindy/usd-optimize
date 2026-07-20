@@ -1,0 +1,6 @@
+[
+    {"operation": "computeExtents"},
+    {"operation": "pruneLeaves"},
+    {"operation": "optimizeTimeSamples"},
+    {"operation": "optimizeMaterials"}
+]

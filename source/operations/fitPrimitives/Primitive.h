@@ -12,6 +12,9 @@
 // OmniMeshOps
 #include <OmniMeshOps/Primitive.h>
 
+// TBB
+#include <tbb/concurrent_vector.h>
+
 
 namespace usd_optimize
 {
@@ -21,6 +24,9 @@ class PrimitiveFitOperation : public OmniOperation
 {
 public:
     PrimitiveFitOperation();
+
+    /// Get the documentation string for this plugin.
+    std::string getDocumentation() const override;
 
     /// Get the author of this plugin
     std::string getAuthor() const override;
@@ -96,6 +102,14 @@ private:
             {
                 v.store(0, std::memory_order_relaxed);
             }
+            for (auto& v : fitMeshPaths)
+            {
+                v.clear();
+            }
+            for (auto& v : fitNonConstPrimvarMeshPaths)
+            {
+                v.clear();
+            }
         }
 
         std::atomic<size_t> totalMeshCount;
@@ -109,6 +123,11 @@ private:
         std::atomic<size_t> fitNonConstPrimvarMeshCount[omo::PrimitiveType::Count];
         std::atomic<size_t> fitNonConstPrimvarFaceCount[omo::PrimitiveType::Count];
         std::atomic<size_t> fitNonConstPrimvarVertexCount[omo::PrimitiveType::Count];
+        // Per-prim paths of meshes fit to each primitive type (verbose
+        // reporting), split to match the mesh-count buckets above. Always
+        // populated; consumers choose whether to surface them.
+        tbb::concurrent_vector<PXR_NS::UsdPrim> fitMeshPaths[omo::PrimitiveType::Count];
+        tbb::concurrent_vector<PXR_NS::UsdPrim> fitNonConstPrimvarMeshPaths[omo::PrimitiveType::Count];
     };
 
     /// Process

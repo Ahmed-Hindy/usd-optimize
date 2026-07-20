@@ -19,6 +19,21 @@ class IsolatedVerticesChecker(BaseUsdOptimizeChecker):
 
     OPERATION_NAME: str = "meshCleanup"
 
+    # Analysis must request only the isolated-vertex fix: the gated checkClean reports a defect only if its fix is
+    # enabled, and isolating it keeps the fix-then-recheck convergent (sibling fixes like degenerate-face removal can
+    # otherwise re-expose isolated vertices). Mirrors _mesh_fix_isolated_vertices.
+    OPERATION_ARGS = {
+        "mergeVertices": False,
+        "tolerance": 0.0,
+        "contractDegenerateEdges": False,
+        "removeDegenerateFaces": False,
+        "makeManifold": False,
+        "removeIsolatedVertices": True,
+        "mergeBoundaries": False,
+        "mergeNeighbors": False,
+        "removeDuplicateFaces": False,
+    }
+
     @classmethod
     def _mesh_fix_isolated_vertices(cls, usdStage: Usd.Stage, prim: Usd.Prim) -> None:
         """
@@ -65,4 +80,11 @@ class IsolatedVerticesChecker(BaseUsdOptimizeChecker):
                     message="Fix isolated vertices using Usd Optimize",
                     callable=partial(self._mesh_fix_isolated_vertices),
                 ),
+            )
+
+            # In verbose mode, list each mesh with isolated vertices individually.
+            self._AddVerbosePrimWarnings(
+                usdStage,
+                analysis_data.get("meshesWithIsolatedVerticesPaths", []),
+                "Mesh with isolated vertices found",
             )

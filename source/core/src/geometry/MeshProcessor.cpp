@@ -7,6 +7,7 @@
 // Usd Optimize Core
 #include "usd_optimize/core/Core.h"
 #include "usd_optimize/core/Log.h"
+#include "usd_optimize/core/geometry/MeshValidation.h"
 
 // USD
 #include <pxr/base/work/utils.h>
@@ -455,6 +456,23 @@ void MeshProcessor::execute()
 
                 // create a VirtualMesh which we can use to compute any extent/volume/disjoint subsets
                 meshData.baseMesh = VirtualMesh(meshPrims[i], xformCache, bindingsCache, collQueryCache);
+
+                // Malformed topology (out-of-range indices, count/index mismatch, non-finite points)
+                // would drive out-of-bounds reads while walking faces below (and, via DisjointSet, an
+                // out-of-bounds write that corrupts the heap). Skip such meshes instead of crashing;
+                // they are left untouched in the stage.
+                std::string invalidReason;
+                if (!validateMeshTopology(meshData.baseMesh.getPoints(),
+                                          meshData.baseMesh.getFaceVertexCounts(),
+                                          meshData.baseMesh.getFaceVertexIndices(),
+                                          &invalidReason))
+                {
+                    USD_OPTIMIZE_LOG_WARN("Skipping mesh '%s' with invalid topology: %s",
+                                          meshPrims[i].GetPath().GetAsString().c_str(),
+                                          invalidReason.c_str());
+                    meshData.valid = false;
+                    continue;
+                }
 
                 // calculate the extent volume of the base mesh
                 meshData.baseMesh.validateAndComputeExtent();

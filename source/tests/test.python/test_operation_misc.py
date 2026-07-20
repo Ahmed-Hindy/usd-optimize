@@ -3,10 +3,11 @@
 #
 
 
+import json
+
 from pxr import UsdGeom, UsdShade
 from usd_optimize.core import UsdOptimizeCore
 
-from .scripts import commands, standalone
 from .test_utils import Test_Operation, _get_context, _get_meshes, _get_test_data_file_path
 
 # OriginalGeometryOption values
@@ -86,7 +87,7 @@ def _get_color(prim, index):
     return colors[index]
 
 
-class Test(Test_Operation):
+class Test_Operation_Misc(Test_Operation):
     async def setUp(self):
         await super().setUp()
         self._merge_args = {
@@ -416,21 +417,22 @@ class Test(Test_Operation):
         after_meshes = _get_meshes(stage)
         self.assertEqual(len(after_meshes), 1)
 
-    async def test_JsonParserAllCommands(self):
+    async def test_executeConfig(self):
         # json file has settings for every operation.
         # This primarily tests the jsonReader interface itself (eg arg counts)
         # but also runs every command. Some commands themselves are expected to fail,
         # since no files are being passed in for processing.
         stage = self._open_stage("fourMeshesAtLevelOne.usd")
-        filepath = _get_test_data_file_path("all_operations.json")
-        status = standalone.execute_commands_from_json(stage, filepath)
-        self.assertTrue(status)
+        context = _get_context(stage)
+        with open(_get_test_data_file_path("all_operations.json")) as f:
+            status = UsdOptimizeCore.getInstance().executeConfig(context, json.load(f))
+            self.assertTrue(status)
 
     async def test_JsonParseInvalidCommand(self):
         stage = self._open_stage("fourMeshesAtLevelOne.usd")
         json = """[{"foo": "bar"}]"""
-        status = standalone.execute_commands_from_json(stage, json)
-        self.assertFalse(status)
+        status = self._execute_json_string(stage, json)
+        self.assertFalse(status[0][0])
 
     async def test_Normals(self):
         # Test case is a file with a scene with two meshes containing primvar:normals.
@@ -465,64 +467,6 @@ class Test(Test_Operation):
         color = _get_color(new_mesh, 2)
         self.assertEqual(color, (1, 1, 1))
 
-    async def test_pathResolver(self):
-        """Test the sdfPathResolver function"""
-
-        stage = self._open_stage("pathResolverTest.usda")
-
-        # Camera prim, this should NEVER be returned, by any query.
-        cameraChildPrim = "/World/Camera/Baz"
-
-        # All returnable prims, in the expected reversed order they would be returned
-        # This excludes the Camera prim, and any children of the Camera, as well as a
-        # root Render prim.
-        allPrims = [
-            "/World/Bar2",
-            "/World/Bar1",
-            "/World/Foo2/FooChild2",
-            "/World/Foo2",
-            "/World/Foo1/FooChild1",
-            "/World/Foo1",
-            "/World",
-        ]
-
-        opts = _get_context(stage)
-
-        # Test empty list results in all paths
-        result = commands.IFACE.path_resolver(opts, list(), False)
-        self.assertNotIn(cameraChildPrim, result)
-        self.assertEqual(result, allPrims)
-
-        # Test explicitly asking for camera child doesn't find it
-        result = commands.IFACE.path_resolver(opts, [cameraChildPrim], False)
-        self.assertEqual(len(result), 0)
-
-        # Test getting one prim
-        result = commands.IFACE.path_resolver(opts, ["/World"], False)
-        self.assertEqual(len(result), 1)
-        self.assertIn("/World", result)
-
-        # Test getting the same prim recursively
-        result = commands.IFACE.path_resolver(opts, ["/World//"], True)
-        self.assertEqual(result, allPrims)
-
-        # Test basic regex
-        fooPrims = [prim for prim in allPrims if "Foo" in prim]
-        result = commands.IFACE.path_resolver(opts, ["//Foo*"], False)
-        self.assertEqual(result, fooPrims)
-
-        # Test an invalid expression (mainly testing it doesn't crash!)
-        result = commands.IFACE.path_resolver(opts, ["+"], False)
-        self.assertEqual(len(result), 0)
-
-        # Test duplicates are correctly not returned when explicitly requesting
-        result = commands.IFACE.path_resolver(opts, ["/World/Foo2", "/World/Foo2"], False)
-        self.assertEqual(result, ["/World/Foo2"])
-
-        # Test alternation
-        result = commands.IFACE.path_resolver(opts, ["//Foo[12]"], False)
-        self.assertEqual(result, ["/World/Foo2", "/World/Foo1"])
-
     async def test_computeExtents(self):
         """Test basic computation of extents"""
 
@@ -542,8 +486,7 @@ class Test(Test_Operation):
         self.assertEqual(incorrectExtent, [(-75, -75, -75), (75, 75, 75)])
 
         # Load and execute the test commands
-        filepath = _get_test_data_file_path("extentsTest.json")
-        status = standalone.execute_commands_from_json(stage, filepath)
+        status = self._execute_json(stage, "extentsTest.json")
         self.assertTrue(status)
 
         # Cube with correct extents stays the same
@@ -602,7 +545,7 @@ class Test(Test_Operation):
 
         # Compute Extents
         json = """[{"operation": "computeExtents", "meshPrimPaths": []}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        status = self._execute_json_string(stage, json)
         self.assertTrue(status)
 
         # Validate a simple deforming cube with a few frames gets the correct extent values
@@ -644,38 +587,14 @@ class Test(Test_Operation):
 
         stage = self._open_stage("extentsTestTimeSamples.usda")
 
-        # Assert that invalid JSON fails (not an array, missing [)
-        json = """{"operation": "computeExtents"}]"""
-        status = standalone.execute_commands_from_json(stage, json)
-        self.assertFalse(status)
-
-        # Assert that another invalid string (missing colon after meshPrimPaths) fails
-        json = """[{"operation": "computeExtents", "meshPrimPaths" []}]"""
-        status = standalone.execute_commands_from_json(stage, json)
-        self.assertFalse(status)
-
-        # Assert that random text fails (not a file path, not a JSON string)
-        json = """foo123"""
-        status = standalone.execute_commands_from_json(stage, json)
-        self.assertFalse(status)
-
         # Assert that valid JSON with a valid command succeeds
         json = """[{"operation": "computeExtents", "meshPrimPaths": []}]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        status = self._execute_json_string(stage, json)
         self.assertTrue(status)
 
         # Assert executing via JSON file path
-        status = standalone.execute_commands_from_json(stage, _get_test_data_file_path("extentsTest.json"))
+        status = self._execute_json(stage, "extentsTest.json")
         self.assertTrue(status)
-
-    async def test_base_command(self):
-
-        # Load a scene, as teardown will close the stage.
-        self._open_stage("threeLambertShaders.usd")
-
-        # Assert the base command class has no info
-        info = commands._UsdOptimizeOperation.get_operation_info()
-        self.assertEqual(len(info), 0)
 
     async def test_delete_prims(self):
         """Test deleting prims via the plugin interface"""

@@ -67,3 +67,10 @@ class ColocatedVerticesChecker(BaseUsdOptimizeChecker):
                     callable=partial(self._mesh_merge_vertices),
                 ),
             )
+
+            # In verbose mode, list each mesh with mergeable vertices individually.
+            self._AddVerbosePrimWarnings(
+                usdStage,
+                analysis_data.get("meshesWithMergeableVerticesPaths", []),
+                "Mesh with mergeable vertices found",
+            )

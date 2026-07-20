@@ -8,7 +8,8 @@ from .base_duplicate_geometry_checker import DUPLICATE_METHOD_INSTANCEABLEREFERE
 
 class FuzzyDuplicateGeometryChecker(BaseDuplicateGeometryChecker):
     """
-    Find geometric prims that are duplicates within a tolerance.
+    Finds geometric prims that match within a tolerance. The vertex positions
+    need not match — only the surface shape.
     """
 
     # Allow overriding paths

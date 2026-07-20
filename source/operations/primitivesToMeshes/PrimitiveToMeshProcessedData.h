@@ -7,7 +7,7 @@
 // OmniMesh
 #include <OmniMeshOps/MeshAttributeXfer.h>
 #include <OmniMeshOps/Primitive.h>
-#include <OmniMeshOps/usd/Mesh.h>
+#include <OmniMeshOps/UsdIO.h>
 
 // Usd Optimize
 #include <usd_optimize/core/Defs.h>
@@ -63,7 +63,7 @@ struct PrimitiveToMeshProcessedData : public ProcessedData
         }
 
         // Remove any Gprim shape-specific attributes, in case the source prim was a gprim shape
-        omo::usd::HostPrim::removeShapeSpecificAttributesFromGprim(prim_path, stage);
+        omo::removeShapeSpecificAttributes(usd_gprim);
 
         // Change type to Mesh if it was not before
         PXR_NS::UsdGeomMesh usd_mesh = PXR_NS::UsdGeomMesh::Define(stage, path);
@@ -133,8 +133,7 @@ struct PrimitiveToMeshProcessedData : public ProcessedData
                                                                   { 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1 },
                                                                   { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 } };
 
-            omo::usd::HostMesh mesh =
-                omo::createPrimitiveMesh<omo::Host>(m_primitive.type, m_params, up_rot[int(m_up_axis)]);
+            omo::HostMesh mesh = omo::createPrimitiveMesh<omo::Host>(m_primitive.type, m_params, up_rot[int(m_up_axis)]);
 
             // Make sure the root path is valid
             if (!stage->GetPrimAtPath(s_prototypeRootPath))
@@ -147,7 +146,7 @@ struct PrimitiveToMeshProcessedData : public ProcessedData
             }
 
             // Write the prototype to the stage
-            mesh.writeToUsd(prototype_path.GetString(), stage);
+            exportUsdGeomMesh(mesh, stage, prototype_path.GetString());
 
             prototype_prim = stage->GetPrimAtPath(prototype_path);
             if (!prototype_prim)
@@ -171,9 +170,9 @@ struct PrimitiveToMeshProcessedData : public ProcessedData
         {
             // Transfer attributes based on prototype geometry
             omo::HostMeshAttributeXfer attrXfer(m_src_mesh);
-            omo::usd::HostMesh prototype_mesh = omo::usd::HostMesh(PXR_NS::UsdGeomMesh(prototype_prim));
+            auto prototype_mesh = omo::importMesh(PXR_NS::UsdGeomMesh(prototype_prim));
             prototype_mesh = attrXfer(static_cast<omo::HostMesh&>(prototype_mesh), m_primitive.transform);
-            prototype_mesh.writeToUsd(prim_path, stage); // Write at instance path
+            omo::exportUsdGeomMesh(prototype_mesh, stage, prim_path); // Write at instance path
 
             // Remove geometry
             usd_mesh.GetExtentAttr().Clear();
@@ -191,7 +190,7 @@ struct PrimitiveToMeshProcessedData : public ProcessedData
         usd_mesh.SetResetXformStack(resetXformStack);
 
         // Append scaling (used if source was a Gprim shape)
-        xformOp.Set(PXR_NS::VtValue(static_cast<omo::usd::HostPrim>(m_primitive).gfMatrixTransform() * mesh_local_tm));
+        xformOp.Set(PXR_NS::VtValue(omo::gfMatrixTransform(m_primitive) * mesh_local_tm));
 
         // Make sure the root is an over
         stage->GetPrimAtPath(s_prototypeRootPath).SetSpecifier(PXR_NS::SdfSpecifierOver);

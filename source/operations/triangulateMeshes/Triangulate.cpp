@@ -12,7 +12,7 @@
 // OmniMesh
 #include <OmniMeshOps/ScopedCudaContext.h>
 #include <OmniMeshOps/Triangulate.h>
-#include <OmniMeshOps/usd/Mesh.h>
+#include <OmniMeshOps/UsdIO.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -26,7 +26,7 @@ namespace usd_optimize
 constexpr const char* s_categoryTriangulate = "TRIANGULATE";
 
 TriangulateOperation::TriangulateOperation()
-    : OmniOperation("triangulateMeshes", "Triangulate Meshes", "This operation triangulates meshes.")
+    : OmniOperation("triangulateMeshes", "Triangulate Meshes", "Converts polygonal meshes to triangle-only meshes.")
     , m_gpu_vertexcount_threshold(1000000)
 {
 
@@ -77,7 +77,7 @@ ProcessedData* TriangulateOperation::processMesh(const UsdPrim& prim, tbb::task_
 
     ProcessedData* result = nullptr;
     UsdGeomMesh usdMesh(prim);
-    omo::usd::HostMesh inputMesh{ usdMesh };
+    auto inputMesh = importMesh(usdMesh);
 
     auto use_gpu_triangulator = inputMesh.vertexCount() > m_gpu_vertexcount_threshold && isCudaAvailable();
     if (!use_gpu_triangulator)

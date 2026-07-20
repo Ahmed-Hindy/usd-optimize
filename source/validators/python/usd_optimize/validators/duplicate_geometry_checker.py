@@ -10,7 +10,7 @@ from .base_duplicate_geometry_checker import DUPLICATE_METHOD_INSTANCEABLEREFERE
 @register_requirements(capabilities.GeometryRequirements.VG_022)
 class DuplicateGeometryChecker(BaseDuplicateGeometryChecker):
     """
-    Find geometric prims that are duplicates.
+    Find geometric prims that are duplicates; fixed by creating instances.
     """
 
     # Default arguments for the command

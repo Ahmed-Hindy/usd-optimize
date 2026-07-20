@@ -12,13 +12,13 @@
 
 #include <usd_optimize/core/Core.h>
 #include <usd_optimize/core/CudaUtils.h>
+#include <usd_optimize/core/JsonUtils.h>
 #include <usd_optimize/core/Utils.h>
 
 // OmniMesh
 #include <OmniMeshOps/Primitive.h>
 #include <OmniMeshOps/ScopedCudaContext.h>
-#include <OmniMeshOps/usd/Mesh.h>
-#include <OmniMeshOps/usd/Prim.h>
+#include <OmniMeshOps/UsdIO.h>
 
 // USD
 #include <pxr/usd/usd/primCompositionQuery.h>
@@ -58,7 +58,7 @@ inline static bool primHasNonconstPrimvars(const UsdPrim& prim,
 /// Override ProcessedHostMesh's writeToUsd function to preserve abstractness / undefinedness of prim
 struct PrimitiveFitProcessedData : public ProcessedHostPrim
 {
-    PrimitiveFitProcessedData(const omo::usd::HostPrim& hostPrim, const PXR_NS::UsdPrim& usdPrim, bool write = true)
+    PrimitiveFitProcessedData(const omo::Primitive& hostPrim, const PXR_NS::UsdPrim& usdPrim, bool write = true)
         : ProcessedHostPrim(hostPrim, usdPrim, write)
     {
     }
@@ -98,7 +98,10 @@ struct PrimitiveFitProcessedData : public ProcessedHostPrim
 constexpr const char* s_categoryFitPrimitives = "FIT_PRIMITIVES";
 
 PrimitiveFitOperation::PrimitiveFitOperation()
-    : OmniOperation("fitPrimitives", "Fit Primitives", "This operation fits primitives to meshes.")
+    : OmniOperation(
+          "fitPrimitives",
+          "Fit Primitives",
+          "Replace meshes in a stage with transformed primitive geometries (sphere, cylinder, cone, or cube) if they can be fit within tolerance.")
     , m_gpuFaceCountThreshold(0)
     , m_showFittingParameters(true)
     , m_vertexTolerance(0.01f)
@@ -255,6 +258,58 @@ PrimitiveFitOperation::PrimitiveFitOperation()
         .setVisibleIf("generateMeshes"); // group mesh generation parameters
 }
 
+std::string PrimitiveFitOperation::getDocumentation() const
+{
+    return R"DOC(This operation attempts to fit transformed primitive shapes (sphere, cylinder, cone, or
+cube) to selected meshes. If a mesh can be fit within tolerance it is replaced with the best-fitting
+transformed primitive. ``fitSphere``, ``fitCylinder``, ``fitCone``, and ``fitCube`` (all default
+``true``) select which primitive types are attempted, in any combination.
+
+Tolerances and units
+--------------------
+
+Fitting is governed by two **relative** tolerances, so they are independent of ``metersPerUnit`` and
+scene scale:
+
+- ``vertexTolerance`` (default ``0.01``) is the allowed RMS distance between mesh and primitive surface,
+  relative to the mesh size. Lower it to accept only close fits, raise it to fit more loosely.
+- ``volumeTolerance`` (default ``0.01``) is the allowed relative difference in enclosed volume.
+
+A mesh is replaced only when it passes both. ``gpuFaceCountThreshold`` selects the GPU path above a face
+count (``0`` keeps everything on CPU).
+
+Footguns
+--------
+
+``ignoreNonConstPrimvars`` and ``ignoreSubsets`` (both default ``true``) are permissive: when ``true`` a
+mesh with varying primvars or geom subsets can still be replaced (losing that data). Set them ``false``
+to refuse fitting meshes that carry such data. ``generateMeshes`` (default ``false``) emits a tessellated
+mesh approximation instead of a true gprim; leave it ``false`` to get actual ``Sphere``/``Cylinder``/etc.
+prims, which are lighter.
+
+Recommended pipelines
+---------------------
+
+Run before ``deduplicateGeometry`` so the resulting primitives can be instanced, and after a cleanup pass
+on noisy meshes. A common chain is ``meshCleanup`` -> ``fitPrimitives`` -> ``deduplicateGeometry``.
+
+Starting configurations
+-----------------------
+
+Default fit (all primitive types):
+
+.. code-block:: json
+
+    [{"operation": "fitPrimitives", "vertexTolerance": 0.01, "volumeTolerance": 0.01}]
+
+Strict fit, true gprims only, refuse meshes with subsets/varying primvars:
+
+.. code-block:: json
+
+    [{"operation": "fitPrimitives", "vertexTolerance": 0.005, "ignoreSubsets": false, "ignoreNonConstPrimvars": false}]
+)DOC";
+}
+
 std::string PrimitiveFitOperation::getAuthor() const
 {
     return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
@@ -339,7 +394,7 @@ ProcessedData* PrimitiveFitOperation::processMesh(const UsdPrim& prim, tbb::task
         }
     }
 
-    omo::usd::HostMesh inputMesh{ usdMesh };
+    auto inputMesh = importMesh(usdMesh);
 
     // skip empty meshes
     if (inputMesh.vertexCount() == 0)
@@ -350,7 +405,7 @@ ProcessedData* PrimitiveFitOperation::processMesh(const UsdPrim& prim, tbb::task
     auto use_gpu_fitting =
         m_gpuFaceCountThreshold > 0 && inputMesh.faceCount() >= m_gpuFaceCountThreshold && isCudaAvailable();
 
-    const PrimitiveUpAxis upAxis = omo::usd::HostPrim::convertUpAxis(UsdGeomGetStageUpAxis(getUsdStage()));
+    const PrimitiveUpAxis upAxis = omo::importUpAxis(UsdGeomGetStageUpAxis(getUsdStage()));
 
     if (!getContext()->analysisMode)
     {
@@ -397,7 +452,7 @@ ProcessedData* PrimitiveFitOperation::processMesh(const UsdPrim& prim, tbb::task
     {
         ScopedCudaContext cuda_context(omo::Verbose{ getContext()->verbose > 0 });
         DevicePrimitiveFit fit{ DeviceMesh{ inputMesh } };
-        omo::usd::HostPrim fitPrim(
+        omo::Primitive fitPrim(
             fit(upAxis, m_shapeMask, m_volumeTolerance, m_vertexTolerance, m_allowNegativeVolume, m_allowMissingEndcaps));
         primType = fitPrim.type;
         if (primType != omo::PrimitiveType::None)
@@ -464,12 +519,14 @@ ProcessedData* PrimitiveFitOperation::processMesh(const UsdPrim& prim, tbb::task
                 ++m_meshReport.fitMeshCount[primType];
                 m_meshReport.fitFaceCount[primType] += inputMesh.faceCount();
                 m_meshReport.fitVertexCount[primType] += inputMesh.vertexCount();
+                m_meshReport.fitMeshPaths[primType].push_back(prim);
             }
             else
             {
                 ++m_meshReport.fitNonConstPrimvarMeshCount[primType];
                 m_meshReport.fitNonConstPrimvarFaceCount[primType] += inputMesh.faceCount();
                 m_meshReport.fitNonConstPrimvarVertexCount[primType] += inputMesh.vertexCount();
+                m_meshReport.fitNonConstPrimvarMeshPaths[primType].push_back(prim);
             }
         }
     }
@@ -577,7 +634,7 @@ void PrimitiveFitOperation::removeUnusedAttributes()
     // Get root layer and use SdfPrimSpecs to remove unused attributes
     for (auto& prim : primsToProcess)
     {
-        omo::usd::HostPrim::removeMeshSpecificAttributesAndPrimvarsFromGprim(prim.GetPath().GetString(), getUsdStage());
+        omo::removeMeshSpecificAttributes(UsdGeomGprim(prim));
     }
 }
 
@@ -600,6 +657,10 @@ OperationResult PrimitiveFitOperation::recordAnalysis()
         fitStats[type]["nonconstPrimvarMeshCount"] = JsValue(m_meshReport.fitNonConstPrimvarMeshCount[type]);
         fitStats[type]["nonconstPrimvarFaceCount"] = JsValue(m_meshReport.fitNonConstPrimvarFaceCount[type]);
         fitStats[type]["nonconstPrimvarVertexCount"] = JsValue(m_meshReport.fitNonConstPrimvarVertexCount[type]);
+        // Per-prim paths backing the mesh-count buckets (verbose reporting),
+        // added alongside the counts so existing consumers are unaffected.
+        fitStats[type]["meshPaths"] = _toJson(m_meshReport.fitMeshPaths[type]);
+        fitStats[type]["nonconstPrimvarMeshPaths"] = _toJson(m_meshReport.fitNonConstPrimvarMeshPaths[type]);
         primitiveFits[omo::PrimitiveType::name(type).data()] = fitStats[type];
     }
     analysisResult["primitives"] = primitiveFits;

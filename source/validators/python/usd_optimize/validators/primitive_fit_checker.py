@@ -82,6 +82,13 @@ class PrimitiveFitChecker(BaseUsdOptimizeChecker):
                         callable=partial(self._fit_primitives, name, False),
                     ),
                 )
+
+                # In verbose mode, list each fittable mesh individually.
+                self._AddVerbosePrimWarnings(
+                    usdStage,
+                    data.get("meshPaths", []),
+                    "Mesh can be replaced by a {} GPrim".format(name),
+                )
             if nonconst_primvar_mesh_count != 0:
                 s = "es" if nonconst_primvar_mesh_count > 1 else ""
                 w = "with" if mesh_count == 0 else "WITH"
@@ -100,4 +107,11 @@ class PrimitiveFitChecker(BaseUsdOptimizeChecker):
                         'Fit Primitives with both fit {} and "Ignore non-const primvars" enabled.'.format(name),
                         callable=partial(self._fit_primitives, name, True),
                     ),
+                )
+
+                # In verbose mode, list each fittable mesh (with non-const primvars) individually.
+                self._AddVerbosePrimWarnings(
+                    usdStage,
+                    data.get("nonconstPrimvarMeshPaths", []),
+                    "Mesh with non-const primvars can be replaced by a {} GPrim".format(name),
                 )

@@ -1,0 +1,4 @@
+[
+    {"operation": "deduplicateHierarchies"},
+    {"operation": "deduplicateGeometry", "duplicateMethod": 2, "tolerance": 0.001}
+]

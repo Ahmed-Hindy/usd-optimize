@@ -1,0 +1,16 @@
+[
+    {
+        "operation": "meshCleanup",
+        "mergeVertices": true,
+        "removeIsolatedVertices": true,
+        "removeDegenerateFaces": true
+    },
+    {"operation": "deduplicateGeometry"},
+    {"operation": "removeSmallGeometry"},
+    {
+        "operation": "decimateMeshes",
+        "reductionFactor": 0.0,
+        "maxMeanError": 0.01,
+        "pinBoundaries": true
+    }
+]

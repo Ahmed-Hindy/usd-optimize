@@ -9,7 +9,7 @@ from pxr import Usd
 from usd_optimize.core import analysis
 from usd_validation_nvidia import Suggestion, capabilities, register_requirements
 
-from .base_usd_optimize_checker import BaseUsdOptimizeChecker, Parameter
+from .base_usd_optimize_checker import BaseUsdOptimizeChecker, Parameter, ParameterFromOpArg
 
 
 @register_requirements(capabilities.GeometryRequirements.VG_012)
@@ -17,16 +17,16 @@ class SmallMeshChecker(BaseUsdOptimizeChecker):
     """
     Uses Usd Optimize to analyze a scene checking for meshes with extents
     below a configurable size threshold.
-
-    Parameters:
-        SIZE_THRESHOLD: The minimum extent size a mesh can have before it is
-            considered small. Default: 0.001.
     """
 
     OPERATION_NAME: str = "removeSmallGeometry"
     OPERATION_ARGS: ClassVar[Mapping[str, Any]] = {"removeMethod": 1, "detectionMethod": 0}
     PARAMETERS: ClassVar[Mapping[str, Parameter]] = {
-        "SIZE_THRESHOLD": Parameter(default=0.001, op_arg="threshold"),
+        "SIZE_THRESHOLD": ParameterFromOpArg(
+            "threshold",
+            default=0.001,
+            description="The minimum extent size a mesh can have before it is considered small.",
+        ),
     }
 
     @classmethod

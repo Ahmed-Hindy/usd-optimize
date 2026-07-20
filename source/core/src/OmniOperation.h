@@ -10,9 +10,7 @@
 #include "usd_optimize/core/ResolveSdfPaths.h"
 
 // OmniMeshOps
-#include <OmniMeshOps/usd/Mesh.h>
-#include <OmniMeshOps/usd/MeshData.h>
-#include <OmniMeshOps/usd/Prim.h>
+#include <OmniMeshOps/UsdIO.h>
 
 // TBB
 #include <tbb/task_group.h>
@@ -132,7 +130,7 @@ protected:
 
 struct ProcessedHostMesh : public ProcessedData
 {
-    ProcessedHostMesh(const omo::usd::HostMesh& hostMesh, const PXR_NS::UsdPrim& usdPrim, bool write = true)
+    ProcessedHostMesh(const omo::HostMesh& hostMesh, const PXR_NS::UsdPrim& usdPrim, bool write = true)
         : ProcessedData(usdPrim, write)
         , m_hostMesh(hostMesh)
     {
@@ -155,16 +153,16 @@ struct ProcessedHostMesh : public ProcessedData
 
     void writeToUsd(const std::string& primPath, const PXR_NS::UsdStageWeakPtr& stage) override
     {
-        m_hostMesh.writeToUsd(primPath, stage);
+        omo::exportUsdGeomMesh(m_hostMesh, stage, primPath);
     }
 
 protected:
-    omo::usd::HostMesh m_hostMesh;
+    omo::HostMesh m_hostMesh;
 };
 
 struct ProcessedHostMeshData : public ProcessedData
 {
-    ProcessedHostMeshData(const omo::usd::HostMeshData& meshData, const PXR_NS::UsdPrim& usdPrim, bool write = true)
+    ProcessedHostMeshData(const omo::HostMeshData& meshData, const PXR_NS::UsdPrim& usdPrim, bool write = true)
         : ProcessedData(usdPrim, write)
         , m_meshData(meshData)
     {
@@ -192,16 +190,16 @@ struct ProcessedHostMeshData : public ProcessedData
 
     void writeToUsd(const std::string& primPath, const PXR_NS::UsdStageWeakPtr& stage) override
     {
-        m_meshData.writeToUsd(primPath, stage);
+        omo::exportUsdGeomMesh(m_meshData, stage, primPath);
     }
 
 protected:
-    omo::usd::HostMeshData m_meshData;
+    omo::HostMeshData m_meshData;
 };
 
 struct ProcessedHostPrim : public ProcessedData
 {
-    ProcessedHostPrim(const omo::usd::HostPrim& hostPrim, const PXR_NS::UsdPrim& usdPrim, bool write = true)
+    ProcessedHostPrim(const omo::Primitive& hostPrim, const PXR_NS::UsdPrim& usdPrim, bool write = true)
         : ProcessedData(usdPrim, write)
         , m_hostPrim(hostPrim)
     {
@@ -234,18 +232,18 @@ struct ProcessedHostPrim : public ProcessedData
         }
     }
 
-    const omo::usd::HostPrim& hostPrim() const
+    const omo::Primitive& hostPrim() const
     {
         return m_hostPrim;
     }
 
     void writeToUsd(const std::string& primPath, const PXR_NS::UsdStageWeakPtr& stage) override
     {
-        m_hostPrim.writeToUsd(primPath, stage);
+        omo::exportUsdGeomGprim(m_hostPrim, stage, primPath);
     }
 
 protected:
-    omo::usd::HostPrim m_hostPrim;
+    omo::Primitive m_hostPrim;
 };
 
 /// OmniMesh Operation

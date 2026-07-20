@@ -18,8 +18,7 @@ MODE_DEDUPLICATE = 0
 @register_requirements(capabilities.MaterialsRequirements.VM_D_001)
 class DuplicateMaterialsChecker(BaseUsdOptimizeChecker):
     """
-    Uses Usd Optimize to analyse a scene checking for duplicate materials.
-    Usd Optimize can then fix by deduplicating them.
+    Finds duplicate materials; fixed by deduplicating them.
     """
 
     OPERATION_NAME: str = "optimizeMaterials"

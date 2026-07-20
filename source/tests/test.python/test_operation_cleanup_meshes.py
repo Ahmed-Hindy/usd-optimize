@@ -25,6 +25,27 @@ class Test_Operation_Mesh_Cleanup(Test_Operation):
 
     OPERATION = "meshCleanup"
 
+    async def test_analysis_zero_extent_meshes_no_crash(self):
+        """Regression: omo::checkClean() did an out-of-bounds heap write on fully-degenerate
+        zero-extent (all-points-coincident) meshes. Two or more such meshes in a stage crashed
+        meshCleanup analysis with an intermittent SIGSEGV (hit in the validate -> --fix ->
+        revalidate loop, whose --fix step splits a degenerate mesh into zero-extent parts).
+        Analysis must skip such meshes and complete instead of crashing the process.
+        """
+        stage = Usd.Stage.CreateInMemory()
+        UsdGeom.Xform.Define(stage, "/World")
+        # Two meshes whose points are all coincident (zero-extent) -- the crash trigger.
+        for name, base_x in (("A", -50.0), ("B", 50.0)):
+            mesh = UsdGeom.Mesh.Define(stage, "/World/{}".format(name))
+            mesh.CreateFaceVertexCountsAttr([4])
+            mesh.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+            mesh.CreatePointsAttr([(base_x, -50, 50)] * 4)
+
+        context = _get_context(stage, analysis=True)
+        # Pre-fix this SIGSEGV'd the process; post-fix it must return a successful analysis result.
+        _, result = self._execute_command(DEFAULT_ARGS.copy(), context=context)
+        self.assertTrue(result[0])
+
     async def test_merge_vertices(self):
         """Test merge vertices"""
         stage = self._open_stage("mergeColocatedVertices_input.usd")
@@ -176,10 +197,16 @@ class Test_Operation_Mesh_Cleanup(Test_Operation):
     async def test_analysis(self):
         """Test analysis mode"""
 
+        # Analysis enables every fix (including makeManifold) so checkClean reports all defect categories. makeManifold
+        # is excluded from DEFAULT_ARGS only because it conflicts with vertex merging during an actual cleanup; in
+        # analysis mode nothing is written, so there is no conflict.
+        analysis_args = DEFAULT_ARGS.copy()
+        analysis_args["makeManifold"] = True
+
         # First test scene
         stage = self._open_stage("cubeDegenerateFaces.usda")
         context = _get_context(stage, analysis=True)
-        success, result = self._execute_command(DEFAULT_ARGS, context)
+        success, result = self._execute_command(analysis_args, context)
 
         # Assert analysis exists
         self.assertTrue(success)
@@ -195,16 +222,20 @@ class Test_Operation_Mesh_Cleanup(Test_Operation):
         self.assertTrue("meshesWithIsolatedVertices" in analysis)
         self.assertTrue("meshesWithDuplicateFaces" in analysis)
         self.assertEqual(analysis["meshesWithMergeableVertices"], 0)
-        self.assertEqual(analysis["meshesThatAreNonManifolds"], 2)
+        self.assertEqual(analysis["meshesThatAreNonManifolds"], 1)
         self.assertEqual(analysis["meshesWithDegenerateEdges"], 1)
         self.assertEqual(analysis["meshesWithDegenerateFaces"], 1)
         self.assertEqual(analysis["meshesWithIsolatedVertices"], 1)
-        self.assertEqual(analysis["meshesWithDuplicateFaces"], 1)
+        self.assertEqual(analysis["meshesWithDuplicateFaces"], 0)
+
+        # The additive per-prim path lists must mirror the counts above so
+        # verbose reporting can name the offending prims.
+        self._assert_paths_match_counts(analysis)
 
         # Second test scene
         stage = self._open_stage("mergeColocatedVertices_input.usd")
         context = _get_context(stage, analysis=True)
-        success, result = self._execute_command(DEFAULT_ARGS, context)
+        success, result = self._execute_command(analysis_args, context)
 
         # Assert analysis exists
         self.assertTrue(success)
@@ -221,7 +252,28 @@ class Test_Operation_Mesh_Cleanup(Test_Operation):
         self.assertTrue("meshesWithDuplicateFaces" in analysis)
         self.assertEqual(analysis["meshesWithMergeableVertices"], 2)
         self.assertEqual(analysis["meshesThatAreNonManifolds"], 0)
-        self.assertEqual(analysis["meshesWithDegenerateEdges"], 0)
-        self.assertEqual(analysis["meshesWithDegenerateFaces"], 0)
+        # Merging colocated vertices welds coincident points, which collapses edges/faces in both meshes; the combined
+        # pipeline reports those merge-induced degeneracies (they did not exist in the unmerged input).
+        self.assertEqual(analysis["meshesWithDegenerateEdges"], 2)
+        self.assertEqual(analysis["meshesWithDegenerateFaces"], 2)
         self.assertEqual(analysis["meshesWithIsolatedVertices"], 0)
         self.assertEqual(analysis["meshesWithDuplicateFaces"], 0)
+
+        self._assert_paths_match_counts(analysis)
+
+    def _assert_paths_match_counts(self, analysis):
+        """Each ``*Paths`` list must be present and as long as its counter."""
+        for count_key in (
+            "meshesWithMergeableVertices",
+            "meshesThatAreNonManifolds",
+            "meshesWithDegenerateEdges",
+            "meshesWithDegenerateFaces",
+            "meshesWithIsolatedVertices",
+            "meshesWithDuplicateFaces",
+        ):
+            paths_key = count_key + "Paths"
+            self.assertIn(paths_key, analysis)
+            self.assertEqual(len(analysis[paths_key]), analysis[count_key])
+            # Entries are prim path strings.
+            for path in analysis[paths_key]:
+                self.assertTrue(str(path).startswith("/"))

@@ -8,3 +8,7 @@ install_dir = "$root/_build/packages"
 [repo_usd_deps]
 command = "usd"
 entry_point = "usd:setup_repo_tool"
+
+[repo_docs_gen]
+command = "docs_gen"
+entry_point = "docs_gen:setup_repo_tool"

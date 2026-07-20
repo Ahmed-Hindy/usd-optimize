@@ -26,7 +26,7 @@ authoritative list of registered rules is the `_RULE_CATEGORIES` tuple in
 | UsdOptimizeIndexedPrimvarChecker | `optimizePrimvars` | T1 | Converts to indexed primvars. |
 | UsdOptimizeInvisiblePrimsChecker | `removePrims` | T2 | Confirm intent before removing — invisible may be deliberate. |
 | UsdOptimizeIsolatedVerticesChecker | `meshCleanup` | T1 | `meshCleanup` removes isolated verts. |
-| UsdOptimizeMeshDensityChecker | `countVertices` | T2 | Informational. To reduce, prefer lossless paths first (`deduplicateGeometry`, `removeSmallGeometry`); add `decimateMeshes` only after confirming the goal with the user — silhouette preservation (`maxMeanError`) vs target reduction rate (`reductionFactor` 0–100). See `.agents/operations/PIPELINES.md` *Decimation* section. |
+| UsdOptimizeMeshDensityChecker | `countVertices` | T2 | Informational. To reduce, prefer lossless paths first (`deduplicateGeometry`, `removeSmallGeometry`); add `decimateMeshes` only after confirming the goal with the user — silhouette preservation (`maxMeanError`) vs target reduction rate (`reductionFactor` 0–100). See `docs/operations/decimateMeshes.rst`. |
 | UsdOptimizeNonManifoldChecker | `meshCleanup` | T2 | Some non-manifold cases require DCC edit; `meshCleanup` handles common ones. |
 | UsdOptimizeNormalsChecker | `generateNormals` | T1 | Regenerates missing/invalid normals. |
 | UsdOptimizePrimitiveFitChecker | `fitPrimitives` | T2 | Replaces meshes with USD primitives where it fits; tune carefully. |

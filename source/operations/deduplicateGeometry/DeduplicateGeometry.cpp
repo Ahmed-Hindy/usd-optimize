@@ -65,12 +65,7 @@ constexpr const char* s_categoryDeduplicate = "DEDUPLICATE_GEOMETRY";
 
 
 DeduplicateGeometryOperation::DeduplicateGeometryOperation()
-    : Operation("deduplicateGeometry",
-                "Deduplicate Geometry",
-                "This will replace multiple duplicate meshes in a scene to a single mesh and "
-                "create references/instances to the single mesh prim. Since a referenced mesh "
-                "uses less memory than the full duplicated mesh, this option can reduce system "
-                "memory and vram consumption.")
+    : Operation("deduplicateGeometry", "Deduplicate Geometry", "Convert identical meshes into instances.")
 {
 
     addArgument("meshPrimPaths",
@@ -181,6 +176,54 @@ DeduplicateGeometryOperation::DeduplicateGeometryOperation()
 
 
 DeduplicateGeometryOperation::~DeduplicateGeometryOperation() = default;
+
+
+std::string DeduplicateGeometryOperation::getDocumentation() const
+{
+    return R"DOC(This replaces multiple duplicate geometric prims in a scene with a single prim plus
+references/instances to it. Since a referenced prim uses less memory than a full duplicated prim, this
+can reduce both system memory and VRAM. It is only effective when there are prims that are identical but
+not already instanced, so it may have no effect on a scene that is already well instanced.
+
+A fuzzy comparison mode is also available: its similarity measure is independent of tessellation and
+based on relative shape deviation, with CPU and GPU implementations. The operation deduplicates
+point-based geometry (meshes, basis curves, etc.); in fuzzy mode only meshes are supported.
+
+This is **mesh-level** deduplication: it matches individual gprims, not whole sub-trees. To collapse
+duplicate assemblies (entire prim hierarchies), run :doc:`Deduplicate Hierarchies<deduplicateHierarchies>`
+first, then this operation to catch any remaining loose duplicate meshes.
+
+Matching controls
+-----------------
+
+``tolerance`` (default ``0.001``, stage units) is the position tolerance for considering two meshes
+equal; use ``0`` to require exact matches. ``fuzzy`` enables shape-based matching; ``allowScaling`` lets
+uniformly scaled copies match; ``considerDeepTransforms`` (default ``true``) accounts for the full
+world transform when comparing. ``minimumDuplicates`` (default ``2``) sets how many copies must exist
+before a prototype is created. ``ignoreAttributes`` excludes named attributes from the comparison.
+
+Recommended pipelines
+---------------------
+
+Frequently used in memory-reduction stacks alongside ``optimizeMaterials`` and ``pruneLeaves``, and after
+``fitPrimitives`` so primitive-replaced meshes can also be deduplicated.
+
+Starting configurations
+-----------------------
+
+Exact instancing (default method):
+
+.. code-block:: json
+
+    [{"operation": "deduplicateGeometry", "duplicateMethod": 2, "tolerance": 0.001}]
+
+Fuzzy (tessellation-independent) matching:
+
+.. code-block:: json
+
+    [{"operation": "deduplicateGeometry", "duplicateMethod": 2, "fuzzy": true, "allowScaling": true}]
+)DOC";
+}
 
 
 std::string DeduplicateGeometryOperation::getAuthor() const

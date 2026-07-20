@@ -7,6 +7,9 @@
 // Usd Optimize Core
 #include <usd_optimize/core/OmniOperation.h>
 
+// TBB
+#include <tbb/concurrent_vector.h>
+
 
 namespace usd_optimize
 {
@@ -79,9 +82,13 @@ private:
         void clear()
         {
             totalNonUnitLengthStrict = 0;
+            nonUnitLengthStrictPaths.clear();
         }
 
         std::atomic<size_t> totalNonUnitLengthStrict;
+        // Per-prim paths backing the count above (verbose reporting). Always
+        // populated; consumers choose whether to surface them.
+        tbb::concurrent_vector<PXR_NS::UsdPrim> nonUnitLengthStrictPaths;
     };
 
     ExistingNormals m_existingNormals;

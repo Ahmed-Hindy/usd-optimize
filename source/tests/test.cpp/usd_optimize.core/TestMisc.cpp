@@ -30,6 +30,7 @@
 
 // Standard library
 #include <atomic>
+#include <limits>
 #include <vector>
 
 // TBB
@@ -1233,4 +1234,31 @@ TEST_CASE("Test coalescer")
     coalescer.cancel();
     coalescer.trigger();
     CHECK_EQ(coalescer.isActive(), false);
+}
+
+
+TEST_CASE("arePointsFinite")
+{
+    CHECK(arePointsFinite(VtVec3fArray{}));
+    CHECK(arePointsFinite(VtVec3fArray{ GfVec3f(0, 0, 0), GfVec3f(1, -2, 3) }));
+
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const float inf = std::numeric_limits<float>::infinity();
+    CHECK_FALSE(arePointsFinite(VtVec3fArray{ GfVec3f(0, 0, 0), GfVec3f(nan, 0, 0) }));
+    CHECK_FALSE(arePointsFinite(VtVec3fArray{ GfVec3f(0, inf, 0) }));
+    CHECK_FALSE(arePointsFinite(VtVec3fArray{ GfVec3f(0, 0, -inf) }));
+}
+
+
+TEST_CASE("isTransformFinite")
+{
+    CHECK(isTransformFinite(GfMatrix4d(1.0)));
+
+    GfMatrix4d nanXform(1.0);
+    nanXform[3][0] = std::numeric_limits<double>::quiet_NaN();
+    CHECK_FALSE(isTransformFinite(nanXform));
+
+    GfMatrix4d infXform(1.0);
+    infXform[1][1] = std::numeric_limits<double>::infinity();
+    CHECK_FALSE(isTransformFinite(infXform));
 }

@@ -25,6 +25,7 @@ static constexpr const char* KEY_JOIN_NEXT = "joinNext";
 static constexpr const char* KEY_JOIN_NEXT_DESC = "joinNextDescription";
 static constexpr const char* KEY_MAX = "max";
 static constexpr const char* KEY_MIN = "min";
+static constexpr const char* KEY_REJECT_OUT_OF_RANGE = "rejectOutOfRange";
 static constexpr const char* KEY_METADATA = "metadata";
 static constexpr const char* KEY_PLACEHOLDER = "placeholder";
 static constexpr const char* KEY_PRECISION = "precision";
@@ -367,6 +368,20 @@ float Argument::getMax() const
 {
     const JsValue& value = pImpl->getValueForKey(KEY_MAX);
     return value.IsNull() ? NAN : value.GetReal();
+}
+
+
+bool Argument::getRejectOutOfRange() const
+{
+    const JsValue& value = pImpl->getValueForKey(KEY_REJECT_OUT_OF_RANGE);
+    return value.IsBool() ? value.GetBool() : false;
+}
+
+
+Argument& Argument::setRejectOutOfRange(bool value)
+{
+    pImpl->m_metadata.insert(std::make_pair(KEY_REJECT_OUT_OF_RANGE, JsValue(value)));
+    return *this;
 }
 
 

@@ -775,12 +775,7 @@ static bool _applyInternalReferences(const UsdStageWeakPtr& stage, const Hierarc
 DeduplicateHierarchiesOperation::DeduplicateHierarchiesOperation()
     : Operation("deduplicateHierarchies",
                 "Deduplicate Hierarchies",
-                "Find duplicate prim hierarchies and replace duplicates with instanceable "
-                "internal references to a prototype. Groups prims by subtree shape, then "
-                "partitions each group into value-equivalence classes so that a set of "
-                "structurally-identical copies with multiple value-variants yields one "
-                "prototype per variant. Recurses into each prototype so nested duplicates "
-                "are consolidated into nested instanceable references.")
+                "Find duplicate prim hierarchies and replace duplicates with instances.")
     , m_paths()
     , m_tolerance(0.001)
     , m_ignoreShaderOutputs(true)
@@ -825,6 +820,55 @@ DeduplicateHierarchiesOperation::DeduplicateHierarchiesOperation()
 
 
 DeduplicateHierarchiesOperation::~DeduplicateHierarchiesOperation() = default;
+
+
+std::string DeduplicateHierarchiesOperation::getDocumentation() const
+{
+    return R"DOC(Find duplicate prim hierarchies and replace duplicates with instanceable internal
+references to a prototype. Identical hierarchies that contain variants produce one prototype per variant.
+The operation recurses into each prototype so nested duplicates are consolidated into nested instanceable
+references.
+
+This is **assembly-level** deduplication: it matches whole sub-trees, not individual meshes. Matching is
+structural (the shape of the sub-tree plus authored values), so it safely collapses repeated assemblies
+such as bolts, fasteners, or fixtures that appear many times in a CAD-imported scene. To also catch loose
+duplicate meshes that are not part of a repeated hierarchy, follow this with
+:doc:`Deduplicate Geometry<deduplicateGeometry>`.
+
+Matching controls
+-----------------
+
+``tolerance`` (default ``0.001``, stage units) is the value tolerance for treating two hierarchies as
+equal. Use ``0`` to require exact matches; this is appropriate for metrology, simulation, or articulated
+assets where small authored differences are meaningful. ``ignoreShaderOutputs`` (default ``true``)
+ignores shader output differences when comparing. ``maxDepth`` (default ``0`` = unlimited) caps how deep
+the structural comparison descends.
+
+Recommended pipelines
+---------------------
+
+Pair with ``deduplicateGeometry`` (hierarchies first, then geometry). This is the basis of the
+``hierarchy-dedup`` preset.
+
+Starting configurations
+-----------------------
+
+Structural dedup, then geometry dedup:
+
+.. code-block:: json
+
+    [
+        {"operation": "deduplicateHierarchies"},
+        {"operation": "deduplicateGeometry", "duplicateMethod": 2, "tolerance": 0.001}
+    ]
+
+Exact matching (no value tolerance):
+
+.. code-block:: json
+
+    [{"operation": "deduplicateHierarchies", "tolerance": 0.0}]
+)DOC";
+}
 
 
 std::string DeduplicateHierarchiesOperation::getAuthor() const

@@ -115,6 +115,62 @@ ShrinkwrapOperation::ShrinkwrapOperation()
 ShrinkwrapOperation::~ShrinkwrapOperation() = default;
 
 
+std::string ShrinkwrapOperation::getDocumentation() const
+{
+    return R"DOC(This operation converts meshes to a level set volume using
+`OpenVDB <https://www.openvdb.org/>`_ and extracts a watertight mesh back out. It is useful for closing
+holes, simplifying topology, and creating LOD meshes. The algorithm rasterizes the input mesh into a
+narrow-band level set, optionally erodes the surface to close gaps and holes, and extracts a new polygon
+mesh from the resulting volume. The output mesh is written as a new sibling prim alongside the original,
+which is preserved.
+
+Choosing resolution
+-------------------
+
+``voxelSize`` is the dominant control and should be set first. It is the edge length of a level-set voxel,
+in **stage units**: smaller values capture finer detail but cost cubically more memory and time, larger
+values smooth the result and close bigger gaps. ``adaptivity`` (0-1) then simplifies flat regions of the
+extracted mesh to reduce triangle count without re-running the volume step.
+
+Scale and units
+---------------
+
+``voxelSize``, ``erode``, and ``threshold`` are all in stage units, so the right values depend on the
+stage's ``metersPerUnit``. A scene authored in centimetres (``metersPerUnit`` = 0.01) needs voxel sizes
+roughly 100x those of a scene authored in metres for the same physical resolution.
+
+Tuning order
+------------
+
+1. Set ``voxelSize`` for the target detail level (start small and increase until cost is acceptable).
+2. Increase ``erode`` to close larger gaps and holes.
+3. Adjust ``threshold`` to shift the extracted iso-surface inward or outward.
+4. Raise ``adaptivity`` to thin out triangles on flat areas.
+
+Recommended pipelines
+---------------------
+
+Often run after ``merge`` so a group of parts becomes one watertight shell; target the merged prims with
+``paths``. Pairs well with ``decimateMeshes`` afterward for LOD generation.
+
+Starting configurations
+-----------------------
+
+Conservative detail preservation:
+
+.. code-block:: json
+
+    [{"operation": "shrinkwrap", "voxelSize": 0.05, "erode": 8.0}]
+
+Gap-closing / hole-filling (coarser, more erosion):
+
+.. code-block:: json
+
+    [{"operation": "shrinkwrap", "voxelSize": 0.2, "erode": 16.0, "adaptivity": 0.5}]
+)DOC";
+}
+
+
 std::string ShrinkwrapOperation::getAuthor() const
 {
     return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);

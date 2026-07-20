@@ -252,6 +252,29 @@ class Test_Operation_FindOccludedMeshes(Test_Operation):
         if failures:
             self.fail("Failures:\n" + "\n".join(failures))
 
+    async def test_zero_extent_mesh_skipped(self):
+        """Test that a zero-extent (all points coincident) mesh isolated from other geometry does not
+        crash the clustered CPU path: it is skipped and genuine occlusion is still found.
+        """
+
+        stage = self._open_stage("zeroExtentMesh.usda")
+
+        context = _get_context(stage, analysis=True)
+
+        args = DEFAULT_ARGS.copy()
+        args.update({"clustered": True, "useGpu": False, "minimumGapSize": 0.01})
+
+        success, result = self._execute_command(args, context)
+
+        self.assertTrue(success)
+        self.assertTrue(result[0])
+        self.assertTrue("analysis" in result[2])
+        analysis = result[2]["analysis"]
+
+        # The genuinely enclosed mesh is found; the degenerate mesh is skipped, not flagged
+        self.assertTrue("occludedMeshes" in analysis)
+        self.assertEqual(analysis["occludedMeshes"], ["/root/hidden/hidden"])
+
     async def test_transparency_flag(self):
         """Test transparency flag - should find one hidden mesh if false, zero if true"""
 

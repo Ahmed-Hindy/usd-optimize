@@ -72,3 +72,10 @@ class NormalsChecker(BaseUsdOptimizeChecker):
                     callable=partial(self._mesh_generate_normals),
                 ),
             )
+
+            # In verbose mode, list each mesh with non-unit-length normals individually.
+            self._AddVerbosePrimWarnings(
+                usdStage,
+                analysis_data.get("nonUnitLengthStrictPaths", []),
+                "Mesh with normals that are not of length 1 found",
+            )

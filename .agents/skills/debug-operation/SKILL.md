@@ -35,17 +35,19 @@ itself is broken).
 
 ## Step 1 — Reproduce and capture the log
 
-Run the operation with full logging so the failure is captured on disk.
+Run the operation through the `usdOptimize` CLI with full logging, and omit
+`-w` so no (bad) output file is written.
 
 ```bash
-# POSIX — verbose + captureStats
-tools/perf_operations/run.sh run "$ASSET" \
-    --config '[{"operation":"executionContext","verbose":true,"captureStats":true},{"operation":"<key>","<arg>":"<val>"}]' \
-    --no-save > /tmp/debug-run.log 2>&1
+# POSIX — verbose, capture stats, no output written
+BIN=_build/linux-x86_64/release/bin/usdOptimize
+"$BIN" -i "$ASSET" -o <key> -a <arg>=<val> -v -s -r > "$TMPDIR/debug-run.log" 2>&1
 ```
 
-`--no-save` avoids writing a bad output file. The log captures both the
-C++ `[INFO]`/`[WARN]`/`[ERROR]` lines and the Python driver output.
+`-v` is verbose, `-s` captures before/after stats, `-r` emits a report.
+Omitting `-w` means nothing is written. The log captures the C++
+`[INFO]`/`[WARN]`/`[ERROR]` lines. For a multi-op chain, use `-c <config.json>`
+instead of `-o`/`-a`.
 
 If the user already has a log (e.g. from a prior `run-operations` run),
 skip this step and read their log directly.
@@ -65,8 +67,7 @@ user's config matches the operation's `addArgument()` declarations:
 rg 'addArgument' source/operations/<key>/ --glob '*.cpp' --glob '*.h'
 ```
 
-Or check the Parameters table in `.agents/operations/<key>.md` if a guide
-exists. Common mistakes:
+Or check the argument list in `docs/operations/<key>.rst`. Common mistakes:
 
 - Camel-case vs snake-case (`mergeVertices` not `merge_vertices`).
 - Plural vs singular (`paths` not `path`, `meshPrimPaths` not `meshPrimPath`).
@@ -128,8 +129,8 @@ rg 'getSupportsAnalysis' source/operations/<key>/ --glob '*.cpp'
 If the operation doesn't override `getSupportsAnalysis`, analysis mode is
 unavailable — fall back to running on a disposable copy of the stage.
 
-For the full `ExecutionContext` flags reference, see
-`.agents/operations/INVOCATION.md`.
+For the full CLI flag reference (`-v`, `-s`, `-an`, `-r`, `-st`), see
+`docs/cli.rst`.
 
 ## Step 4 — Diagnose by failure pattern
 
@@ -139,7 +140,7 @@ For the full `ExecutionContext` flags reference, see
 |---|---|---|
 | `Stage not found` or `Invalid stage id` | `ExecutionContext.usdStageId` not set or stale. | Use `context.set_stage(stage)` or set `usdStageId` via `UsdUtils.StageCache`. |
 | `Operation '<key>' not found` | Operation plugin didn't load — either not built or not on the plugin search path. | Rebuild (`./repo.sh build`). Check `UsdOptimizeCore.getInstance().getOperations()` for the registered list. |
-| `libusd` mismatch / stage-cache miss (see `Operation.cpp` error) | Two copies of `libusd` loaded — Python's `pxr` resolves to a different one than the C++ core. | Use the build's bundled Python via the wrapper scripts. See `validators` skill § Known CLI issues. |
+| `libusd` mismatch / stage-cache miss (see `Operation.cpp` error) | Two copies of `libusd` loaded — Python's `pxr` resolves to a different one than the C++ core. | Use the build's bundled Python via the wrapper scripts. See `run-validators` § CLI invocation for the `libusd` alignment exports. |
 | Crash / segfault during execution | Usually a real bug. | Isolate the failing prim path, write a minimal repro, and file against the operation. |
 
 ### Silent no-ops (operation returns success, nothing changed)
@@ -156,7 +157,7 @@ For the full `ExecutionContext` flags reference, see
 |---|---|---|
 | Only some prims were affected | Operation scoped by `paths` or a prim-type filter. | Widen `paths` or check `meshPrimPaths` / similar scope arguments. |
 | Values look wrong (e.g. extreme decimation) | World-unit mismatch — parameter values are in stage units, and `metersPerUnit` doesn't match assumptions. | Check `UsdGeom.GetStageMetersPerUnit(stage)` and scale parameters accordingly. |
-| Merge produced unexpected grouping | `mergePoint` / `rootPath` / `considerMaterials` settings. | See `.agents/operations/merge.md`. |
+| Merge produced unexpected grouping | `mergePoint` / `rootPath` / `considerMaterials` settings. | See `docs/operations/merge.rst`. |
 
 ---
 
@@ -194,7 +195,7 @@ For the full `ExecutionContext` flags reference, see
 
 ### Hierarchy operations (`flattenHierarchy`, `pruneLeaves`)
 
-- `REQUIRES_MESH = False` — these run on mesh-less stages too.
+- These operate on the prim hierarchy, so they run on mesh-less stages too.
 - `flattenHierarchy` has params that control depth; defaults may not
   flatten enough.
 
@@ -202,8 +203,8 @@ For the full `ExecutionContext` flags reference, see
 
 ## See also
 
-- `.agents/operations/<key>.md` — per-operation parameter reference.
-- `.agents/operations/INVOCATION.md` — ExecutionContext flags, API surface.
+- `docs/operations/<key>.rst` — per-operation parameter reference and tuning guidance.
+- `docs/cli.rst` — CLI flags (`-v`, `-s`, `-an`, `-r`, ...).
 - `.agents/skills/run-operations/SKILL.md` — errors table for driver failures.
 - `.agents/skills/tune-parameters/SKILL.md` — when the operation runs but
   output quality needs iteration.
@@ -249,5 +250,5 @@ can't make progress.
 | Verbose log is empty | `executionContext` step missing or placed after the failing op. | Put `{"operation":"executionContext","verbose":true,"captureStats":true}` as the first config entry. |
 | Analysis mode reports `not supported` | Operation doesn't implement `executeAnalysisImpl`. | Drop analysis mode; run on a copy of the stage with `--no-save`. |
 | Op succeeds standalone but fails in chain | Earlier step in the chain mutated the stage in a way that invalidates the inputs. | Bisect the chain — run the failing op directly after the input is loaded. |
-| `libusd` mismatch error from `Operation.cpp` | Two `libusd` builds loaded — typical with system `pxr` + dev-tree Usd Optimize. | Use the build's bundled Python via the wrapper scripts (`tools/perf_*/run.sh`). See `validators` skill § Known CLI issues. |
+| `libusd` mismatch error from `Operation.cpp` | Two `libusd` builds loaded — typical with system `pxr` + dev-tree Usd Optimize. | Use the build's bundled Python via the wrapper scripts (`tools/perf_*/run.sh`). See `run-validators` § CLI invocation for the `libusd` alignment exports. |
 

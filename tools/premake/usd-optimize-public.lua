@@ -99,21 +99,10 @@ function m.use_mesh_tools()
         target_deps.."/mesh_tools/%{config}/lib",
     }
 
-    links {"mesh_tools"}
-
-    -- mesh_tools.lib was built with /MT (static CRT), which injects LIBCMT as a default lib.
-    -- Our plugins use /MD (dynamic CRT). Tell the linker to drop the conflicting LIBCMT
-    -- default lib to silence LNK4098 "defaultlib 'LIBCMT' conflicts with use of other libs".
-    filter { "system:windows" }
-        linkoptions { "/NODEFAULTLIB:LIBCMT" }
-
-    -- mesh_tools (static) contains CUDA device code compiled against the static CUDA runtime.
-    -- Link cudart_static so the runtime is baked in and no libcudart.so is needed at runtime.
-    -- dl/pthread/rt are required system deps of cudart_static on Linux.
-    filter { "system:linux" }
-        libdirs { target_deps.."/cuda/lib64" }
-        links { "cudart_static", "dl", "pthread", "rt" }
-    filter {}
+    -- mesh_tools_lib is a shared library that statically bakes in and hides its own CUDA
+    -- runtime (via --exclude-libs,ALL plus a version script) and manages its own CRT, so
+    -- consumers no longer need to provide the CUDA runtime or override default libs.
+    links {"mesh_tools_lib"}
 
 end
 
@@ -146,6 +135,8 @@ function m.shared_library(options)
     for _, header in ipairs(headers) do
         repo_build.prebuild_copy({ header, "%{root}/_build/%{cfg.system}-%{cfg.platform}/%{config}/include/usd_optimize/"..library_name.."/" })
     end
+
+    enable_gcov()
 
     kind "SharedLib"
     language "C++"
@@ -192,9 +183,9 @@ function m.shared_library(options)
 
     m.use_python()
     m.use_usd()
-    -- mesh_tools must come before omni_mesh so that CUDA symbols from the
-    -- static lib are resolved by the CUDA libs omnimesh brings in (Linux
-    -- single-pass linker requires providers to follow consumers).
+    -- mesh_tools_lib is a shared library that bakes in and hides its own CUDA
+    -- runtime, so it no longer relies on omni_mesh to resolve CUDA symbols and
+    -- imposes no link-ordering constraint. Kept adjacent for readability.
     m.use_mesh_tools()
     m.use_omni_mesh()
 end
@@ -217,6 +208,8 @@ function m.python_bindings(options)
     repo_build.prebuild_copy({ python_sources, target_bindings_dir })
 
     if bindings_sources then
+
+        enable_gcov()
 
         m.use_host_toolchain()
         m.use_pybind()

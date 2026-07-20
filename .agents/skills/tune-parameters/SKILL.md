@@ -1,6 +1,6 @@
 ---
 name: tune-parameters
-description: Interactive parameter tuning for a Usd Optimize operation. Use to iterate on op parameters, or to author a tuning guide.
+description: "[EXPERIMENTAL] Interactive parameter tuning for a Usd Optimize operation. Use to iterate on op parameters, or to extend an operation's getDocumentation() with tuning guidance."
 version: "1.0.0"
 allowed-tools: Read, Glob, Edit, Write, Bash
 metadata:
@@ -13,7 +13,10 @@ metadata:
 
 # /tune-parameters — Interactive Operation Tuning
 
-Operation guides live in `.agents/operations/`. Use the Glob tool to list them when needed.
+Per-operation references (overview, tuning guidance, argument table) live in
+`docs/operations/<key>.rst`, generated from each operation's C++
+`getDocumentation()` and `addArgument()` declarations. That is the source of
+truth for tuning.
 
 You are a tuning assistant for Usd Optimize operations. Follow this protocol.
 
@@ -21,19 +24,19 @@ You are a tuning assistant for Usd Optimize operations. Follow this protocol.
 
 ## What this skill covers
 
-Search this doc for keywords like `Tier 1`, `Tier 2`, `Tier 3`, `session log`, `screenshot`, `usdview`, `guide authoring`, `INVOCATION.md` to jump.
+Search this doc for keywords like `rst`, `session log`, `screenshot`, `usdview`, `improve the docs`, `Starting configurations` to jump.
 
-- **Step 0** — detect mode (tune vs. author a guide).
+- **Step 0** — detect mode (tune vs. improve the operation's docs).
 - **Step 1** — identify the operation (when no name given).
-- **Step 2** — load operation knowledge (Tier 1 full guide, Tier 2 session logs, Tier 3 C++ source fallback).
+- **Step 2** — load operation knowledge (the generated `docs/operations/<key>.rst`, optional session logs, C++ source for anything missing).
 - **Step 3** — gather context (USD inspection via `pxr` or fallback).
-- **Step 4** — generate a starting config from the guide's Starting Configs.
+- **Step 4** — generate a starting config from the rst's Starting configurations.
 - **Step 5** — iterate with the user (run, view, adjust).
-- **Guide Authoring Mode** — for developers adding a new `.agents/operations/<key>.md`.
+- **Improve-the-docs Mode** — for developers extending an operation's `getDocumentation()`.
 - **usdview Viewer Launch** — cross-platform usdview path probing.
 - **Rules** — protocol invariants.
 
-Companion docs: `.agents/operations/<key>.md` (per-operation guides), `.agents/operations/_template.md` (guide skeleton), `.agents/operations/INVOCATION.md` (how to actually run an operation), `.agents/operations/PIPELINES.md` (multi-op chains by bottleneck). Companion skills: `run-operations` (executes the tuned config), `interpret-validators` (decides which op to tune in the first place).
+Companion docs: `docs/operations/<key>.rst` (per-operation reference), `docs/cli.rst` (running an operation via the CLI), `docs/choosing-operations.rst` (which op for which goal), `config_presets/` (multi-op preset configs). Companion skills: `run-operations` (executes the tuned config), `interpret-validators` (decides which op to tune in the first place).
 
 ---
 
@@ -41,7 +44,7 @@ Companion docs: `.agents/operations/<key>.md` (per-operation guides), `.agents/o
 
 Check what the user is asking for:
 
-- **"create a guide for X"** or **"author a guide"** → go to [Guide Authoring Mode](#guide-authoring-mode)
+- **"improve the docs for X"** / **"update the getDocumentation for X"** → go to [Improve-the-docs Mode](#improve-the-docs-mode)
 - **Operation name provided** → go to Step 2
 - **No operation specified or user is unsure** → go to Step 1
 
@@ -49,39 +52,31 @@ Check what the user is asking for:
 
 ## Step 1: Identify the operation
 
-Read `.agents/operations/INDEX.md` and help the user pick an operation. The index lists operations sorted by argument count — operations with more arguments generally benefit more from guided tuning.
+List the operations from `docs/operations.rst` (or `usdOptimize --help`) and help the user pick one. Operations with more arguments generally benefit more from guided tuning.
 
-If the user has a goal rather than a specific operation (e.g., "reduce polycount", "close holes"), consult the operation guides in `.agents/operations/` and `PLUGINS.md` to recommend the right operation for their goal.
+If the user has a goal rather than a specific operation (e.g., "reduce polycount", "close holes"), consult `docs/choosing-operations.rst` and the per-operation `docs/operations/<key>.rst` files to recommend the right operation for their goal.
 
 ---
 
 ## Step 2: Load operation knowledge
 
-Use a three-tier fallback.
+### Primary — the generated reference
 
-### Tier 1 — Full guide (best experience)
+Every operation has `docs/operations/<operation>.rst`, generated from its
+`getDocumentation()` (overview + tuning guidance) and `addArgument()`
+declarations (the full argument table). Read it first; it is the source of
+truth. Then check `.agents/docs/sessions/<operation>.md` for any prior tuning
+session logs to supplement it. Proceed to Step 3.
 
-Guide exists at `.agents/operations/<operation>.md`:
+### Fallback — C++ source
 
-1. Read the guide
-2. Check `.agents/docs/sessions/<operation>.md` for session logs
-3. Proceed to Step 3
-
-### Tier 2 — Session logs (medium experience)
-
-No guide, but `.agents/docs/sessions/<operation>.md` exists:
-
-1. Read the session logs
-2. Tell the user: *"There's no tuning guide for this operation, but I have session logs from previous tuning runs. I can provide real-world configs and known pitfalls, but tuning order and visual diagnosis will be best-effort."*
-3. Proceed to Step 3
-
-### Tier 3 — C++ source only (baseline)
-
-No guide and no session logs:
-
-1. Read `source/operations/<operation>/` — extract `addArgument()` calls to build a parameter table
-2. Tell the user: *"There's no tuning guide or session logs for this operation. I'm working from the C++ source. Parameter descriptions are accurate, but tuning order and visual diagnosis are best-effort. Consider creating a guide with `/tune-parameters create a guide for <operation>`."*
-3. Proceed to Step 3
+If the rst's tuning guidance is thin (some operations carry only the
+auto-generated argument table), read `source/operations/<operation>/` and the
+`addArgument()` calls for the authoritative parameter behavior. Tell the user:
+*"This operation's reference is mostly the argument table, so tuning order and
+visual diagnosis will be best-effort. Once we find good settings, consider
+extending its `getDocumentation()` — see Improve-the-docs Mode."* Proceed to
+Step 3.
 
 ---
 
@@ -224,18 +219,31 @@ If user accepts: run the batch command first, then launch usdview on the output 
 
 ---
 
-## Guide Authoring Mode
+## Improve-the-docs Mode
 
-For operation developers who want to create a tuning guide. Triggered by "create a guide for X" or similar.
+For operation developers who want to capture tuning knowledge so it ships in
+the public reference. Operation docs are generated from the C++, so the way to
+"write a guide" is to extend the operation's `getDocumentation()`. Triggered by
+"improve the docs for X" or similar.
 
-1. **Read C++ source:** `source/operations/<operation>/` — extract all `addArgument()` calls (name, type, default, description, hidden flag)
-2. **Read template:** `.agents/operations/_template.md`
-3. **Pre-fill the guide** at `.agents/operations/<operation>.md`:
-   - **Header:** Fill in Key, Source path
-   - **Parameters table:** Populate from C++ source
-   - **Overview, Tuning Order, Visual Diagnosis, Starting Configs, Known Limitations:** Insert HTML-comment TODO markers (literal text `TODO(developer)` wrapped in an HTML comment, written as `&lt;!-- TODO(developer) --&gt;`) with contextual prompts based on what we know from the source
-4. **Present the draft** to the developer for review and explain which sections need their domain expertise
-5. **Update `INDEX.md`** if a new operation was added
+1. **Read C++ source:** `source/operations/<operation>/` — confirm the
+   `addArgument()` descriptions are clear (they become the generated argument
+   table) and read the existing `getDocumentation()`.
+2. **Extend `getDocumentation()`** to return reStructuredText with the tuning
+   knowledge found during tuning: an overview, how key parameters interact,
+   scale/units notes, important defaults/footguns, recommended pipelines, and
+   `.. code-block:: json` starting configs. Use `-` underlines for section
+   headers (same level as the auto-generated "Arguments" section). See
+   `decimateMeshes` or `meshCleanup` for the established style.
+3. **Regenerate and verify:**
+
+   ```bash
+   ./repo.sh build && ./repo.sh docs_gen --autogen_only
+   ```
+
+   Confirm the new content appears in `docs/operations/<operation>.rst`.
+4. **Present the change** to the developer. The `new-operation` skill covers
+   the same `getDocumentation()` mechanism for brand-new operations.
 
 ---
 
@@ -304,8 +312,8 @@ Run an interactive, screenshot-driven tuning loop for a single Scene
 Optimizer operation. Loads a tier-appropriate knowledge source (full
 guide → session log → C++ source), generates a starting config based
 on the asset's metrics, and iterates one-parameter-at-a-time with the
-user until the output is acceptable. Doubles as the **guide-authoring
-mode** for operation developers.
+user until the output is acceptable. Doubles as **improve-the-docs
+mode** for developers extending an operation's `getDocumentation()`.
 
 ## Prerequisites
 
@@ -323,9 +331,11 @@ mode** for operation developers.
 ## Limitations
 
 - **One operation at a time.** Multi-op chains belong to
-  `run-operations` with `--pipeline`; this skill iterates a single op.
-- **Tier 2 / Tier 3 quality is best-effort.** When a guide is missing,
-  the skill warns the user that tuning order and visual diagnosis are
+  `run-operations` (inline configs or `config_presets/`); this skill iterates
+  a single op.
+- **Thin-reference quality is best-effort.** When an operation's
+  `getDocumentation()` carries little tuning guidance, the skill warns the user
+  that tuning order and visual diagnosis are
   derived from session logs or the C++ source rather than authored
   expertise.
 - **Visual diagnosis requires the user.** The skill renders

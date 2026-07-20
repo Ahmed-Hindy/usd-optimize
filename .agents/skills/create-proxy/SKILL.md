@@ -39,7 +39,7 @@ This SKILL.md is the navigation layer. Detailed step bodies live in `references/
 - **Common pitfalls** — known foot-guns.
 - **Verification** — how to confirm the proxy is wired up correctly.
 
-Companion: operation guides under `.agents/operations/` for each underlying operation.
+Companion: operation references under `docs/operations/` for each underlying operation.
 
 ## Agent usage notes
 

@@ -15,7 +15,7 @@ If you are building Usd Optimize from source, see the top-level [README](../READ
 | Directory | Purpose |
 | --- | --- |
 | `include/` | C++ public headers (`usd_optimize/core/`) |
-| `lib/` | Prebuilt shared libraries (`libusd_optimize.core.so`, plugin `.so` files, `operation_mapping.json` — deprecated-name aliases for `map_config()`, not the list of operations) |
+| `lib/` | Prebuilt shared libraries (`libusd_optimize.core.so`, plugin `.so` files, `operation_mapping.json` — deprecated-name aliases for `mapConfig()`, not the list of operations) |
 | `python/` | Python bindings (`usd_optimize.core`) and bundled tests under `python/tests/test.python/` |
 | `usdpy/` | OpenUSD Python runtime modules (`pxr.*`) — the package brings its own USD |
 | `extraLibs/` | Third-party runtime libraries (Alembic, MaterialX, OpenSubdiv, TBB) |
@@ -121,9 +121,7 @@ A two-step smoke test confirms the bindings load and a real operation executes a
 
 ```python
 # smoke_check.py
-import json
 from usd_optimize.core import ExecutionContext, UsdOptimizeCore
-from usd_optimize.core.scripts import standalone
 from pxr import Usd, UsdGeom
 
 # 1. Bindings + USD load
@@ -140,18 +138,18 @@ ops = core.getOperations()
 assert len(ops) > 0
 print(f"[2/3] op registry: {len(ops)} operations registered")
 
-# 3. End-to-end through the public 'standalone' API
+# 3. End-to-end through the public UsdOptimizeCore API
 stage = Usd.Stage.CreateInMemory()
 UsdGeom.Xform.Define(stage, "/World")
 UsdGeom.Cube.Define(stage, "/World/c1")
 UsdGeom.Cube.Define(stage, "/World/c2")
-ops_json = json.dumps([
-    {"operation": "executionContext", "verbose": False},
+ctx.set_stage(stage)
+results = core.executeConfig(ctx, [
     {"operation": "deletePrims", "primPaths": ["/World/c1"]},
 ])
-assert standalone.execute_commands_from_json(stage, ops_json)
+assert all(success for success, _error, _output in results)
 assert sum(1 for _ in stage.TraverseAll()) == 2  # one prim removed
-print("[3/3] standalone.execute_commands_from_json: OK")
+print("[3/3] UsdOptimizeCore.executeConfig: OK")
 
 print("\nALL SMOKE CHECKS PASSED")
 ```
@@ -167,7 +165,7 @@ Expected output:
 ```
 [1/3] bindings + USD: OK
 [2/3] op registry: <N> operations registered
-[3/3] standalone.execute_commands_from_json: OK
+[3/3] UsdOptimizeCore.executeConfig: OK
 
 ALL SMOKE CHECKS PASSED
 ```
@@ -176,23 +174,27 @@ The exact value of `<N>` varies by build — any positive number confirms the pl
 
 ## Using Usd Optimize in Your Code
 
-The public Python entry point is `usd_optimize.core.scripts.standalone`. It accepts a `Usd.Stage` and a list of operation descriptors as JSON:
+The public Python entry point is the `UsdOptimizeCore` singleton in `usd_optimize.core`. Bind a `Usd.Stage` to an `ExecutionContext`, then apply a list of operation descriptors with `executeConfig`. It takes a parsed Python list (`json.loads`/`json.load` for JSON input, not raw text or a file path) and returns one `(success, error, output)` tuple per operation:
 
 ```python
-from usd_optimize.core.scripts import standalone
+import json
+from usd_optimize.core import ExecutionContext, UsdOptimizeCore
 from pxr import Usd
 
 stage = Usd.Stage.Open("scene.usd")
+context = ExecutionContext()
+context.set_stage(stage)
 ops = """[
-    {"operation": "executionContext", "verbose": true},
     {"operation": "merge"},
     {"operation": "optimizeMaterials"}
 ]"""
-ok = standalone.execute_commands_from_json(stage, ops)
+results = UsdOptimizeCore.getInstance().executeConfig(context, json.loads(ops))
+if not all(ok for ok, _err, _out in results):
+    raise RuntimeError("optimization failed -- check Usd Optimize log")
 stage.Save()
 ```
 
-Valid **`operation`** strings are whatever the loaded plugins register — enumerate them at runtime with `UsdOptimizeCore.getInstance().getOperations()` (the exact count varies by build). The bundled tests under `python/tests/test.python/` show descriptor JSON for many operations. **`lib/operation_mapping.json` is not that catalog:** it only lists deprecated operation keys and a few legacy argument renames for `standalone.map_config()`, so keys such as `merge`, `deletePrims`, or `decimateMeshes` will not appear there. The full per-operation argument reference is in the [Usd Optimize user manual](https://docs.omniverse.nvidia.com/extensions/latest/ext_scene-optimizer/user-manual.html).
+Valid **`operation`** strings are whatever the loaded plugins register — enumerate them at runtime with `UsdOptimizeCore.getInstance().getOperations()` (the exact count varies by build). The bundled tests under `python/tests/test.python/` show descriptor JSON for many operations. **`lib/operation_mapping.json` is not that catalog:** it only lists deprecated operation keys and a few legacy argument renames for `UsdOptimizeCore.getInstance().mapConfig()`, so keys such as `merge`, `deletePrims`, or `decimateMeshes` will not appear there. The full per-operation argument reference is in the [Usd Optimize user manual](https://docs.omniverse.nvidia.com/extensions/latest/ext_scene-optimizer/user-manual.html).
 
 ## Notes on the Bundled Tests
 

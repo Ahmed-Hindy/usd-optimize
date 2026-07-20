@@ -29,9 +29,7 @@ constexpr const char* s_category = "OPTIMIZE_TIMESAMPLES";
 
 
 OptimizeTimeSamplesOperation::OptimizeTimeSamplesOperation()
-    : Operation("optimizeTimeSamples",
-                "Optimize Time Samples",
-                "This operation removes redundant time samples from attributes throughout a stage")
+    : Operation("optimizeTimeSamples", "Optimize Time Samples", "Remove redundant time-samples from attributes in a stage.")
 {
 
     addArgument("paths", "Prim Paths", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_paths)
@@ -386,6 +384,25 @@ size_t filterInterpolated(const std::vector<double>& times, double epsilon, SdfT
         }                                                                                                              \
     }
 
+// Quaternions are not linearly subtracted like vectors or arrays, so the interpolation-based
+// filtering (value - lastValue) used by filterInterpolated is not meaningful for rotations.
+// Quat types therefore always use duplicate-only filtering and intentionally ignore
+// m_removeInterpolated (logged at verbose level when the flag is set, since it changes behavior
+// relative to other floating-point types). This also avoids instantiating OpenUSD
+// VtArray<GfQuat*> operator- (GCC 13+ false-positive -Wmaybe-uninitialized).
+#define USD_OPTIMIZE_FILTER_QUAT_TYPE(TYPENAME, T, E)                                                                  \
+    if (typeName == TYPENAME)                                                                                          \
+    {                                                                                                                  \
+        if (m_removeInterpolated)                                                                                      \
+        {                                                                                                              \
+            USD_OPTIMIZE_LOG_VERBOSE(                                                                                  \
+                "removeInterpolated is not supported for quaternion type %s; "                                         \
+                "using duplicate filtering only",                                                                      \
+                TYPENAME.GetAsToken().GetText());                                                                      \
+        }                                                                                                              \
+        return filterFloatingPoint<T>(times, E, timeSamples);                                                          \
+    }
+
 
 size_t OptimizeTimeSamplesOperation::filterTimeSamples(const UsdAttribute& attribute, SdfTimeSampleMap& timeSamples) const
 {
@@ -428,10 +445,10 @@ size_t OptimizeTimeSamplesOperation::filterTimeSamples(const UsdAttribute& attri
         USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Matrix3d, GfMatrix3d, m_epsilonD)
         USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Matrix4d, GfMatrix4d, m_epsilonD)
 
-        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Quatd, GfQuatd, m_epsilonD)
-        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->QuatdArray, VtQuatdArray, m_epsilonD)
-        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Quatf, GfQuatf, m_epsilonF)
-        USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->QuatfArray, VtQuatfArray, m_epsilonF)
+        USD_OPTIMIZE_FILTER_QUAT_TYPE(SdfValueTypeNames->Quatd, GfQuatd, m_epsilonD)
+        USD_OPTIMIZE_FILTER_QUAT_TYPE(SdfValueTypeNames->QuatdArray, VtQuatdArray, m_epsilonD)
+        USD_OPTIMIZE_FILTER_QUAT_TYPE(SdfValueTypeNames->Quatf, GfQuatf, m_epsilonF)
+        USD_OPTIMIZE_FILTER_QUAT_TYPE(SdfValueTypeNames->QuatfArray, VtQuatfArray, m_epsilonF)
 
         USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->Half, GfHalf, m_epsilonD)
         USD_OPTIMIZE_FILTER_TYPE(SdfValueTypeNames->HalfArray, VtHalfArray, m_epsilonD)

@@ -12,11 +12,6 @@
 // Usd Optimize Core
 #include <usd_optimize/core/Core.h>
 
-// OmniMesh
-#include <OmniMeshOps/Primitive.h>
-#include <OmniMeshOps/usd/Mesh.h>
-#include <OmniMeshOps/usd/Prim.h>
-
 // USD
 #include <pxr/usd/usd/primCompositionQuery.h>
 #include <pxr/usd/usd/primRange.h>
@@ -40,7 +35,9 @@ constexpr const char* s_categoryPrimitivesToMeshes = "PRIMITIVES_TO_MESHES";
 
 /// PrimitiveToMeshOperation methods
 PrimitiveToMeshOperation::PrimitiveToMeshOperation()
-    : OmniOperation("primitivesToMeshes", "Primitives to Meshes", "This operation converts primitives to meshes.")
+    : OmniOperation("primitivesToMeshes",
+                    "Primitives to Meshes",
+                    "Replace gprim types sphere, cylinder, cone, or cube in a stage with a mesh approximation.")
 {
     addArgument("paths",
                 "Primitives to convert",
@@ -138,6 +135,14 @@ PrimitiveToMeshOperation::PrimitiveToMeshOperation()
                 m_options.convertCubes);
 }
 
+
+std::string PrimitiveToMeshOperation::getDocumentation() const
+{
+    return "This operation replaces gprim types sphere, cylinder, cone, and "
+           "cube with a mesh approximation. This allows the geometry to be "
+           "used with operations that require mesh types.";
+}
+
 std::string PrimitiveToMeshOperation::getAuthor() const
 {
     return USD_OPTIMIZE_TO_STRING(USD_OPTIMIZE_PLUGIN_AUTHOR);
@@ -184,7 +189,7 @@ ProcessedData* PrimitiveToMeshOperation::processMesh(const UsdPrim& usd_prim, tb
     omo::PrimitiveType::Enum primitive_type = omo::PrimitiveType::None;
     PrimitiveMeshParameters* meshParameters = nullptr;
 
-    PrimitiveUpAxis up_axis = omo::usd::HostPrim::convertUpAxis(UsdGeomGetStageUpAxis(getUsdStage()));
+    PrimitiveUpAxis up_axis = omo::importUpAxis(UsdGeomGetStageUpAxis(getUsdStage()));
     GfVec4d scale(1.0);
 
     if (usd_prim.IsA<UsdGeomSphere>())
@@ -206,7 +211,7 @@ ProcessedData* PrimitiveToMeshOperation::processMesh(const UsdPrim& usd_prim, tb
         TfToken axis;
         if (cylinder.GetAxisAttr().Get(&axis))
         {
-            up_axis = omo::usd::HostPrim::convertUpAxis(axis);
+            up_axis = omo::importUpAxis(axis);
         }
         double radius;
         if (cylinder.GetRadiusAttr().Get(&radius))
@@ -228,7 +233,7 @@ ProcessedData* PrimitiveToMeshOperation::processMesh(const UsdPrim& usd_prim, tb
         TfToken axis;
         if (cone.GetAxisAttr().Get(&axis))
         {
-            up_axis = omo::usd::HostPrim::convertUpAxis(axis);
+            up_axis = omo::importUpAxis(axis);
         }
         double radius;
         if (cone.GetRadiusAttr().Get(&radius))

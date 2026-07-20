@@ -48,7 +48,7 @@ Four personas that shaped the design of the `/tune-parameters` skill and its sup
 
 **Needs:** An index to discover operations without already knowing their names.
 
-**Entry point:** `.agents/operations/INDEX.md` — all 45 operations with guide status, arg count, and priority.
+**Entry point:** `docs/operations.rst` — the catalog of all operations with descriptions, plus `docs/choosing-operations.rst` for picking one by goal.
 
 ---
 

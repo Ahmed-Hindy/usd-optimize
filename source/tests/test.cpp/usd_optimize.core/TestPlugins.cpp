@@ -50,6 +50,12 @@ public:
         addArgument("testString", "Test String", kDisplayTypeText, "Test Description", m_testString);
         addArgument("testInt", "Test Int", kDisplayTypeInt, "Debug/Test", m_testInt).setMin(1).setMax(200);
 
+        // Bounded arg that rejects (rather than clamps) values outside [0, 100].
+        addArgument("testRejectRange", "Test Reject Range", kDisplayTypeInt, "Debug/Test", m_testRejectRange)
+            .setMin(0)
+            .setMax(100)
+            .setRejectOutOfRange(true);
+
         // Floats
         addArgument("testFloat1", "Test Float 1", kDisplayTypeFloat, "Debug/Test", m_testFloat1);
         addArgument("testFloat2", "Test Float 2", kDisplayTypeFloat, "Debug/Test", m_testFloat2).setMin(1.0);
@@ -161,6 +167,7 @@ public:
 
     std::string m_testString;
     int m_testInt = 100;
+    int m_testRejectRange = 10;
     float m_testFloat1 = 5.0;
     float m_testFloat2 = 0.0;
     float m_testFloat3 = 0.0;
@@ -558,6 +565,40 @@ TEST_CASE("Test Plugin Execution")
 
         // Test with float/int values that are outside the configured range
         CHECK(operation->execute(&context, JsParseString(json).GetJsObject()).success);
+    }
+
+
+    SUBCASE("Test rejectOutOfRange arguments fail instead of clamping")
+    {
+        UsdStageRefPtr stage = UsdStage::CreateInMemory();
+        ExecutionContext context = testutils::_getContext(stage);
+
+        OperationUPtr operation = getTestPlugin();
+        REQUIRE(operation);
+
+        // In-range values succeed.
+        CHECK(operation->execute(&context, JsParseString(R"({"testRejectRange": 0})").GetJsObject()).success);
+        CHECK(operation->execute(&context, JsParseString(R"({"testRejectRange": 100})").GetJsObject()).success);
+
+        // Out-of-range values are rejected (not silently clamped), so the operation fails.
+        CHECK_FALSE(operation->execute(&context, JsParseString(R"({"testRejectRange": -50})").GetJsObject()).success);
+        CHECK_FALSE(operation->execute(&context, JsParseString(R"({"testRejectRange": 150})").GetJsObject()).success);
+
+        // A bounded arg WITHOUT rejectOutOfRange still clamps and succeeds (unchanged behavior).
+        CHECK(operation->execute(&context, JsParseString(R"({"testInt": 500})").GetJsObject()).success);
+    }
+
+
+    SUBCASE("Test unknown argument name is ignored (warns) but does not fail the operation")
+    {
+        UsdStageRefPtr stage = UsdStage::CreateInMemory();
+        ExecutionContext context = testutils::_getContext(stage);
+
+        OperationUPtr operation = getTestPlugin();
+        REQUIRE(operation);
+
+        // A typo'd / unrecognized argument name is dropped with a warning; the op still runs.
+        CHECK(operation->execute(&context, JsParseString(R"({"totallyBogusArg": 123})").GetJsObject()).success);
     }
 
 

@@ -87,6 +87,14 @@ public:
     USD_OPTIMIZE_EXPORT
     void setLogLevel(LogLevel level);
 
+    /// Change the label printed when the timer stops.
+    ///
+    /// Useful when the outcome being timed is only known partway through the
+    /// scope (e.g. a write that may fail), so the final message can reflect
+    /// success or failure without giving up the timer's scoped behavior.
+    USD_OPTIMIZE_EXPORT
+    void setLabel(const std::string& label);
+
 private:
     std::string m_label;
     std::string m_category;
@@ -378,6 +386,22 @@ bool _hasAuthoredTimeSamples(const PXR_NS::UsdPrim& prim);
 /// Filter a list of prims, removing a prim if an attribute has any authored time samples
 USD_OPTIMIZE_EXPORT
 void _removePrimsWithAuthoredTimeSamples(std::vector<PXR_NS::UsdPrim>& prims);
+
+/// Returns true if every vector coordinate is finite (no NaN/Inf).
+///
+/// Native mesh libraries (omnimesh/mesh_tools) assume finite geometry and either flood assertion
+/// failures or return garbage on NaN/Inf input, so operations that hand geometry to them should
+/// check this first and skip the offending mesh. Also usable for other Vec3f arrays such as normals.
+USD_OPTIMIZE_EXPORT
+bool arePointsFinite(const PXR_NS::VtVec3fArray& points);
+
+/// Returns true if every component of the matrix is finite (no NaN/Inf).
+///
+/// A non-finite transform (e.g. a NaN in a parent xform) resolves to non-finite world-space
+/// geometry even when the authored local points are finite, so operations that bake or resolve the
+/// world transform should validate it before processing.
+USD_OPTIMIZE_EXPORT
+bool isTransformFinite(const PXR_NS::GfMatrix4d& transform);
 
 /// Convert HSV values to an RGB color.
 USD_OPTIMIZE_EXPORT

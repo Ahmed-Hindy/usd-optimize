@@ -20,6 +20,20 @@ class NonManifoldChecker(BaseUsdOptimizeChecker):
 
     OPERATION_NAME: str = "meshCleanup"
 
+    # Analysis must request the manifold check explicitly: the gated checkClean only reports a defect whose fix is
+    # enabled, so without makeManifold the analysis never inspects manifold-ness. Mirrors _mesh_fix_nonmanifold.
+    OPERATION_ARGS = {
+        "mergeVertices": False,
+        "tolerance": 0.0,
+        "contractDegenerateEdges": False,
+        "removeDegenerateFaces": False,
+        "makeManifold": True,
+        "removeIsolatedVertices": False,
+        "mergeBoundaries": False,
+        "mergeNeighbors": False,
+        "removeDuplicateFaces": False,
+    }
+
     @classmethod
     def _mesh_fix_nonmanifold(cls, usdStage: Usd.Stage, prim: Usd.Prim) -> None:
         """
@@ -66,4 +80,11 @@ class NonManifoldChecker(BaseUsdOptimizeChecker):
                     message="Fix nonmanifold meshes using Usd Optimize",
                     callable=partial(self._mesh_fix_nonmanifold),
                 ),
+            )
+
+            # In verbose mode, list each nonManifold mesh individually.
+            self._AddVerbosePrimWarnings(
+                usdStage,
+                analysis_data.get("meshesThatAreNonManifoldsPaths", []),
+                "NonManifold mesh found",
             )

@@ -20,7 +20,7 @@ parameters.
 ## What this skill covers
 
 - **Usage** — arguments.
-- **Step 1** — probe for `pxr`.
+- **Step 1** — resolve a Python with `pxr`.
 - **Step 2** — run the inspection script.
 - **Step 3** — present the report.
 
@@ -51,38 +51,49 @@ If no path is provided, ask:
 
 ---
 
-## Step 1 — Probe for pxr
+## Step 1 — Resolve a Python with pxr
 
-Check whether the Python USD bindings are available:
+Prefer a built repo's bindings (export the build env, mirroring
+`tools/validators/run.sh:20-21` / `run.bat:25-26`); else use whatever `pxr` the
+interpreter already has (wheel/Kit/conda). Don't bare-probe first — a stray
+`PYTHONPATH` can shadow the build and fail with a confusing ABI error.
 
 ```bash
 # POSIX
-python3 -c "from pxr import Usd; print('ok')" 2>/dev/null
+CONFIG="${USD_OPTIMIZE_CONFIG:-release}"; PLATFORM="${USD_OPTIMIZE_PLATFORM:-linux-x86_64}"
+BUILD_DIR="_build/$PLATFORM/$CONFIG"; USD_DIR="_build/target-deps/usd/$CONFIG"
+if [ -d "$BUILD_DIR" ]; then
+    export LD_LIBRARY_PATH="$BUILD_DIR/lib:$BUILD_DIR/extraLibs:$USD_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export PYTHONPATH="$BUILD_DIR/python:$USD_DIR/lib/python${PYTHONPATH:+:$PYTHONPATH}"
+    PYBIN="_build/target-deps/python/bin/python3.12"
+else PYBIN="python3"; fi
+"$PYBIN" -c "from pxr import Usd; print('ok', Usd.GetVersion())"
 ```
 ```powershell
-# Windows
-python -c "from pxr import Usd; print('ok')" 2>$null
+# Windows (PowerShell)
+$Config = if ($env:USD_OPTIMIZE_CONFIG) { $env:USD_OPTIMIZE_CONFIG } else { "release" }
+$Platform = if ($env:USD_OPTIMIZE_PLATFORM) { $env:USD_OPTIMIZE_PLATFORM } else { "windows-x86_64" }
+$BuildDir = "_build\$Platform\$Config"; $UsdDir = "_build\target-deps\usd\$Config"
+if (Test-Path $BuildDir) {
+    $env:PATH = "$BuildDir\bin;$BuildDir\lib;$BuildDir\extraLibs;$UsdDir\bin;$UsdDir\lib;$env:PATH"
+    $env:PYTHONPATH = "$BuildDir\python;$UsdDir\lib\python;$env:PYTHONPATH"
+    $PyBin = "_build\target-deps\python\python.exe"
+} else { $PyBin = "python" }
+& $PyBin -c "from pxr import Usd; print('ok', Usd.GetVersion())"
 ```
 
-If the probe fails, try the build's bundled Python:
-
-```bash
-# POSIX
-_build/target-deps/python/python3 -c "from pxr import Usd; print('ok')" 2>/dev/null
-```
-
-If neither works, tell the user:
-
-> USD inspection requires `pxr` (`pip install usd-core`). Install it for
-> the fastest experience, or build the repo (`./repo.sh build`) to get
-> the bundled Python.
+Reuse the resolved interpreter (`$PYBIN` / `$PyBin`, env exported) for Step 2. If
+it still fails (no build, no `pxr`): build the repo, or `pip install
+usd-core==25.11` (match the USD version pinned in `deps/usd_flavors.json` /
+`deps/usd-lib-deps.json`; a bare `pip install usd-core` may not match the
+build's USD).
 
 ---
 
 ## Step 2 — Run the inspection script
 
-Write a temp script and run it with whichever Python has `pxr`. The
-script outputs a single JSON object.
+Write a temp script and run it with the Step 1 interpreter (`$PYBIN` /
+`$PyBin`, build env exported). The script outputs a single JSON object.
 
 ```python
 import json, os, sys
@@ -234,8 +245,9 @@ Map `metersPerUnit` to a human-readable name:
 
 - **No default prim**: warn that some operations (e.g.
   `deduplicateHierarchies`) require a default prim.
-- **No meshes**: note that mesh-only operations and validators will
-  skip this stage (see `REQUIRES_MESH` in the `validators` skill).
+- **No meshes**: note that mesh-only operations and validators find
+  nothing to do on this stage (references-only / materials-library /
+  layout stages are the common case).
 - **Zero-area bounding box**: the stage may contain only non-renderable
   prims.
 - **Animation detected**: note that time-sampled attributes are present;
@@ -287,9 +299,9 @@ step when the user opens a new asset.
 ## Prerequisites
 
 - A USD asset path (`.usd` / `.usda` / `.usdc` / `.usdz`).
-- A Python interpreter with the `pxr` bindings — either standalone
-  (`pip install usd-core`) or the build's bundled
-  `_build/target-deps/python/`. The skill probes both.
+- A Python interpreter with the `pxr` bindings — a built repo
+  (`_build/target-deps/`, env exported per Step 1), an existing pxr
+  (wheel/Kit/conda), or a pinned `pip install usd-core==25.11`.
 
 ## Limitations
 
@@ -307,7 +319,7 @@ step when the user opens a new asset.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `pxr` probe fails for both interpreters | USD bindings not installed and the repo isn't built. | Install with `pip install usd-core`, or run `./repo.sh build` to populate `_build/target-deps/python/`. |
+| `pxr` import fails | Not built, no `pxr` installed, or a stray `PYTHONPATH` shadows the build (ABI error). | Build the repo and re-run Step 1 (it exports the build env), or `pip install usd-core==25.11` (matched pin). |
 | `Failed to open: <path>` in the JSON output | Path is wrong, layer is corrupt, or it's a non-USD file with a `.usd` extension. | Verify the path; try `usdcat <path>` or open in `usdview` to confirm the file is a valid USD layer. |
 | `total_prims = 0` | Asset is essentially empty, or the open call hit a payload that didn't load. | Check whether the stage uses payloads — `Stage.OpenMasked` or `Usd.Stage.Open(path, Usd.Stage.LoadAll)` may surface content. |
 | `bbox = null` | All visible prims are non-renderable, or the stage uses non-`default`/`render` purpose. | Inspect with `--detailed` and check `purpose` on top-level prims. |

@@ -13,12 +13,12 @@ Default to `--limit 20` for readable initial answers; expand on request.
 
 ```bash
 # POSIX
-python3 tools/perf_validators/summarize_csv.py "$CSV" \
+python3 tools/validators/summarize_csv.py "$CSV" \
     --rule "<RuleName>" --locations --limit 20
 ```
 ```powershell
 # Windows (PowerShell)
-py -3 tools\perf_validators\summarize_csv.py $Csv `
+py -3 tools\validators\summarize_csv.py $Csv `
     --rule "<RuleName>" --locations --limit 20
 ```
 
@@ -31,31 +31,22 @@ to filter to just failures, or omit `--limit` to get the full list.
 
 Look up the rule in `rule-reference.md`. Then:
 
+   Note: most fixes are already applied by `run-validators --fix`. This flow is
+   for the issues that came back **unfixed** (or for a run done without `--fix`).
+
 1. **T1** — Print the operation key and recommend running it. Example:
    > `<RuleName>` wraps `<op>`. To apply the fix, invoke the `run-operations`
-   > skill (Claude alias: `/run-operations <asset> --config '[{"operation":"<op>", ...}]'`)
-   > or call the operation directly via the Python bindings:
-   > ```python
-   > from usd_optimize.core import ExecutionContext, UsdOptimizeCore
-   > from pxr import Usd
-   >
-   > stage = Usd.Stage.Open("<asset>")
-   > context = ExecutionContext()
-   > context.set_stage(stage)
-   > success, error, output = UsdOptimizeCore.getInstance().executeOperation(
-   >     "<op>", context, {"<arg>": <value>, ...}
-   > )
-   > stage.GetRootLayer().Save()
+   > skill (Claude alias: `/run-operations`), which runs the operation through
+   > the `usdOptimize` CLI:
+   > ```bash
+   > usdOptimize -i <asset> -o <op> -a <arg>=<value> -w <output.usd>
    > ```
-   > For the full invocation reference (chains via `executeConfig`, JSON
-   > pipelines via `standalone.execute_commands_from_json`), see
-   > `.agents/operations/INVOCATION.md`. For curated multi-op pipelines
-   > organized by bottleneck, see `.agents/operations/PIPELINES.md`.
-   > For tuning the parameters, use the `tune-parameters` skill — it loads
-   > `.agents/operations/<op>.md` and walks through the knobs.
+   > For a multi-op chain, write the ops to a JSON config and pass `-c <file>`
+   > (see `docs/cli.rst`). To tune the parameters, use the `tune-parameters`
+   > skill — it reads `docs/operations/<op>.rst` and walks through the knobs.
 
-   Read the relevant section of `.agents/operations/<op>.md` for starting params
-   before printing them. Don't duplicate the guide content here.
+   Read `docs/operations/<op>.rst` for starting params before printing them.
+   Don't duplicate the reference content here.
 
 2. **T2** — Same as T1 but warn that defaults may not fully resolve the issue;
    the user should expect to tune. Recommend the `tune-parameters` skill.
@@ -77,11 +68,11 @@ Re-summarize **without** `--max-failures-per-rule`, filtered to that rule:
 
 ```bash
 # POSIX
-python3 tools/perf_validators/summarize_csv.py "$CSV" --rule "<RuleName>"
+python3 tools/validators/summarize_csv.py "$CSV" --rule "<RuleName>"
 ```
 ```powershell
 # Windows (PowerShell)
-py -3 tools\perf_validators\summarize_csv.py $Csv --rule "<RuleName>"
+py -3 tools\validators\summarize_csv.py $Csv --rule "<RuleName>"
 ```
 
 Iterate the resulting `failures` array (every group, every location) and

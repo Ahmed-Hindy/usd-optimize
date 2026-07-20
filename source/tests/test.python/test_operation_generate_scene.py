@@ -86,6 +86,33 @@ class Test_Operation_Generate_Scene(Test_Operation):
         self.assertGreater(len(meshes), 3)
         self.assertLess(len(meshes), 35)
 
+    async def test_generate_scene_clustered_no_empty_type_prims(self):
+        """Regression: over-provisioning clusters (more clusters than meshes) leaves some clusters empty.
+
+        Empty clusters never became a superset, so authoring them produced malformed prims with an empty
+        type name - a broken .usda that could not be reopened while the op still returned success. Verify
+        the op introduces no empty-type prims.
+        """
+        stage = self._open_stage("generateSceneSimple.usda")
+
+        def empty_type_paths():
+            return {p.GetPath() for p in stage.TraverseAll() if p.GetTypeName() == ""}
+
+        # any typeless prims already in the input are not our concern - only newly authored ones are
+        before = empty_type_paths()
+
+        args = DEFAULT_ARGS.copy()
+        args["meshCount"] = 16
+        args["clusteredPercent"] = 1.0  # cluster every generated mesh
+        args["numClusters"] = 32  # more clusters than meshes guarantees some clusters stay empty
+
+        context = _get_context(stage, verbose=False)
+        self._execute_command(args, context)
+
+        # only newly authored empty-type prims indicate the bug; the op adds prims, it never removes them
+        authored = sorted(empty_type_paths() - before)
+        self.assertEqual(authored, [], f"generateScene authored empty-type prims: {authored}")
+
     async def test_generate_scene_seed(self):
         """Tests that running the op with the same seed produces the same scene"""
         args = DEFAULT_ARGS.copy()

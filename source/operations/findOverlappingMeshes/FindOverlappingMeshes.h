@@ -127,6 +127,12 @@ private:
     // unique_ptr so shutdown() can drop the ClashDetector (and its CUDA
     // buffers) at process shutdown, before the CUDA driver tears down.
     std::unique_ptr<MeshTools::ClashDetector> m_clashDetector;
+    // Whether the process-shutdown callback that drops the ClashDetector has
+    // been registered with UsdOptimizeCore. Registered lazily, the first time
+    // the ClashDetector is actually created (not at plugin load), so importing
+    // the module never locks the core's shutdown-callback mutex across the
+    // plugin/core DLL boundary. Accessed only under m_processMutex.
+    bool m_shutdownCallbackRegistered = false;
 
     float m_unitsPerMeter = 1.0f;
     PXR_NS::SdfPathVector m_meshPaths;

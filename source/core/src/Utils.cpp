@@ -25,6 +25,7 @@
 #include <tbb/parallel_for.h>
 
 // C++
+#include <cmath>
 #include <iomanip>
 
 
@@ -120,6 +121,12 @@ void ScopedTimer::stop()
 
     // Log the message.
     USD_OPTIMIZE_LOG(carbLevelFromLogLevel(m_level), "%s", oss.str().c_str());
+}
+
+
+void ScopedTimer::setLabel(const std::string& label)
+{
+    m_label = label;
 }
 
 
@@ -547,6 +554,33 @@ void _removePrimsWithAuthoredTimeSamples(std::vector<UsdPrim>& prims)
         std::remove_if(prims.begin(), prims.end(), [](const UsdPrim& prim) { return _hasAuthoredTimeSamples(prim); }),
         prims.end());
 }
+
+bool arePointsFinite(const VtVec3fArray& points)
+{
+    for (const GfVec3f& p : points)
+    {
+        if (!std::isfinite(p[0]) || !std::isfinite(p[1]) || !std::isfinite(p[2]))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+bool isTransformFinite(const GfMatrix4d& transform)
+{
+    const double* data = transform.GetArray();
+    for (int i = 0; i < 16; ++i)
+    {
+        if (!std::isfinite(data[i]))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 
 GfVec3f _hsvToRgb(float hue, float saturation, float value)
 {

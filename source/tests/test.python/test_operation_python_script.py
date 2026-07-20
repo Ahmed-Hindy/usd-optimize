@@ -23,6 +23,17 @@ class Test_Operation_Python_Script(Test_Operation):
 
     OPERATION = "pythonScript"
 
+    async def test_default_argument(self):
+        """Regression: the declared default for the "python" argument must be runnable.
+
+        The "python" value is base64-encoded (execute() decodes it), so the operation's
+        declared default must be encoded too. Invoking with no override previously failed
+        because the default was stored as plaintext and could not be b64decoded.
+        """
+        # No "python" key -> the operation's declared default is bound and executed.
+        _, result = self._execute_command({})
+        self.assertTrue(result[0])
+
     async def test_basic(self):
         """Ensure that empty, single line, and multi line python script execution is supported"""
         # Get a copy of the default args.

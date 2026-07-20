@@ -46,7 +46,7 @@ Companion skills: `run-operations` (produces the optimized stage),
 1. Pass `<before.usd>` and `<after.usd>` as positional arguments.
 2. Run the metric-collection script (Step 1) under a Python that can import `pxr`.
 3. Use the captured JSON to render the comparison table (Step 2).
-4. Optionally pass `--validators` to call `tools/perf_validators/run.sh compare` (Step 3).
+4. Optionally pass `--validators` to diff validator issue counts between the two stages (Step 3).
 5. Optionally pass `--prims` to execute the prim-diff helper (Step 4).
 
 If either path is missing, ask:
@@ -56,9 +56,8 @@ If either path is missing, ask:
 
 ## Step 1 — Collect metrics from both stages
 
-Write a temp script and run it under the build's bundled Python (or
-standalone `pxr` if available). The script collects the same metrics for
-both stages in one pass.
+Write a temp script and run it under the interpreter resolved below. The
+script collects the same metrics for both stages in one pass.
 
 ```python
 import json, os, sys
@@ -114,21 +113,34 @@ after = collect(sys.argv[2])
 print(json.dumps({"before": before, "after": after}, indent=2))
 ```
 
-Save the script somewhere writable (the OS temp dir works for ad-hoc runs; use a project scratch dir if you need to keep the artifact). Run it under whichever Python has `pxr`:
+Save the script somewhere writable (the OS temp dir works for ad-hoc runs; use a project scratch dir if you need to keep the artifact). Resolve `pxr` deterministically — prefer a built repo's bindings (export the build env, mirroring `tools/validators/run.sh:20-21` / `run.bat:25-26`), else use whatever `pxr` the interpreter already has (wheel/Kit/conda). Don't bare-probe first — a stray `PYTHONPATH` can shadow the build and fail with a confusing ABI error:
 
 ```bash
 # POSIX
+CONFIG="${USD_OPTIMIZE_CONFIG:-release}"; PLATFORM="${USD_OPTIMIZE_PLATFORM:-linux-x86_64}"
+BUILD_DIR="_build/$PLATFORM/$CONFIG"; USD_DIR="_build/target-deps/usd/$CONFIG"
+if [ -d "$BUILD_DIR" ]; then
+    export LD_LIBRARY_PATH="$BUILD_DIR/lib:$BUILD_DIR/extraLibs:$USD_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export PYTHONPATH="$BUILD_DIR/python:$USD_DIR/lib/python${PYTHONPATH:+:$PYTHONPATH}"
+    PYBIN="_build/target-deps/python/bin/python3.12"
+else PYBIN="python3"; fi
 tmpdir="${TMPDIR:-/tmp}"
-python3 "$tmpdir/_compare_stages.py" "<before.usd>" "<after.usd>"
-# or, if pxr is only available through the build's bundled Python:
-_build/target-deps/python/python3 "$tmpdir/_compare_stages.py" "<before.usd>" "<after.usd>"
+"$PYBIN" "$tmpdir/_compare_stages.py" "<before.usd>" "<after.usd>"
 ```
 ```powershell
 # Windows (PowerShell)
-py -3 "$env:TEMP\_compare_stages.py" "<before.usd>" "<after.usd>"
-# or, if pxr is only available through the build's bundled Python:
-& _build\target-deps\python\python.exe "$env:TEMP\_compare_stages.py" "<before.usd>" "<after.usd>"
+$Config = if ($env:USD_OPTIMIZE_CONFIG) { $env:USD_OPTIMIZE_CONFIG } else { "release" }
+$Platform = if ($env:USD_OPTIMIZE_PLATFORM) { $env:USD_OPTIMIZE_PLATFORM } else { "windows-x86_64" }
+$BuildDir = "_build\$Platform\$Config"; $UsdDir = "_build\target-deps\usd\$Config"
+if (Test-Path $BuildDir) {
+    $env:PATH = "$BuildDir\bin;$BuildDir\lib;$BuildDir\extraLibs;$UsdDir\bin;$UsdDir\lib;$env:PATH"
+    $env:PYTHONPATH = "$BuildDir\python;$UsdDir\lib\python;$env:PYTHONPATH"
+    $PyBin = "_build\target-deps\python\python.exe"
+} else { $PyBin = "python" }
+& $PyBin "$env:TEMP\_compare_stages.py" "<before.usd>" "<after.usd>"
 ```
+
+For a build-vs-build comparison, use the build's own USD (path 1) so both stages read through the same USD the operations wrote. If you fall back to an installed `pxr`, pin it to the build: `pip install usd-core==25.11` (match the USD version pinned in `deps/usd_flavors.json` / `deps/usd-lib-deps.json`; a bare `pip install usd-core` may not match).
 
 ## Step 2 — Present the comparison table
 
@@ -168,25 +180,14 @@ session), attribute the changes to specific ops.
 ## Step 3 — (Optional) Diff validator summaries
 
 When the user passes `--validators` or asks "did the validator issues
-improve?", use the `tools/perf_validators/run.sh compare` command if
-both stages have saved summary JSON artifacts:
+improve?", use the summarizer on each stage's saved CSV and diff the
+`totals` sections. If saved CSVs don't exist for one or both stages, tell
+the user to run `/run-validators` on each stage first. Can check with `--verbose`
+flag for running validation for more prim paths.
 
 ```bash
-tools/perf_validators/run.sh compare \
-    "<before_artifact_dir>/summary.json" \
-    "<after_artifact_dir>/summary.json"
-```
-
-This prints per-rule count deltas and total delta. Present the output as a
-table. If saved artifacts don't exist for one or both stages, tell the
-user to run `/run-validators` on each stage first.
-
-Alternatively, if both stages have saved CSVs, use the summarizer on each
-and diff the `totals` sections:
-
-```bash
-python3 tools/perf_validators/summarize_csv.py "<before_csv>"
-python3 tools/perf_validators/summarize_csv.py "<after_csv>"
+python3 tools/validators/summarize_csv.py "<before_csv>"
+python3 tools/validators/summarize_csv.py "<after_csv>"
 ```
 
 Present the per-rule delta:
@@ -237,7 +238,7 @@ about a specific prim path.
 - `.agents/skills/run-operations/SKILL.md` — producing the optimized stage.
 - `.agents/skills/run-validators/SKILL.md` — generating validator artifacts.
 - `.agents/skills/inspect-asset/SKILL.md` — single-stage inspection.
-- `.agents/operations/PIPELINES.md` — what each pipeline is expected to change.
+- `.agents/skills/config-presets/SKILL.md` — what each preset config is expected to change.
 
 ## Purpose
 
@@ -251,11 +252,11 @@ to attribute a regression to a specific operation.
 ## Prerequisites
 
 - Two USD files (`.usd` / `.usda` / `.usdc` / `.usdz`) on disk.
-- A Python interpreter with the USD bindings (`from pxr import Usd`),
-  via either `pip install usd-core` or the build's bundled
-  `_build/target-deps/python/`.
-- For `--validators`: saved `summary.json` artifacts from
-  `run-validators` for both stages, **or** their CSVs.
+- A Python interpreter with the USD bindings (`from pxr import Usd`) —
+  a built repo (`_build/target-deps/`, env exported per Step 1), an
+  existing pxr (wheel/Kit/conda), or a pinned `pip install usd-core==25.11`.
+- For `--validators`: saved `issues.csv` artifacts from
+  `run-validators` for both stages.
 
 ## Limitations
 
@@ -273,7 +274,7 @@ to attribute a regression to a specific operation.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `Failed to open: <path>` in the JSON output | The path doesn't exist or isn't a valid USD layer. | Verify the path; check the file extension is `.usd*`. |
-| Validator diff says "no saved artifacts" | One or both stages haven't been validated yet. | Run `run-validators` on each stage first to produce `summary.json`. |
+| Validator diff says "no saved artifacts" | One or both stages haven't been validated yet. | Run `run-validators` on each stage first to produce `issues.csv`. |
 | Counts identical despite an edit | Edit was authored on a sublayer the open call doesn't see. | Open the asset with the same layer-stack / session that produced the edit. |
 | `metersPerUnit` or `upAxis` flagged as changed | An operation rewrote stage metadata it shouldn't have. | Check the pipeline — most Usd Optimize ops never touch stage metadata. Surface as a warning. |
 | Prim-diff returns thousands of entries | Edit was a wholesale tree rebuild (e.g. flatten). | Switch to summary-level reporting; ask the user if they want a specific subtree compared. |

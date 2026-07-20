@@ -19,13 +19,9 @@ metadata:
 > it by name. Don't reference the alias-only form when writing for a
 > non-Claude agent.
 >
-> **Python invocation.** Examples below use `python3` (POSIX). On Windows use
-> `py -3` (the Python launcher) or the build's bundled interpreter at
-> `_build\target-deps\python\python.exe`.
->
-> **Windows shell.** Snippets target PowerShell. cmd.exe equivalents are
-> obvious — `$Var` → `%VAR%`, backtick line continuation → `^`.
-> `repo.bat` is cmd-style internally but can be invoked from any shell.
+> **Platform paths.** Examples use the POSIX CLI path
+> `_build/linux-x86_64/release/bin/usdOptimize`. On Windows use
+> `_build\windows-x86_64\release\bin\usdOptimize.exe`; `$Var` → `%VAR%`.
 
 > **Safety note.** Duplicates are identified by subtree shape, prim
 > types, and authored property names, then refined by verifying all
@@ -64,7 +60,7 @@ or `GetRootLayer().Export` to jump.
 - **Pre-flight checks** — default prim requirement.
 - **Common pitfalls** — skipped material-ish prims, refs/payloads behavior.
 - **Verification** — instanceable flags, prototype paths, flat export pitfalls.
-- **See also** — operation guides (`deduplicateHierarchies`, `deduplicateGeometry`).
+- **See also** — operation references (`docs/operations/deduplicateHierarchies.rst`, `deduplicateGeometry.rst`).
 - **Purpose** — one-paragraph rationale.
 - **Prerequisites** — build, default prim, output path conventions.
 - **Limitations** — what the op does not merge or flatten.
@@ -91,95 +87,61 @@ before any work.
 
 ## Step 2 — Verify the operation is available
 
-The operation is invoked via Usd Optimize's standalone runner:
-`usd_optimize.core.scripts.standalone.execute_commands_from_json`.
-No Kit dependency.
+Operations run through the `usdOptimize` CLI (see `run-operations` and
+`docs/cli.rst`). Confirm the operation is built — it appears in the CLI's
+"Available Operations" list:
 
-Confirm the operation is registered in the build:
-
-```python
-from usd_optimize.core import UsdOptimizeCore
-print("deduplicateHierarchies" in UsdOptimizeCore.getInstance().getOperations())
+```bash
+_build/<platform>/<config>/bin/usdOptimize --help | grep deduplicateHierarchies
 ```
-
-(POSIX) `python3 -c "..."`, (Windows PowerShell) `py -3 -c "..."` or
-`_build\target-deps\python\python.exe -c "..."`.
 
 ## Step 3 — Run the operation
 
-Assemble a config for `execute_commands_from_json`. The **canonical pipeline
-is two steps**: our hierarchy-level dedup, then `deduplicateGeometry` for any
-remaining per-mesh duplicates that didn't fall out of the hierarchy pass.
-Pair them in a single config so each step sees the previous step's edits.
+The **canonical pipeline is two steps**: hierarchy-level dedup, then
+`deduplicateGeometry` for any remaining per-mesh duplicates that didn't fall
+out of the hierarchy pass. Put both in one JSON config so the second step sees
+the first step's edits. This is exactly the shipped
+`config_presets/hierarchy-dedup.json` preset:
 
-Path strings below use forward slashes — Python accepts those on Windows and
-POSIX alike. Replace the placeholders with absolute or repo-relative paths
-that fit the user's environment; do not embed Windows drive letters or raw
-strings unless the user has supplied them explicitly.
-
-```python
-import json
-from pxr import Usd
-from usd_optimize.core.scripts.standalone import execute_commands_from_json
-
-INPUT_USD  = "path/to/asset.usd"
-OUTPUT_USD = "path/to/asset_deduped.usd"
-
-config = [
-    # 1. Hierarchy-level dedup: replace duplicate prim subtrees with
-    #    instanceable internal references to the first instance.
-    {
-        "operation": "deduplicateHierarchies",
-        # "tolerance": 0.001,                    # float tolerance for vertex drift
-        # "paths": ["/World/MySubtree"],         # optional subtree restriction
-        # "ignoreShaderOutputs": True,           # skip outputs:* during value
-        #                                        # comparison; default True
-    },
-    # 2. Per-mesh dedup: catch identical mesh duplicates that the
-    #    hierarchy pass didn't fold (different parents, same geometry).
-    #    duplicateMethod=2 -> Instanceable Reference.
-    {
-        "operation": "deduplicateGeometry",
-        "duplicateMethod": 2,
-        "tolerance": 0.001,
-    },
+```json
+[
+    {"operation": "deduplicateHierarchies"},
+    {"operation": "deduplicateGeometry", "duplicateMethod": 2, "tolerance": 0.001}
 ]
-
-# Opt in to per-level / per-group logging by prepending:
-#   {"operation": "executionContext", "verbose": True}
-# (context flag, not an op argument)
-
-stage = Usd.Stage.Open(INPUT_USD)
-ok = execute_commands_from_json(stage, json.dumps(config))
-if not ok:
-    raise RuntimeError("deduplicateHierarchies pipeline failed — check Usd Optimize log")
-
-# IMPORTANT: save via the root layer, NOT stage.Export().
-# stage.Export() flattens the composed stage and rewrites Usd-instance
-# prototype prims to synthetic root-level names like /Flattened_Prototype_N,
-# which is technically equivalent but loses the authored prototype paths.
-# Root-layer export preserves them.
-stage.GetRootLayer().Export(OUTPUT_USD)
 ```
 
-For a hierarchy-only run (skip per-mesh dedup, faster, less aggressive),
-drop the second config entry. Use this when the user has already run
-`deduplicateGeometry` upstream, or only wants the assembly-level rollup.
+Run it (the binary is self-contained — no `LD_LIBRARY_PATH` / `PYTHONPATH`
+setup needed):
 
-Environment setup (Usd Optimize on `PYTHONPATH`, native libs on `PATH`/`LD_LIBRARY_PATH`)
-is the same as for any other Usd Optimize pipeline — defer to
-`.agents/skills/build/SKILL.md` for a source-tree build or to the
-`prebuilt-package` skill for a packaged runtime. Don't duplicate environment
-setup here.
+```bash
+BIN=_build/linux-x86_64/release/bin/usdOptimize
+"$BIN" -i path/to/asset.usd -c config_presets/hierarchy-dedup.json -w path/to/asset_deduped.usd
+```
+
+Optional `deduplicateHierarchies` arguments (full reference:
+`docs/operations/deduplicateHierarchies.rst`): `tolerance` (float value
+tolerance; `0` = bitwise-exact), `paths` (restrict to subtree roots),
+`ignoreShaderOutputs` (default `true`), `maxDepth`. Pass them with a custom
+config file, or inline with `-o deduplicateHierarchies -a tolerance=0`.
+
+**Do not pass `-fl` / `--flatten`.** The CLI's default `-w` exports the root
+layer, which preserves the authored prototype prim names. Flattening rewrites
+Usd-instance prototypes to synthetic `/Flattened_Prototype_N` names —
+technically equivalent, but it loses the authored paths.
+
+For a hierarchy-only run (faster, less aggressive — use when
+`deduplicateGeometry` already ran upstream, or you only want the assembly-level
+rollup), use a one-entry config or `-o deduplicateHierarchies` directly.
 
 ## Step 4 — Report
 
 After the run completes, summarise for the user:
 
-- **Number of prototype groups found** and **total duplicate prims replaced**.
+- **Number of prototype groups found** and **total duplicate prims replaced**
+  (use `-r` for a report, or `-s` for before/after stats).
 
-If the user asks follow-ups about which prims were affected, run the
-operation in analysis mode to retrieve the `{prototype: [duplicates]}` map.
+If the user asks which prims were affected, re-run with `-an` (analysis mode)
+to retrieve the `{prototype: [duplicates]}` map without mutating the stage.
 
 ## Pre-flight checks
 
@@ -217,9 +179,9 @@ operation in analysis mode to retrieve the `{prototype: [duplicates]}` map.
 
 ## See also
 
-- `.agents/operations/deduplicateHierarchies.md` — the C++ operation guide
-  (parameter reference, starting configs).
-- `.agents/operations/deduplicateGeometry.md` — per-mesh deduplication, the
+- `docs/operations/deduplicateHierarchies.rst` — the operation reference
+  (parameter list, tuning guidance, starting configs).
+- `docs/operations/deduplicateGeometry.rst` — per-mesh deduplication, the
   finer-grained sibling.
 
 ## Purpose
@@ -255,8 +217,8 @@ property-value comparison — safe on any asset.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Operation runs but reports 0 prototype groups | Stage has no default prim, or all subtrees are unique. | Set a default prim (`stage.SetDefaultPrim(...)`) and re-run. Confirm with `analysisMode: 1` to see the candidate map. |
-| Output uses synthetic `/Flattened_Prototype_N` paths | Saved via `stage.Export()` instead of `stage.GetRootLayer().Export()`. | Use root-layer export — see Step 3. |
+| Output uses synthetic `/Flattened_Prototype_N` paths | Ran with `-fl` / `--flatten`. | Drop `-fl`; the default `-w` root-layer export preserves prototype names — see Step 3. |
 | Fewer duplicates found than expected | Floating-point drift from re-export or tessellation may push otherwise-identical subtrees out of bitwise match. | Increase `tolerance` (only affects float arrays and scalar float/double; integer topology always requires exact match). |
-| `RuntimeError: deduplicateHierarchies pipeline failed` | Operation rejected the config (bad arg key) or hit a USD I/O error. | Check the Usd Optimize log; verify argument keys against `.agents/operations/deduplicateHierarchies.md`. |
+| CLI exits non-zero on the config | Operation rejected the config (bad arg key) or hit a USD I/O error. | Check the CLI log; verify argument keys against `docs/operations/deduplicateHierarchies.rst`. |
 | Per-mesh duplicates remain after the run | This op only handles whole hierarchies. | Pair with `deduplicateGeometry` (already in the canonical pipeline shown in Step 3). |
 

@@ -7,7 +7,6 @@ import re
 
 from pxr import UsdGeom
 
-from .scripts import standalone
 from .test_utils import Test_Operation, _get_context, _get_meshes
 
 # MergePointOption values
@@ -331,7 +330,7 @@ class Test_Operation_Merge_Spatial(Test_Operation):
             "spatialThreshold": 500.0,
             "spatialMaxSize": 1000.0,
             "spatialDebug": true }]"""
-        status = standalone.execute_commands_from_json(stage, json)
+        status = self._execute_json_string(stage, json)
         self.assertTrue(status)
 
         # Should be 5 "merged" meshes, and all should now have a displayColor

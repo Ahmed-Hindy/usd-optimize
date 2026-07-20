@@ -5,15 +5,44 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, ClassVar, Dict, List, Mapping, Tuple
+from typing import Any, Callable, ClassVar, Dict, Iterable, List, Mapping, Optional, Tuple, Union
 
 from pxr import Usd
 from usd_optimize.core import analysis
 from usd_validation_nvidia import BaseRuleChecker, ParameterType, ValidationEngine
 
 logger = logging.getLogger(__name__)
+
+# Environment variable that seeds the default verbose state at import time.
+# Accepted truthy values are case-insensitive ``1``/``true``/``yes``/``on``.
+# The perf_validators ``--verbose`` flag and :func:`set_verbose` both override
+# whatever this resolves to.
+_VERBOSE_ENV_VAR = "USD_OPTIMIZE_VALIDATOR_VERBOSE"
+
+# Name of the engine parameter that toggles verbose per-prim reporting. Exposed
+# through the usd-validation-nvidia parameter system so callers driving the
+# ValidationEngine directly (e.g. nvidia_usd_validate) can turn it on without
+# our CLI, e.g. ``--param VERBOSE=true``.
+_VERBOSE_PARAM_NAME = "VERBOSE"
+
+
+def _env_verbose_default() -> bool:
+    """Resolve the initial verbose state from the environment."""
+    return os.environ.get(_VERBOSE_ENV_VAR, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def set_verbose(value: bool = True) -> None:
+    """Toggle per-prim verbose issue emission for all Usd Optimize rules.
+
+    When enabled, rules that otherwise summarize their findings as a single
+    aggregate issue also emit one issue per failing prim (with the prim path in
+    the issue ``Location``). Off by default to keep output volume unchanged.
+    """
+    BaseUsdOptimizeChecker.VERBOSE = bool(value)
+
 
 # Marker set on the patched ``ValidationEngine.parameters`` getter so a
 # subsequent module reload (e.g. Omniverse extension hot-reload) detects the
@@ -31,8 +60,9 @@ class Parameter:
     is forwarded to the backing Usd Optimize operation.
     """
 
-    default: Any
     op_arg: str
+    default: Any
+    description: str = ""
 
 
 @dataclass(frozen=True)
@@ -70,6 +100,18 @@ def _parameter_type(value: Any) -> ParameterType | None:
     return None
 
 
+@dataclass(frozen=True)
+class ParameterFromOpArg:
+    """
+    Placeholder in PARAMETERS, resolved per-subclass once OPERATION_NAME is
+    known
+    """
+
+    op_arg: str
+    default: Any = None
+    description: Optional[str] = None
+
+
 class BaseUsdOptimizeChecker(BaseRuleChecker):
     """Base checker for Usd Optimize analysis
 
@@ -95,6 +137,59 @@ class BaseUsdOptimizeChecker(BaseRuleChecker):
     OPERATION_ARGS: ClassVar[Mapping[str, Any]] = MappingProxyType({})
     PARAMETERS: ClassVar[Mapping[str, Parameter]] = MappingProxyType({})
 
+    # When True, checkers that report an aggregate count also emit one issue per
+    # failing prim so the prim paths land in the issue Location (and CSV).
+    # Toggle via :func:`set_verbose`, the perf_validators ``--verbose`` flag, or
+    # the ``USD_OPTIMIZE_VALIDATOR_VERBOSE`` env var. Seeded from the env at
+    # import; left as a plain class attribute so tests can flip it directly.
+    VERBOSE: ClassVar[bool] = _env_verbose_default()
+
+    @classmethod
+    def _resolve_parameter_from_operation(cls, args_info: List, arg: ParameterFromOpArg) -> Parameter:
+        arg_name = arg.op_arg
+        default_value = arg.default
+        description = arg.description
+        # find the arg in the info from the operation
+        for info in args_info:
+            name = info.get("name", None)
+            if arg_name == name:
+                # resolve default value and description if needed
+                if default_value is None:
+                    default_value = info.get("defaultValue", None)
+                if description is None:
+                    description = info.get("description", "")
+        return Parameter(op_arg=arg_name, default=default_value, description=description)
+
+    @classmethod
+    def _generate_docstring(cls, description: str) -> str:
+        """Build a rule docstring from ``description`` plus this rule's PARAMETERS.
+
+        Returns ``description`` followed by a ``**Parameters:**`` section that
+        lists every entry declared in :attr:`PARAMETERS` (resolved on the
+        derived class via ``cls``) with its per-parameter description and
+        default value. When the rule declares no parameters the description is
+        returned unchanged.
+        """
+        doc = description.strip()
+        if not cls.PARAMETERS:
+            return doc
+
+        lines = [doc, "", "**Parameters:**", ""]
+        for name, param in cls.PARAMETERS.items():
+            detail = ""
+            default_str = ""
+            if param.description:
+                detail = param.description.strip()
+                if detail and not detail.endswith("."):
+                    detail += "."
+                detail += " "
+                if isinstance(param.default, float):
+                    default_str = f"{param.default:.6g}"
+                else:
+                    default_str = str(param.default)
+            lines.append(f"    - `{name}`: {detail}Default: `{default_str}`.")
+        return "\n".join(lines)
+
     @classmethod
     def get_parameter_definitions(cls) -> List[_AssetValidatorParameter]:
         """Return Asset Validator parameter specs for this rule.
@@ -112,7 +207,41 @@ class BaseUsdOptimizeChecker(BaseRuleChecker):
                 continue
             defs.append(_AssetValidatorParameter(name, ptype, param.default))
             defs.append(_AssetValidatorParameter(f"{cls.__name__}.{name}", ptype, param.default))
+
+        # Advertise the global verbose toggle so it is settable through the
+        # usd-validation-nvidia parameter system (in addition to set_verbose()
+        # and the env var). Both an unqualified and a per-rule-qualified form
+        # are offered, mirroring the PARAMETERS handling above.
+        defs.append(_AssetValidatorParameter(_VERBOSE_PARAM_NAME, ParameterType.BOOL, cls.VERBOSE))
+        defs.append(_AssetValidatorParameter(f"{cls.__name__}.{_VERBOSE_PARAM_NAME}", ParameterType.BOOL, cls.VERBOSE))
         return defs
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # first get the args from the operation so we only have to do it once
+        # this is allowed to fail silently since some checkers may not want to
+        # pull args from the operation
+        args_info = []
+        try:
+            from usd_optimize.core import UsdOptimizeCore
+
+            args_info = UsdOptimizeCore.getInstance().getOperationArguments(cls.OPERATION_NAME)
+        except Exception:
+            pass
+        # resolve any ParameterFromOpArg entries in PARAMETERS to regular Parameters
+        resolved = {
+            name: (cls._resolve_parameter_from_operation(args_info, p) if isinstance(p, ParameterFromOpArg) else p)
+            for name, p in cls.PARAMETERS.items()
+        }
+        cls.PARAMETERS = MappingProxyType(resolved)
+
+        # Regenerate the rule docstring from the subclass's own description (the
+        # docstring it declared) with the resolved PARAMETERS appended. Only the
+        # subclass's own docstring is used so we don't re-append to (or inherit)
+        # a parent's already-generated text.
+        own_doc = cls.__dict__.get("__doc__")
+        if own_doc:
+            cls.__doc__ = cls._generate_docstring(own_doc)
 
     def _effective_args(self) -> Dict[str, Any]:
         """Build the op-args dict from OPERATION_ARGS + user-overridden PARAMETERS.
@@ -187,6 +316,59 @@ class BaseUsdOptimizeChecker(BaseRuleChecker):
         suggested_operations = analysis.create_operations_from_analysis_result(analysis_result)
 
         return (operation_result[2].get("analysis"), suggested_operations)
+
+    def _verbose_enabled(self) -> bool:
+        """Resolve verbose state for this check.
+
+        An engine parameter override (``VERBOSE`` or ``<RuleName>.VERBOSE``)
+        wins so callers driving the ValidationEngine directly can toggle it
+        through usd-validation-nvidia's own parameter system; otherwise the
+        class-level :attr:`VERBOSE` flag (set by :func:`set_verbose` or the env
+        var) applies. Reading the parameter mapping is best-effort: rules used
+        outside an engine may not have one.
+
+        The qualified per-rule form (``<RuleName>.VERBOSE``) is checked first so
+        it overrides the unqualified global form, matching the precedence
+        :meth:`_effective_args` gives every other parameter.
+        """
+        mapping = getattr(self, "parameters", None)
+        if mapping is not None:
+            rule_name = type(self).__name__
+            for lookup in (f"{rule_name}.{_VERBOSE_PARAM_NAME}", _VERBOSE_PARAM_NAME):
+                try:
+                    entry = mapping.get(lookup) if hasattr(mapping, "get") else None
+                except Exception:
+                    entry = None
+                # Skip the framework's injected default specs (advertised via
+                # get_parameter_definitions); honoring them would let the
+                # advertised default mask a runtime set_verbose()/env-var toggle.
+                # Only a genuine user-supplied override counts. Mirrors
+                # _effective_args.
+                if entry is None or isinstance(entry, _AssetValidatorParameter):
+                    continue
+                assigned = getattr(entry, "assigned_value", None)
+                if isinstance(assigned, bool):
+                    return assigned
+        return self.VERBOSE
+
+    def _AddVerbosePrimWarnings(
+        self,
+        usdStage: Usd.Stage,
+        paths: Iterable[str],
+        message: Union[str, Callable[[str], str]],
+    ) -> None:
+        """Emit one warning per failing prim, but only in verbose mode.
+
+        Callers keep their existing aggregate summary issue and call this right
+        after it; it is a no-op when verbose is disabled, so the default output
+        is unchanged. ``message`` is either a static string or a callable that
+        takes the prim path and returns the per-prim message.
+        """
+        if not self._verbose_enabled():
+            return
+        for path in paths:
+            text = message(path) if callable(message) else message
+            self._AddWarning(message=text, at=usdStage.GetPrimAtPath(path))
 
     def _CheckStage(self, usdStage: Usd.Stage, analysis: dict):
         """Derived checkers should implement this function.

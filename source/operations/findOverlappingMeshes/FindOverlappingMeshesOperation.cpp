@@ -186,18 +186,9 @@ inline static bool intersectionIsEmpty(const SortedContainerA& A, const SortedCo
 FindOverlappingMeshesOperation::FindOverlappingMeshesOperation()
     : OmniOperation("findOverlappingMeshes",
                     "Find Overlapping Meshes",
-                    "This operation finds interfering geometry in a stage.")
+                    "Finds meshes that overlap with each other and displays the overlapping regions for selected meshes.")
     , m_meshOverlapService(FindOverlappingMeshes::get())
 {
-    // Drop the clashdetector's CUDA buffers at process shutdown, while the
-    // CUDA driver is still alive. Without this, the singleton's static
-    // destructor runs after the driver has torn down and cudaFree throws
-    // (driver-shutting-down error 4) from inside the MeshTools clashdetector
-    // destructor — terminating the process. The Python binding drives this
-    // via Py_AtExit; non-Python embedders are expected to call
-    // UsdOptimizeCore::runShutdownCallbacks() themselves before exit.
-    UsdOptimizeCore::getInstance().registerShutdownCallback([]() { FindOverlappingMeshes::get().shutdown(); });
-
     addArgument("paths", "Meshes to test", kDisplayTypePrimPaths, "Optional list of prim paths to consider", m_meshPrimPaths)
         .setPlaceholder("Add meshes or all will be processed");
 
@@ -312,6 +303,18 @@ FindOverlappingMeshesOperation::FindOverlappingMeshesOperation()
 
 FindOverlappingMeshesOperation::~FindOverlappingMeshesOperation()
 {
+}
+
+std::string FindOverlappingMeshesOperation::getDocumentation() const
+{
+    return "This operation shows which meshes are overlapping in the scene.  "
+           "The intersections are represented in the viewport as a graph "
+           "connecting centroids of overlapping pairs.  The user may select "
+           "any mesh in the viewport to see a detailed visualization of its "
+           "intersections with other meshes. This is updated as the mesh is "
+           "moved or scaled, allowing the user to quickly fix overlapping "
+           "meshes in the scene.  This also works with multiple selected "
+           "meshes or primitives with mesh descendants in the scene hierarchy.";
 }
 
 std::string FindOverlappingMeshesOperation::getAuthor() const

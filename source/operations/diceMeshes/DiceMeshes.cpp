@@ -5,7 +5,7 @@
 
 // OmniMeshOps
 #include <OmniMeshOps/Slice.h>
-#include <OmniMeshOps/usd/MeshData.h>
+#include <OmniMeshOps/UsdIO.h>
 
 // Usd Optimize Core
 #include <usd_optimize/core/Core.h>
@@ -29,7 +29,7 @@ namespace usd_optimize
 constexpr const char* s_categoryDiceMeshes = "DICEMESHES";
 
 DiceMeshesOperation::DiceMeshesOperation()
-    : OmniOperation("diceMeshes", "Dice Meshes", "This operation dices up meshes into a grid.")
+    : OmniOperation("diceMeshes", "Dice Meshes", "Dice meshes to a given regular grid or an irregular one.")
     , m_splitDices(false)
     , m_gridType(GridType::eRegular)
     , m_gridCellSize({ 0, 0, 0 })
@@ -94,6 +94,49 @@ DiceMeshesOperation::DiceMeshesOperation()
                      addArgument("upVectorCy", "Up-vector C y", kDisplayTypeFloatSlider, "Up-vector Z", m_upZ[1]),
                      addArgument("upVectorCz", "Up-vector C z", kDisplayTypeFloatSlider, "Up-vector Z", m_upZ[2])))
         .setVisibleIf("advancedSettings");
+}
+
+
+std::string DiceMeshesOperation::getDocumentation() const
+{
+    return R"DOC(This operation creates new vertices and faces as needed to cut meshes along a regular or
+irregular grid. Each grid cell is self-contained: no part of a sub-mesh extends outside its cell. Dicing
+a large or spatially sparse mesh into cells lets a renderer cull and load it in pieces.
+
+.. Caution:: To create separate mesh prims after dicing, use the :doc:`Split Meshes<splitMeshes>`
+   operation or enable ``splitDices`` to split the diced geometry.
+
+Grid definition
+---------------
+
+``gridType`` selects ``0`` (*Regular*) or ``1`` (*Irregular*). For a regular grid, ``gridCellX/Y/Z`` set
+the cell size along each axis (a value of ``0`` means "do not cut on that axis"), and ``gridOriginX/Y/Z``
+shift the grid. For an irregular grid, ``cutHeightsX/Y/Z`` are space-separated lists of cut positions
+along each axis. The up-vector arguments are advanced settings (``advancedSettings``) that rotate the
+cutting frame away from the world axes.
+
+Scale and units
+---------------
+
+``gridCell*``, ``gridOrigin*``, and the cut heights are in **stage units**, so scale them with the
+stage's ``metersPerUnit``. A good starting cell size is roughly one tenth of the median mesh extent:
+smaller cells cull better but raise prim/face count, larger cells do the opposite.
+
+Starting configurations
+-----------------------
+
+Regular grid, uniform 100-unit cells, split into separate prims:
+
+.. code-block:: json
+
+    [{"operation": "diceMeshes", "gridType": 0, "gridCellX": 100.0, "gridCellY": 100.0, "gridCellZ": 100.0, "splitDices": true}]
+
+Coarser cells (fewer, larger pieces):
+
+.. code-block:: json
+
+    [{"operation": "diceMeshes", "gridType": 0, "gridCellX": 500.0, "gridCellY": 500.0, "gridCellZ": 500.0}]
+)DOC";
 }
 
 
@@ -188,12 +231,12 @@ void DiceMeshesOperation::executePost(const TotalStats& totalStats)
 
 ProcessedData* DiceMeshesOperation::processMesh(const UsdPrim& prim, tbb::task_group_context&)
 {
-    using namespace omo::usd;
+    using namespace omo;
 
     try
     {
         UsdGeomMesh usd_mesh(prim);
-        HostMeshData mesh(usd_mesh, { omo::Defect::None });
+        auto mesh = importMeshData(usd_mesh, { omo::noDefects });
         HostMeshData diced_mesh;
 
         if (m_gridType == GridType::eRegular)

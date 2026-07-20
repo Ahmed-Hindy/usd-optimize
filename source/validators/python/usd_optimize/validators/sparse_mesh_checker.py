@@ -16,10 +16,12 @@ from .base_usd_optimize_checker import BaseUsdOptimizeChecker
 @register_requirements(capabilities.GeometryRequirements.VG_004, capabilities.GeometryRequirements.VG_005)
 class SparseMeshChecker(BaseUsdOptimizeChecker):
     """
-    Finds mesh prims that are considered sparse, this can be due to density of the geometry volume in relation to the
-    extent volume, or prims with many sparse disjoint meshes.
-    These prims will be either identified as needing to be diced, split, or clustered together with other similar
-    sparse meshes within the scene.
+    Finds mesh prims that are considered sparse, this can be due to density of
+    the geometry volume in relation to the extent volume, or prims with many
+    sparse disjoint meshes.
+
+    These prims will be either identified as needing to be diced, split, or
+    clustered together with other similar sparse meshes within the scene.
     """
 
     OPERATION_NAME: str = "sparseMeshes"

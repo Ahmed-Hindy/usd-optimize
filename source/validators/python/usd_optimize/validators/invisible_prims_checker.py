@@ -17,7 +17,7 @@ REMOVE_METHOD_DEACTIVATE = 2
 @register_requirements(capabilities.GeometryRequirements.VG_034)
 class InvisiblePrimsChecker(BaseUsdOptimizeChecker):
     """
-    Uses Usd Optimize to find invisible prims in the stage that can be deactivated instead.
+    Finds invisible prims in the stage that can be deactivated instead.
     """
 
     OPERATION_NAME: str = "removePrims"

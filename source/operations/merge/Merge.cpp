@@ -34,19 +34,7 @@ constexpr const char* s_categoryMerge = "MERGE";
 
 
 MergeOperation::MergeOperation()
-    : Operation("merge",
-                "Merge Static Meshes",
-                "The merge static meshes operation replaces multiple meshes that share common properties with a "
-                "single merged mesh. This reduces scene prim count and can improve overall stage performance. "
-                "Spatial clustering can further subdivide merges to keep merged meshes a reasonable size. The "
-                "supported spatial modes are: None (no spatial grouping), BoundingBox (group meshes within a "
-                "distance threshold, capping cluster size), VertexCount (cap the vertex count per merged mesh), and "
-                "CoincidentBoundary (only merge meshes that share a seam). In CoincidentBoundary mode two meshes are "
-                "merged only when they share at least boundaryMinSharedVertices boundary vertices that coincide in "
-                "world space within boundaryTolerance, where a boundary vertex is one lying on a boundary edge (an "
-                "edge used by exactly one face). Connectivity is transitive, so a chain of abutting meshes collapses "
-                "into one, while meshes that share no seam are left untouched. This targets bad CAD output where a "
-                "single part is exported as several abutting pieces, such as a washer split into two half-rings.")
+    : Operation("merge", "Merge Static Meshes", "Merge individual meshes.")
 {
     addArgument("meshPrimPaths",
                 "Static Meshes to Merge",
@@ -74,6 +62,50 @@ MergeOperation::MergeOperation()
 
 
 MergeOperation::~MergeOperation(){};
+
+
+std::string MergeOperation::getDocumentation() const
+{
+    return R"DOC(The merge static meshes operation replaces multiple meshes that
+share common properties with a single merged mesh. This reduces scene prim count
+and can improve overall stage performance.
+
+Spatial clustering can further subdivide merges to keep merged meshes a
+reasonable size. The supported spatial modes are: None (no spatial grouping),
+BoundingBox (group meshes within a distance threshold, capping cluster size),
+VertexCount (cap the vertex count per merged mesh), and CoincidentBoundary (only
+merge meshes that share a seam).
+
+In CoincidentBoundary mode two meshes are merged only when they share at least
+boundaryMinSharedVertices boundary vertices that coincide in world space within
+boundaryTolerance, where a boundary vertex is one lying on a boundary edge (an
+edge used by exactly one face). Connectivity is transitive, so a chain of
+abutting meshes collapses into one, while meshes that share no seam are left
+untouched. This targets bad CAD output where a single part is exported as
+several abutting pieces, such as a washer split into two half-rings.
+
+Recommended pipelines
+---------------------
+
+Merge then ``computeExtents`` (to author bounds on the new prims); merge then ``shrinkwrap`` to turn a
+group of parts into one watertight shell.
+
+Starting configurations
+-----------------------
+
+Merge everything by material:
+
+.. code-block:: json
+
+    [{"operation": "merge", "considerMaterials": true}]
+
+Spatial merge capped by vertex count:
+
+.. code-block:: json
+
+    [{"operation": "merge", "spatialMode": 2, "spatialVertexCount": 50000}]
+)DOC";
+}
 
 
 std::string MergeOperation::getAuthor() const

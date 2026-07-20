@@ -148,6 +148,41 @@ class Test_Operation_Flatten_Hierarchy(Test_Operation):
         prim = stage.GetPrimAtPath("/Keep_Rel/Keep_Rel_1/Keep_Rel_2/Keep_Rel_3")
         self.assertTrue(prim)
 
+    async def test_flatten_single_root_preserves_default_prim(self):
+        """Flattening a stage whose only root prim is the defaultPrim must not
+        collapse that root into the pseudo-root, which would leave the stage's
+        defaultPrim metadata dangling (invalid USD). Descendants should still
+        flatten normally."""
+
+        args = DEFAULT_ARGS.copy()
+
+        stage = self._open_stage("flattenHierarchySingleRoot.usda")
+
+        # Precondition: single root prim which is the (valid) defaultPrim.
+        self.assertEqual(stage.GetDefaultPrim().GetPath(), "/RootAsset")
+        self.assertTrue(stage.GetDefaultPrim().IsValid())
+        cache = UsdGeom.XformCache()
+        geo_before = cache.GetLocalToWorldTransform(stage.GetPrimAtPath("/RootAsset/Wrapper/Geo"))
+
+        self._execute_command(args)
+
+        # The root prim (and thus the defaultPrim) must survive.
+        self.assertTrue(stage.GetPrimAtPath("/RootAsset"))
+        self.assertTrue(stage.GetDefaultPrim().IsValid())
+        self.assertEqual(stage.GetDefaultPrim().GetPath(), "/RootAsset")
+
+        # Root prims must not be scattered up to the pseudo-root.
+        top_level = [p.GetName() for p in stage.GetPseudoRoot().GetChildren()]
+        self.assertEqual(top_level, ["RootAsset"])
+
+        # Flattening still happens inside the root: the redundant Wrapper is gone
+        # and Geo has been reparented directly under the root, world-space intact.
+        self.assertFalse(stage.GetPrimAtPath("/RootAsset/Wrapper"))
+        self.assertTrue(stage.GetPrimAtPath("/RootAsset/Geo"))
+        cache.Clear()
+        geo_after = cache.GetLocalToWorldTransform(stage.GetPrimAtPath("/RootAsset/Geo"))
+        self.assertEqual(geo_before, geo_after)
+
     async def test_flatten_path(self):
         """Test flattening a subset of the stage"""
 
