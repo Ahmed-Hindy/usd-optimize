@@ -78,6 +78,61 @@ CHECKS = {
     """,
 }
 
+EXTERNAL_OPERATION_MATRIX_CHECK = """
+    import json
+    import os
+    from pathlib import Path
+    import re
+
+    from pxr import Usd
+    from usd_optimize.core import ExecutionContext, UsdOptimizeCore
+
+    def validate_stage(stage, asset, asset_path):
+        assert stage, f"failed to open {asset_path}"
+        prims = list(stage.TraverseAll())
+        assert prims, f"asset has no traversable prims: {asset_path}"
+        for prim_path in asset.get("expected_prims", []):
+            assert stage.GetPrimAtPath(prim_path), f"{asset['name']} is missing {prim_path}"
+        return len(prims)
+
+    manifest = json.loads(Path(os.environ["USD_OPTIMIZE_EXTERNAL_ASSET_MANIFEST"]).read_text(encoding="utf-8"))
+    matrix = json.loads(Path(os.environ["USD_OPTIMIZE_EXTERNAL_OPERATION_MATRIX"]).read_text(encoding="utf-8"))
+    assets_root = Path(os.environ["USD_OPTIMIZE_EXTERNAL_ASSETS_DIR"])
+    assets = [asset for asset in manifest["assets"] if asset.get("smoke", True)]
+    operations = matrix["operations"]
+    assert assets, "external asset manifest has no smoke assets"
+    assert operations, "operation matrix has no operations"
+    core = UsdOptimizeCore.getInstance()
+    completed = 0
+
+    for asset in assets:
+        asset_path = assets_root / asset["relative_path"]
+        for operation in operations:
+            stage = Usd.Stage.Open(str(asset_path))
+            source_prim_count = validate_stage(stage, asset, asset_path)
+            context = ExecutionContext()
+            assert context.set_stage(stage)
+            results = core.executeConfig(context, operation["commands"])
+            assert all(success for success, _error, _output in results), (asset["name"], operation["name"], results)
+
+            output_name = f".{asset_path.stem}.release_smoke_{operation['name']}.usda"
+            output_path = asset_path.with_name(re.sub(r"[^A-Za-z0-9_.-]+", "_", output_name))
+            try:
+                assert stage.GetRootLayer().Export(str(output_path)), output_path
+                output_stage = Usd.Stage.Open(str(output_path))
+                output_prim_count = validate_stage(output_stage, asset, output_path)
+                if operation.get("preserve_prim_count", True):
+                    assert output_prim_count == source_prim_count, (
+                        asset["name"], operation["name"], source_prim_count, output_prim_count
+                    )
+            finally:
+                output_path.unlink(missing_ok=True)
+            completed += 1
+            print(f"external matrix passed: {operation['name']} on {asset['name']}")
+
+    print(f"external operation matrix completed {completed} runs")
+"""
+
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments.
@@ -100,6 +155,9 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Keep a temporary archive extraction for inspection.",
     )
+    parser.add_argument("--external-asset-manifest", type=Path, help="Checksum-pinned external asset manifest.")
+    parser.add_argument("--external-assets-dir", type=Path, help="Directory holding downloaded external assets.")
+    parser.add_argument("--external-operation-matrix", type=Path, help="Conservative operation matrix JSON file.")
     return parser.parse_args()
 
 
@@ -142,12 +200,21 @@ def validate_package_root(package_root: Path) -> list[str]:
     return [f"Missing package path: {path}" for path in expected_paths if not (package_root / path).exists()]
 
 
-def make_environment(package_root: Path, overlap_fixture: Path) -> dict[str, str]:
+def make_environment(
+    package_root: Path,
+    overlap_fixture: Path,
+    external_asset_manifest: Path | None = None,
+    external_assets_dir: Path | None = None,
+    external_operation_matrix: Path | None = None,
+) -> dict[str, str]:
     """Create a clean child-process environment for package loading.
 
     Args:
         package_root: Extracted package root directory.
         overlap_fixture: USD fixture for the targeted overlap check.
+        external_asset_manifest: Optional checksum-pinned external asset manifest.
+        external_assets_dir: Optional cache containing the external assets.
+        external_operation_matrix: Optional conservative operation matrix.
 
     Returns:
         Environment values for Python and CLI smoke subprocesses.
@@ -163,6 +230,10 @@ def make_environment(package_root: Path, overlap_fixture: Path) -> dict[str, str
     )
     environment["PYTHONUTF8"] = "1"
     environment["USD_OPTIMIZE_OVERLAP_FIXTURE"] = str(overlap_fixture)
+    if external_asset_manifest:
+        environment["USD_OPTIMIZE_EXTERNAL_ASSET_MANIFEST"] = str(external_asset_manifest)
+        environment["USD_OPTIMIZE_EXTERNAL_ASSETS_DIR"] = str(external_assets_dir)
+        environment["USD_OPTIMIZE_EXTERNAL_OPERATION_MATRIX"] = str(external_operation_matrix)
     return environment
 
 
@@ -249,6 +320,26 @@ def main() -> int:
         print(f"Missing overlap fixture: {fixture}", flush=True)
         return 1
 
+    external_paths = (args.external_asset_manifest, args.external_assets_dir, args.external_operation_matrix)
+    if any(external_paths) and not all(external_paths):
+        print(
+            "External matrix requires --external-asset-manifest, --external-assets-dir, and "
+            "--external-operation-matrix together.",
+            flush=True,
+        )
+        return 1
+    if all(external_paths):
+        external_manifest = args.external_asset_manifest.resolve()
+        external_assets = args.external_assets_dir.resolve()
+        external_matrix = args.external_operation_matrix.resolve()
+        if not external_manifest.is_file() or not external_assets.is_dir() or not external_matrix.is_file():
+            print("External matrix manifest, assets directory, or operation matrix is missing.", flush=True)
+            return 1
+    else:
+        external_manifest = None
+        external_assets = None
+        external_matrix = None
+
     temporary_directory = None
     if args.package_root:
         package_root = args.package_root.resolve()
@@ -268,8 +359,10 @@ def main() -> int:
 
         print(f"Package root: {package_root}", flush=True)
         print(f"Python executable: {sys.executable}", flush=True)
-        environment = make_environment(package_root, fixture)
+        environment = make_environment(package_root, fixture, external_manifest, external_assets, external_matrix)
         results = [run_python_check(name, source, environment) for name, source in CHECKS.items()]
+        if external_manifest:
+            results.append(run_python_check("external_operation_matrix", EXTERNAL_OPERATION_MATRIX_CHECK, environment))
         results.append(run_cli_check(package_root, fixture, environment))
         return 0 if all(results) else 1
     finally:

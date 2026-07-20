@@ -13,6 +13,11 @@ on:
         required: true
         default: "*usd_25.11_py_3.12@*.windows-x86_64.release.zip"
         type: string
+      run_external_matrix:
+        description: "Run 42 conservative operations on checksum-pinned external USD assets"
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -22,6 +27,8 @@ jobs:
     name: Windows package smoke (${{ inputs.release_tag }})
     runs-on: windows-2022
     timeout-minutes: 30
+    env:
+      EXTERNAL_ASSETS_DIR: ${{ runner.temp }}\usd-optimize-external-assets
 
     steps:
       - name: Check out smoke harness
@@ -51,13 +58,39 @@ jobs:
           }
           "archive=$($archives[0].FullName)" >> $env:GITHUB_OUTPUT
 
+      - name: Restore external USD asset cache
+        if: ${{ inputs.run_external_matrix }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.EXTERNAL_ASSETS_DIR }}
+          key: usd-optimize-release-smoke-assets-${{ hashFiles('tools/release_smoke/external_usd_assets.json') }}
+
+      - name: Download external USD assets
+        if: ${{ inputs.run_external_matrix }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python tools/release_smoke/download_external_assets.py `
+            --manifest tools/release_smoke/external_usd_assets.json `
+            --assets-dir "${{ env.EXTERNAL_ASSETS_DIR }}"
+
       - name: Smoke-test the released package
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          python tools/release_smoke/windows_package_smoke.py `
-            --package-archive "${{ steps.package.outputs.archive }}" `
-            --overlap-fixture-usd source/tests/data/sphere_clashes_frame.usda 2>&1 |
+          $arguments = @(
+            "tools/release_smoke/windows_package_smoke.py",
+            "--package-archive", "${{ steps.package.outputs.archive }}",
+            "--overlap-fixture-usd", "source/tests/data/sphere_clashes_frame.usda"
+          )
+          if ("${{ inputs.run_external_matrix }}" -eq "true") {
+            $arguments += @(
+              "--external-asset-manifest", "tools/release_smoke/external_usd_assets.json",
+              "--external-assets-dir", "${{ env.EXTERNAL_ASSETS_DIR }}",
+              "--external-operation-matrix", "tools/release_smoke/safe_operation_matrix.json"
+            )
+          }
+          & python @arguments 2>&1 |
             Tee-Object -FilePath release-package-smoke.log
           if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
